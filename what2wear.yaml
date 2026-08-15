@@ -1,0 +1,27 @@
+# The wardrobe, hand-authored. The tool reads this file and never writes it.
+
+# Which weekdays are office days. Everything else, weekends included, is a home day.
+office_weekdays: [mon, wed, fri]
+
+office:
+  # The date, and the shirt worn on it. Every position is counted from here.
+  anchor: { date: 2026-08-17, shirt: dblue }
+  shirts:
+    - { name: white, pants: blue }
+    - { name: black, pants: tan }
+    - { name: lblue, pants: black }
+    - { name: striped, pants: blue }
+    - { name: dblue, pants: tan }
+
+home:
+  anchor: { date: 2026-08-15, shirt: lgreen }
+  shirts:
+    - { name: white, pants: blue }
+    - { name: brown, pants: black }
+    - { name: dgreen, pants: tan }
+    - { name: black, pants: blue }
+    - { name: purple, pants: black }
+    - { name: dblue, pants: tan }
+    - { name: beige, pants: blue }
+    - { name: lblue, pants: black }
+    - { name: lgreen, pants: tan }
