@@ -17,6 +17,15 @@ class State:
     home: Closet
     office_weekdays: frozenset[int]
 
+    def day_type(self, on: date) -> DayType:
+        """Office Days follow the weekday pattern; every other date is
+        a Home Day."""
+        return (
+            DayType.OFFICE
+            if on.weekday() in self.office_weekdays
+            else DayType.HOME
+        )
+
     def closet_for(self, day_type: DayType) -> Closet:
         return self.office if day_type is DayType.OFFICE else self.home
 

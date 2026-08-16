@@ -13,7 +13,7 @@ from typing import Annotated
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
-from what2wear.model import Closet, PantsRow, Shirt, State
+from what2wear.model import Closet, DayType, PantsRow, Shirt, State
 
 WEEKDAYS = {
     "mon": 0,
@@ -166,12 +166,12 @@ def _weekdays(names: list[str]) -> frozenset[int]:
 def _check_anchor_day_types(state: State) -> None:
     """An Anchor Date has to be a day of its own Closet's kind, or it
     counts nothing."""
-    if state.office.anchor_date.weekday() not in state.office_weekdays:
+    if state.day_type(state.office.anchor_date) is not DayType.OFFICE:
         raise ConfigError(
             f"office anchor: {state.office.anchor_date} is not an"
             " office day under office_weekdays"
         )
-    if state.home.anchor_date.weekday() in state.office_weekdays:
+    if state.day_type(state.home.anchor_date) is not DayType.HOME:
         raise ConfigError(
             f"home anchor: {state.home.anchor_date} is not a home day"
             " under office_weekdays"

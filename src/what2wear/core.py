@@ -27,7 +27,7 @@ def handle(command: Show, state: State, today: date) -> Response:
     on = today if command.on is None else command.on
     return (
         _office_response(state, on)
-        if _day_type(state, on) is DayType.OFFICE
+        if state.day_type(on) is DayType.OFFICE
         else _home_response(state, on)
     )
 
@@ -67,7 +67,7 @@ def _office_days_of_week(state: State, on: date) -> tuple[date, ...]:
     monday = on - timedelta(days=on.weekday())
     week = (monday + timedelta(days=offset) for offset in range(7))
     return tuple(
-        day for day in week if _day_type(state, day) is DayType.OFFICE
+        day for day in week if state.day_type(day) is DayType.OFFICE
     )
 
 
@@ -153,16 +153,6 @@ def _days_of_type_between(
     )
     tail = start + timedelta(days=whole_weeks * 7)
     return whole_weeks * per_week + sum(
-        _day_type(state, tail + timedelta(days=offset)) is day_type
+        state.day_type(tail + timedelta(days=offset)) is day_type
         for offset in range(remaining_days)
-    )
-
-
-def _day_type(state: State, on: date) -> DayType:
-    """Office Days follow the weekday pattern; every other date is a
-    Home Day."""
-    return (
-        DayType.OFFICE
-        if on.weekday() in state.office_weekdays
-        else DayType.HOME
     )
