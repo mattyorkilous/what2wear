@@ -8,15 +8,15 @@ Scope is deliberately narrow — Shirt and pants only. No sweaters, no shoes, no
 
 **Blocked by:** None — can start immediately.
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Bare invocation prints today's Shirt, its pants, and the day's type
-- [ ] A date argument prints the same for any date, including dates years out
-- [ ] Office Days follow a configurable weekday pattern; every other date is a Home Day, weekends included
-- [ ] Each Closet has its own Anchor Date, authored as a date plus the Shirt worn that day
-- [ ] The Office Rotation advances only on Office Days and the Home Rotation only on Home Days; each wraps at the end of its Closet
-- [ ] Closets, the weekday pattern and the Anchor Dates are loaded from YAML and validated at the boundary; malformed config fails with a clear message
-- [ ] The YAML is never rewritten by the tool
-- [ ] All domain logic sits behind one pure entry point taking the parsed state and the date as arguments — the shell reads files, reads the clock and prints, and does nothing else
-- [ ] Tests drive that entry point with in-memory state and an explicit date; no files, no network, no clock, no mocks
-- [ ] The agreed Aug 15–24 2026 sequence is asserted for Shirt and pants, covering the home wrap from lgreen back to white
+- [x] Bare invocation prints today's Shirt, its pants, and the day's type
+- [x] A date argument prints the same for any date, including dates years out
+- [x] Office Days follow a configurable weekday pattern; every other date is a Home Day, weekends included
+- [x] Each Closet has its own Anchor Date, authored as a date plus the Shirt worn that day
+- [x] The Office Rotation advances only on Office Days and the Home Rotation only on Home Days; each wraps at the end of its Closet
+- [x] Closets, the weekday pattern and the Anchor Dates are loaded from YAML and validated at the boundary; malformed config fails with a clear message
+- [x] The YAML is never rewritten by the tool
+- [x] All domain logic sits behind one pure entry point taking the parsed state and the date as arguments — the shell reads files, reads the clock and prints, and does nothing else
+- [x] Tests drive that entry point with in-memory state and an explicit date; no files, no network, no clock, no mocks
+- [x] The agreed Aug 15–24 2026 sequence is asserted for Shirt and pants, covering the home wrap from lgreen back to white

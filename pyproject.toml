@@ -7,11 +7,37 @@ authors = [
     { name = "Matt Yorkilous", email = "matt_yorkilous@yahoo.com" }
 ]
 requires-python = ">=3.14"
-dependencies = []
+dependencies = [
+    "pydantic>=2.13.4",
+    "pyyaml>=6.0.3",
+]
 
 [project.scripts]
 what2wear = "what2wear:main"
 
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# Import the package from the source tree rather than the installed
+# copy, so the suite runs the same whether or not the project has
+# been installed.
+pythonpath = ["src", "tests"]
+
+[tool.ruff]
+line-length = 72
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.ruff.lint.isort]
+# `wardrobe` is the in-memory test wardrobe under tests/, not a dependency.
+known-first-party = ["what2wear", "wardrobe"]
+
 [build-system]
 requires = ["uv_build>=0.10.9,<0.11.0"]
 build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "ruff>=0.16.3",
+]
