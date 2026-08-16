@@ -1,3 +1,0 @@
-from what2wear.cli import main
-
-__all__ = ["main"]

@@ -16,7 +16,6 @@ from what2wear.model import (
     DayType,
     PantsRow,
     Shirt,
-    Show,
     State,
 )
 
@@ -31,26 +30,17 @@ class TestDayType:
             date(2026, 8, 19),
             date(2026, 8, 21),
         ):
-            assert (
-                handle(Show(on=day), s, today=day).day_type
-                is DayType.OFFICE
-            )
+            assert handle(day, s, today=day).day_type is DayType.OFFICE
 
     def test_every_other_weekday_is_a_home_day(self) -> None:
         s = _state(office_weekdays=frozenset({MON, WED, FRI}))
         for day in (date(2026, 8, 18), date(2026, 8, 20)):
-            assert (
-                handle(Show(on=day), s, today=day).day_type
-                is DayType.HOME
-            )
+            assert handle(day, s, today=day).day_type is DayType.HOME
 
     def test_weekends_are_home_days(self) -> None:
         s = _state()
         for day in (date(2026, 8, 15), date(2026, 8, 16)):
-            assert (
-                handle(Show(on=day), s, today=day).day_type
-                is DayType.HOME
-            )
+            assert handle(day, s, today=day).day_type is DayType.HOME
 
     def test_the_weekday_pattern_is_configurable(self) -> None:
         s = _state(
@@ -60,26 +50,22 @@ class TestDayType:
         )
         tuesday, monday = date(2026, 8, 18), date(2026, 8, 17)
         assert (
-            handle(Show(on=tuesday), s, today=tuesday).day_type
-            is DayType.OFFICE
+            handle(tuesday, s, today=tuesday).day_type is DayType.OFFICE
         )
-        assert (
-            handle(Show(on=monday), s, today=monday).day_type
-            is DayType.HOME
-        )
+        assert handle(monday, s, today=monday).day_type is DayType.HOME
 
 
 class TestBareInvocation:
     def test_no_date_resolves_today(self) -> None:
         s = _state()
         today = date(2026, 8, 17)
-        assert handle(Show(), s, today=today) == handle(
-            Show(on=today), s, today=today
+        assert handle(None, s, today=today) == handle(
+            today, s, today=today
         )
 
     def test_the_response_carries_the_date_it_resolved(self) -> None:
         s = _state()
-        assert handle(Show(), s, today=date(2026, 8, 19)).on == date(
+        assert handle(None, s, today=date(2026, 8, 19)).on == date(
             2026, 8, 19
         )
 
@@ -91,7 +77,7 @@ class TestRotation:
         )
         assert (
             handle(
-                Show(on=date(2026, 8, 17)), s, today=date(2026, 8, 17)
+                date(2026, 8, 17), s, today=date(2026, 8, 17)
             ).outfit.shirt
             == "o2"
         )
@@ -101,7 +87,7 @@ class TestRotation:
     ) -> None:
         s = _state()
         worn = [
-            handle(Show(on=day), s, today=day).outfit.shirt
+            handle(day, s, today=day).outfit.shirt
             for day in (
                 date(2026, 8, 17),
                 date(2026, 8, 19),
@@ -118,7 +104,7 @@ class TestRotation:
         # Tue 18th at home.
         assert (
             handle(
-                Show(on=date(2026, 8, 19)), s, today=date(2026, 8, 19)
+                date(2026, 8, 19), s, today=date(2026, 8, 19)
             ).outfit.shirt
             == "o2"
         )
@@ -132,7 +118,7 @@ class TestRotation:
             ]
         )
         worn = [
-            handle(Show(on=day), s, today=day).outfit.shirt
+            handle(day, s, today=day).outfit.shirt
             for day in (
                 date(2026, 8, 15),
                 date(2026, 8, 16),
@@ -147,7 +133,7 @@ class TestRotation:
         # round to o1.
         assert (
             handle(
-                Show(on=date(2026, 8, 24)), s, today=date(2026, 8, 24)
+                date(2026, 8, 24), s, today=date(2026, 8, 24)
             ).outfit.shirt
             == "o1"
         )
@@ -157,7 +143,7 @@ class TestRotation:
     ) -> None:
         s = _state()
         worn = [
-            handle(Show(on=day), s, today=day).outfit.shirt
+            handle(day, s, today=day).outfit.shirt
             for day in (date(2026, 8, 12), date(2026, 8, 14))
         ]
         assert worn == ["o2", "o3"]
@@ -171,7 +157,7 @@ class TestRotation:
             ]
         )
         outfit = handle(
-            Show(on=date(2026, 8, 19)), s, today=date(2026, 8, 19)
+            date(2026, 8, 19), s, today=date(2026, 8, 19)
         ).outfit
         assert (outfit.shirt, outfit.pants) == ("o2", "navy")
 
@@ -190,7 +176,7 @@ class TestRotation:
         # the office rotation has advanced 783 days -- a multiple of
         # 3 -- and sits back at o1.
         s = _state()
-        assert handle(Show(on=day), s, today=day).outfit.shirt == shirt
+        assert handle(day, s, today=day).outfit.shirt == shirt
 
 
 def _state(

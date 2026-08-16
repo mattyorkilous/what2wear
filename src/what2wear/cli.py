@@ -8,12 +8,12 @@ import argparse
 import os
 import sys
 from collections.abc import Sequence
-from datetime import date, datetime
+from datetime import date
 from pathlib import Path
 
 from what2wear.config import ConfigError, load_state
 from what2wear.core import handle
-from what2wear.model import Response, Show
+from what2wear.model import Response
 
 CONFIG_ENV_VAR = "WHAT2WEAR_CONFIG"
 DEFAULT_CONFIG = Path("what2wear.yaml")
@@ -30,7 +30,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     except ConfigError as error:
         print(error, file=sys.stderr)
         return 2
-    print(_render(handle(Show(on=args.on), state, today=date.today())))
+    print(_render(handle(args.on, state, today=date.today())))
     return 0
 
 
@@ -84,7 +84,7 @@ def _render(response: Response) -> str:
 
 def _date(text: str) -> date:
     try:
-        return datetime.strptime(text, "%Y-%m-%d").date()
+        return date.fromisoformat(text)
     except ValueError:
         raise argparse.ArgumentTypeError(
             f"{text!r} is not a date of the form YYYY-MM-DD"

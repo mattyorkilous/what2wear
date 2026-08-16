@@ -169,10 +169,14 @@ class TestValidation:
     def test_a_week_with_no_home_days_is_rejected(
         self, tmp_path: Path
     ) -> None:
+        # Caught as the home anchor being an office day, which is the
+        # only shape the emptiness can take.
         text = VALID.replace(
             "[mon, wed, fri]", "[mon, tue, wed, thu, fri, sat, sun]"
         )
-        with pytest.raises(ConfigError, match="leaving no home days"):
+        with pytest.raises(
+            ConfigError, match="2026-08-15 is not a home day"
+        ):
             load_state(_write(tmp_path, text))
 
     def test_a_repeated_weekday_is_not_mistaken_for_a_longer_week(

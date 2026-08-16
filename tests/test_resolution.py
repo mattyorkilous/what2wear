@@ -12,7 +12,7 @@ import pytest
 
 from wardrobe import WARDROBE
 from what2wear.core import handle
-from what2wear.model import Outfit, Response, Show, State
+from what2wear.model import Outfit, Response, State
 
 MON, TUE, WED, THU = 0, 1, 2, 3
 
@@ -178,4 +178,4 @@ def _outfit(on: date, state: State = WARDROBE) -> Outfit:
 
 
 def _response(on: date, state: State = WARDROBE) -> Response:
-    return handle(Show(on=on), state, today=date(2026, 8, 15))
+    return handle(on, state, today=date(2026, 8, 15))

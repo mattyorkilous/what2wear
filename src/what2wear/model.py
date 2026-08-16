@@ -26,9 +26,6 @@ class State:
             else DayType.HOME
         )
 
-    def closet_for(self, day_type: DayType) -> Closet:
-        return self.office if day_type is DayType.OFFICE else self.home
-
 
 @dataclass(frozen=True)
 class Closet:
@@ -37,6 +34,9 @@ class Closet:
 
     The anchor is authored the way it is spoken -- a date and the
     Shirt worn on that date -- rather than as a Position.
+
+    The lookups below assume a Closet that came through the config
+    boundary, which is what makes every one of them total.
     """
 
     shirts: tuple[Shirt, ...]
@@ -45,16 +45,14 @@ class Closet:
     anchor_shirt: str
 
     def index_of(self, name: str) -> int:
-        for index, shirt in enumerate(self.shirts):
-            if shirt.name == name:
-                return index
-        raise ValueError(f"no shirt named {name!r} in this closet")
+        return next(
+            index
+            for index, shirt in enumerate(self.shirts)
+            if shirt.name == name
+        )
 
     def row_for(self, pants: str) -> PantsRow:
-        for row in self.pants:
-            if row.pants == pants:
-                return row
-        raise ValueError(f"no row for {pants!r} pants in this closet")
+        return next(row for row in self.pants if row.pants == pants)
 
     def row_wearing(self, sweater: str) -> PantsRow:
         """The row this sweater belongs to.
@@ -63,10 +61,7 @@ class Closet:
         boundary refuses a Closet where they don't -- so a Fallback
         can be traced back to the row whose shoes it borrows.
         """
-        for row in self.pants:
-            if row.sweater == sweater:
-                return row
-        raise ValueError(f"no row wears {sweater!r} in this closet")
+        return next(row for row in self.pants if row.sweater == sweater)
 
 
 @dataclass(frozen=True)
@@ -100,13 +95,6 @@ class DayType(StrEnum):
 
     OFFICE = "office"
     HOME = "home"
-
-
-@dataclass(frozen=True)
-class Show:
-    """Show the Outfit for a date, defaulting to today."""
-
-    on: date | None = None
 
 
 @dataclass(frozen=True)
