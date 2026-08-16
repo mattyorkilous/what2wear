@@ -21,12 +21,25 @@ office:
   shirts:
     - { name: oxford, pants: tan }
     - { name: chambray, pants: navy }
+    - { name: denim, pants: olive }
+  pants:
+    tan: { sweater: cream, shoes: brogues, fallback: charcoal }
+    navy: { sweater: charcoal, shoes: loafers }
+    olive: { sweater: rust, shoes: boots }
 
 home:
   anchor: { date: 2026-08-15, shirt: tee }
   shirts:
     - { name: tee, pants: shorts }
+  pants:
+    shorts: { sweater: hoodie, jacket: anorak, shoes: sandals }
 """
+
+# Two office shirts and three office days, so the week runs out of
+# sweaters on the Friday however it is walked.
+REPEATING_CONFIG = CONFIG_TEXT.replace(
+    "    - { name: denim, pants: olive }\n", ""
+).replace("    olive: { sweater: rust, shoes: boots }\n", "")
 
 
 @pytest.fixture
@@ -47,16 +60,20 @@ def config(tmp_path: Path) -> Path:
             "2026-08-21",
             [
                 "Fri 21 Aug 2026 - office day",
-                "  shirt  oxford",
-                "  pants  tan",
+                "  shirt    denim",
+                "  pants    olive",
+                "  sweater  rust",
+                "  shoes    boots",
             ],
         ),
         (
             "2026-08-22",
             [
                 "Sat 22 Aug 2026 - home day",
-                "  shirt  tee",
-                "  pants  shorts",
+                "  shirt    tee",
+                "  pants    shorts",
+                "  sweater  hoodie",
+                "  shoes    sandals",
             ],
         ),
     ],
@@ -94,7 +111,7 @@ def test_the_default_config_can_be_pointed_somewhere_else(
     monkeypatch.setenv("WHAT2WEAR_CONFIG", str(config))
     monkeypatch.chdir(tmp_path)
     assert main(["--on", "2026-08-21"]) == 0
-    assert "shirt  oxford" in capsys.readouterr().out
+    assert "shirt    denim" in capsys.readouterr().out
 
 
 def test_an_explicit_config_wins_over_the_environment(
@@ -105,6 +122,15 @@ def test_an_explicit_config_wins_over_the_environment(
     monkeypatch.setenv("WHAT2WEAR_CONFIG", str(config))
     assert main(["--config", "nowhere.yaml"]) == 2
     assert "no config file at nowhere.yaml" in capsys.readouterr().err
+
+
+def test_an_unavoidable_repeat_is_called_out(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    path = tmp_path / "what2wear.yaml"
+    path.write_text(REPEATING_CONFIG)
+    assert main(["--on", "2026-08-21", "--config", str(path)]) == 0
+    assert "already worn this week" in capsys.readouterr().out
 
 
 def test_a_malformed_date_is_rejected() -> None:

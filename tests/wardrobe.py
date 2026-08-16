@@ -7,7 +7,7 @@ file. `test_config.py` pins the two together.
 
 from datetime import date
 
-from what2wear.model import Closet, Shirt, State
+from what2wear.model import Closet, PantsRow, Shirt, State
 
 WARDROBE = State(
     office=Closet(
@@ -17,6 +17,15 @@ WARDROBE = State(
             Shirt("lblue", "black"),
             Shirt("striped", "blue"),
             Shirt("dblue", "tan"),
+        ),
+        pants=(
+            PantsRow(
+                "blue", sweater="beige", shoes="brown", fallback="grey"
+            ),
+            PantsRow(
+                "tan", sweater="black", shoes="black", fallback="grey"
+            ),
+            PantsRow("black", sweater="grey", shoes="white"),
         ),
         anchor_date=date(2026, 8, 17),
         anchor_shirt="dblue",
@@ -32,6 +41,17 @@ WARDROBE = State(
             Shirt("beige", "blue"),
             Shirt("lblue", "black"),
             Shirt("lgreen", "tan"),
+        ),
+        pants=(
+            PantsRow(
+                "blue", sweater="yellow", shoes="black", jacket="brown"
+            ),
+            PantsRow(
+                "tan", sweater="blue", shoes="black", jacket="black"
+            ),
+            PantsRow(
+                "black", sweater="beige", shoes="white", jacket="black"
+            ),
         ),
         anchor_date=date(2026, 8, 15),
         anchor_shirt="lgreen",

@@ -8,7 +8,7 @@ Home has no no-repeat rule, and its shoe mapping is deliberately not a bijection
 
 **Blocked by:** 01 — Rotation for any date
 
-**Status:** ready-for-agent
+**Status:** done
 
 ## The mappings
 
@@ -56,14 +56,14 @@ home:
     black: { sweater: beige, jacket: black, shoes: white }
 ```
 
-- [ ] Sweaters, jackets and shoes resolve from pants, per Closet, with three rows each, as authored under "The mappings" below
-- [ ] Every pants colour worn in a Closet has a row, and a Fallback naming a sweater that is no other row's primary is rejected at the config boundary
-- [ ] Office sweaters never repeat within a Monday-start Week
-- [ ] Office shoes never repeat within a Monday-start Week, as a consequence of the sweater rule rather than a separate check
-- [ ] When two office Shirts in a Week share pants, the later one takes its Fallback sweater
-- [ ] A Fallback moves the shoes along with the sweater
-- [ ] A Week containing four or more Office Days returns the primary sweater and marks the Response as containing an unavoidable repeat, rather than failing
-- [ ] Home Outfits resolve sweater and shoes from pants with no no-repeat rule applied
-- [ ] All five office Week shapes are asserted — the three that resolve cleanly and the two that require a Fallback
-- [ ] Friday Aug 21 2026 resolves to the black Shirt, tan pants, grey sweater and white shoes, and Monday Aug 24 starts a fresh Week with lblue taking grey cleanly
-- [ ] Tests assert only on the resolved Outfit, never on how a Week was walked
+- [x] Sweaters, jackets and shoes resolve from pants, per Closet, with three rows each, as authored under "The mappings" below
+- [x] Every pants colour worn in a Closet has a row, and a Fallback naming a sweater that is no other row's primary is rejected at the config boundary
+- [x] Office sweaters never repeat within a Monday-start Week
+- [x] Office shoes never repeat within a Monday-start Week, as a consequence of the sweater rule rather than a separate check
+- [x] When two office Shirts in a Week share pants, the later one takes its Fallback sweater
+- [x] A Fallback moves the shoes along with the sweater
+- [x] A Week containing four or more Office Days returns the primary sweater and marks the Response as containing an unavoidable repeat, rather than failing
+- [x] Home Outfits resolve sweater and shoes from pants with no no-repeat rule applied
+- [x] All five office Week shapes are asserted — the three that resolve cleanly and the two that require a Fallback
+- [x] Friday Aug 21 2026 resolves to the black Shirt, tan pants, grey sweater and white shoes, and Monday Aug 24 starts a fresh Week with lblue taking grey cleanly
+- [x] Tests assert only on the resolved Outfit, never on how a Week was walked

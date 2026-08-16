@@ -4,7 +4,7 @@ Tells you what to wear today, and what you'll wear on any future day.
 
 It walks a fixed, hand-authored list of shirts — one closet for the office, one for home — advancing each rotation only on days of its own kind. Pants come welded to the shirt; shoes and sweaters follow from the pants. At the office it guarantees no sweater and no pair of shoes repeats within a Monday-start week. At home, when it's cold, it alternates jacket and sweater so the same kind of layer never comes twice running.
 
-> **Status: walking skeleton.** Ticket 01 is in: rotation for any date, config parsing, and the CLI. `what2wear` and `what2wear --on <date>` give you the shirt, its pants and whether it's an office day. Sweaters, shoes, overrides, resets and weather are still ahead.
+> **Status: complete outfits.** Tickets 01 and 02 are in: rotation for any date, config parsing, the CLI, and resolution — sweaters and shoes keyed by pants, with the office week fallback. `what2wear` and `what2wear --on <date>` give you the shirt, its pants, its sweater, its shoes and whether it's an office day. Overrides, resets, layers and weather are still ahead.
 
 ## How it works
 
@@ -18,7 +18,7 @@ position(date) = (days_of_that_type_since_anchor + reset_offsets_before(date)) m
 
 That one choice shapes the whole design. Looking ahead to a future date is the same function call as looking at today, not a separate simulation that can drift. The rotation also stays correct whether or not you run the tool on a given day — you wore clothes either way. See [ADR-0001](docs/adr/0001-positions-derived-from-the-calendar.md).
 
-Resolution keys off **pants, not shirts** — each closet carries a three-row mapping from pants colour to sweater, jacket and shoes. This is also why fallbacks exist at all: an office sweater collision is precisely two shirts in the same week sharing pants.
+Resolution keys off **pants, not shirts** — each closet carries one pants row per colour, holding the sweater, shoes and jacket that follow from it. This is also why fallbacks exist at all: an office sweater collision is precisely two shirts in the same week sharing pants. See [ADR-0003](docs/adr/0003-garments-are-keyed-by-pants-not-by-shirt.md).
 
 The one exception to deriving everything is the home layer alternation, which needs a stored cursor because past weather isn't reconstructable the way the calendar is. That's deliberate and documented in [ADR-0002](docs/adr/0002-home-layer-alternation-is-a-stored-cursor.md) — it is not an inconsistency waiting to be cleaned up.
 
@@ -40,7 +40,7 @@ Holidays and leave aren't separate concepts — they're just `--stay-home` on th
 
 Closets, the office weekday pattern, the anchor dates and the temperature threshold live in a hand-authored YAML file that the tool never rewrites. Recorded decisions — day type overrides, resets, and resolved home layers — go to append-only logs the tool owns, kept separate so recording one can never corrupt your closet.
 
-Each closet carries its shirts and its own anchor, and the anchor is expressed the way you'd actually say it:
+Each closet carries its shirts, its three pants rows and its own anchor, and the anchor is expressed the way you'd actually say it:
 
 ```yaml
 office_weekdays: [mon, wed, fri]
@@ -50,15 +50,23 @@ office:
   shirts:
     - { name: dblue, pants: tan }
     # ...
+  pants:
+    tan: { sweater: black, shoes: black, fallback: grey }
+    # ...
 
 home:
   anchor: { date: 2026-08-15, shirt: lgreen }
   shirts:
     - { name: white, pants: blue }
     # ...
+  pants:
+    blue: { sweater: yellow, jacket: brown, shoes: black }
+    # ...
 ```
 
 Re-anchoring is just "today I'm wearing X".
+
+A `fallback` is the sweater to take when the primary is already worn that week. It's always another row's primary — the config refuses one that isn't — which is what lets the fallback bring that row's shoes along with it.
 
 The tool reads `what2wear.yaml` in the working directory. Set `WHAT2WEAR_CONFIG` to keep it elsewhere, or pass `--config`.
 
