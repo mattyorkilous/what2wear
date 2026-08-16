@@ -14,21 +14,20 @@ from what2wear.model import (
     PantsRow,
     Response,
     Shirt,
-    Show,
     State,
 )
 
 
-def handle(command: Show, state: State, today: date) -> Response:
-    """Answer a question about a date.
+def handle(on: date | None, state: State, today: date) -> Response:
+    """Answer a question about a date, defaulting to today.
 
     The one seam every command routes through.
     """
-    on = today if command.on is None else command.on
+    day = today if on is None else on
     return (
-        _office_response(state, on)
-        if state.day_type(on) is DayType.OFFICE
-        else _home_response(state, on)
+        _office_response(state, day)
+        if state.day_type(day) is DayType.OFFICE
+        else _home_response(state, day)
     )
 
 
@@ -116,7 +115,7 @@ def _office_sweater(row: PantsRow, taken: frozenset[str]) -> str:
 
 def _shirt(state: State, day_type: DayType, on: date) -> Shirt:
     """What Rotation offers on a date, before Resolution touches it."""
-    closet = state.closet_for(day_type)
+    closet = state.office if day_type is DayType.OFFICE else state.home
     return closet.shirts[_position(state, closet, day_type, on)]
 
 

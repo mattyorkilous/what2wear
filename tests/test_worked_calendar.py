@@ -12,7 +12,7 @@ import pytest
 
 from wardrobe import WARDROBE
 from what2wear.core import handle
-from what2wear.model import DayType, Outfit, Show
+from what2wear.model import DayType, Outfit
 
 SEQUENCE = [
     (
@@ -72,5 +72,5 @@ SEQUENCE = [
 def test_the_worked_calendar(
     on: date, day_type: DayType, outfit: Outfit
 ) -> None:
-    response = handle(Show(on=on), WARDROBE, today=date(2026, 8, 15))
+    response = handle(on, WARDROBE, today=date(2026, 8, 15))
     assert (response.day_type, response.outfit) == (day_type, outfit)

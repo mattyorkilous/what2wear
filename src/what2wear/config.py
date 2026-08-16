@@ -106,8 +106,8 @@ def load_state(path: Path) -> State:
         ) from None
 
     state = State(
-        office=_office_closet(config.office),
-        home=_home_closet(config.home),
+        office=_closet(config.office, "office"),
+        home=_closet(config.home, "home"),
         office_weekdays=_weekdays(config.office_weekdays),
     )
     _check_anchor_day_types(state)
@@ -122,15 +122,42 @@ def _explain(error: ValidationError) -> str:
     )
 
 
-def _office_closet(config: _OfficeCloset) -> Closet:
+def _closet(
+    config: _OfficeCloset | _HomeCloset, setting: str
+) -> Closet:
     rows = _rows(config.pants)
-    _check_office_pants(rows)
-    return _closet(config, rows, "office")
-
-
-def _home_closet(config: _HomeCloset) -> Closet:
-    rows = _rows(config.pants)
-    return _closet(config, rows, "home")
+    if setting == "office":
+        _check_office_pants(rows)
+    names = Counter(shirt.name for shirt in config.shirts)
+    duplicates = [name for name, count in names.items() if count > 1]
+    if duplicates:
+        raise ConfigError(
+            f"{setting} closet: duplicate shirt name"
+            f" {', '.join(repr(name) for name in duplicates)}"
+        )
+    if config.anchor.shirt not in names:
+        raise ConfigError(
+            f"{setting} anchor shirt {config.anchor.shirt!r} is not in"
+            f" the {setting} closet"
+        )
+    unmapped = sorted(
+        {shirt.pants for shirt in config.shirts}
+        - {row.pants for row in rows}
+    )
+    if unmapped:
+        raise ConfigError(
+            f"{setting} closet: no pants row for"
+            f" {', '.join(repr(pants) for pants in unmapped)}"
+        )
+    return Closet(
+        shirts=tuple(
+            Shirt(name=shirt.name, pants=shirt.pants)
+            for shirt in config.shirts
+        ),
+        pants=rows,
+        anchor_date=config.anchor.date,
+        anchor_shirt=config.anchor.shirt,
+    )
 
 
 def _rows(pants: Mapping[str, _Pants]) -> tuple[PantsRow, ...]:
@@ -154,18 +181,16 @@ def _weekdays(names: list[str]) -> frozenset[int]:
             f" {', '.join(repr(name) for name in unknown)}"
             f" -- use {', '.join(WEEKDAYS)}"
         )
-    weekdays = frozenset(WEEKDAYS[name.lower()] for name in names)
-    if len(weekdays) == len(WEEKDAYS):
-        raise ConfigError(
-            "office_weekdays: every weekday is an office day, leaving"
-            " no home days"
-        )
-    return weekdays
+    return frozenset(WEEKDAYS[name.lower()] for name in names)
 
 
 def _check_anchor_day_types(state: State) -> None:
     """An Anchor Date has to be a day of its own Closet's kind, or it
-    counts nothing."""
+    counts nothing.
+
+    This is also what rejects a week with no Home Days: make every
+    weekday an Office Day and no home anchor can satisfy it.
+    """
     if state.day_type(state.office.anchor_date) is not DayType.OFFICE:
         raise ConfigError(
             f"office anchor: {state.office.anchor_date} is not an"
@@ -213,38 +238,3 @@ def _check_office_pants(rows: tuple[PantsRow, ...]) -> None:
             f"office pants: fallback {described} is no other row's"
             " sweater"
         )
-
-
-def _closet(
-    config: _Closet, rows: tuple[PantsRow, ...], setting: str
-) -> Closet:
-    names = Counter(shirt.name for shirt in config.shirts)
-    duplicates = [name for name, count in names.items() if count > 1]
-    if duplicates:
-        raise ConfigError(
-            f"{setting} closet: duplicate shirt name"
-            f" {', '.join(repr(name) for name in duplicates)}"
-        )
-    if config.anchor.shirt not in names:
-        raise ConfigError(
-            f"{setting} anchor shirt {config.anchor.shirt!r} is not in"
-            f" the {setting} closet"
-        )
-    unmapped = sorted(
-        {shirt.pants for shirt in config.shirts}
-        - {row.pants for row in rows}
-    )
-    if unmapped:
-        raise ConfigError(
-            f"{setting} closet: no pants row for"
-            f" {', '.join(repr(pants) for pants in unmapped)}"
-        )
-    return Closet(
-        shirts=tuple(
-            Shirt(name=shirt.name, pants=shirt.pants)
-            for shirt in config.shirts
-        ),
-        pants=rows,
-        anchor_date=config.anchor.date,
-        anchor_shirt=config.anchor.shirt,
-    )
