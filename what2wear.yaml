@@ -12,6 +12,15 @@ office:
     - { name: lblue, pants: black }
     - { name: striped, pants: blue }
     - { name: dblue, pants: tan }
+  # What goes with each pants colour, one row per colour rather than one
+  # per shirt. The fallback is the sweater to take when the primary is
+  # already worn this week; it is always another row's primary, so that
+  # row's shoes come along with it. Black needs none: lblue is the only
+  # shirt with black pants, so it can never collide.
+  pants:
+    blue: { sweater: beige, shoes: brown, fallback: grey }
+    tan: { sweater: black, shoes: black, fallback: grey }
+    black: { sweater: grey, shoes: white }
 
 home:
   anchor: { date: 2026-08-15, shirt: lgreen }
@@ -25,3 +34,9 @@ home:
     - { name: beige, pants: blue }
     - { name: lblue, pants: black }
     - { name: lgreen, pants: tan }
+  # No fallback here -- home has no no-repeat rule -- and blue and tan
+  # deliberately share black shoes.
+  pants:
+    blue: { sweater: yellow, jacket: brown, shoes: black }
+    tan: { sweater: blue, jacket: black, shoes: black }
+    black: { sweater: beige, jacket: black, shoes: white }

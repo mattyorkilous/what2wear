@@ -73,8 +73,11 @@ def _render(response: Response) -> str:
     return "\n".join(
         [
             f"{response.on:%a %d %b %Y} - {response.day_type} day",
-            f"  shirt  {response.outfit.shirt}",
-            f"  pants  {response.outfit.pants}",
+            f"  shirt    {response.outfit.shirt}",
+            f"  pants    {response.outfit.pants}",
+            f"  sweater  {response.outfit.sweater}",
+            f"  shoes    {response.outfit.shoes}",
+            *_repeat_note(response),
         ]
     )
 
@@ -86,3 +89,13 @@ def _date(text: str) -> date:
         raise argparse.ArgumentTypeError(
             f"{text!r} is not a date of the form YYYY-MM-DD"
         ) from None
+
+
+def _repeat_note(response: Response) -> tuple[str, ...]:
+    """Say so when the Week has no sweater left to offer, rather than
+    letting the repeat pass unremarked."""
+    return (
+        ("  note     already worn this week -- no free sweater left",)
+        if response.unavoidable_repeat
+        else ()
+    )

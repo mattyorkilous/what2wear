@@ -7,12 +7,16 @@ Tells you what to wear today, and what you'll wear on a future day, by walking a
 ### Clothing
 
 **Shirt**:
-The authored unit of a Closet, and the only garment a human writes down. A Shirt carries the pants welded to it, its preferred sweater, and — in the Home Closet — its jacket.
+The authored unit of a Closet, and the only garment a human writes down. A Shirt carries the pants welded to it and nothing else — its sweater, its shoes and its jacket all follow from those pants.
 _Avoid_: look, outfit, combination, top
 
 **Closet**:
-An ordered list of Shirts for one setting. There are exactly two, the Office Closet and the Home Closet, and they are independently sized.
+An ordered list of Shirts for one setting, together with the Pants Rows that dress them. There are exactly two, the Office Closet and the Home Closet, and they are independently sized.
 _Avoid_: wardrobe, collection, drawer
+
+**Pants Row**:
+What one Closet pairs with one colour of pants — the sweater and shoes that follow from it, plus the jacket or the Fallback, depending on the Closet. The same colour names different garments in the two Closets.
+_Avoid_: mapping, entry, pairing, combination
 
 **Layer**:
 A sweater or a jacket, worn over a Shirt when the day is cold enough. The Office Closet has sweaters only; the Home Closet has both.
@@ -53,7 +57,7 @@ The per-date step that turns a Shirt into an Outfit by settling its sweater, its
 _Avoid_: selection, calculation, assembly
 
 **Fallback**:
-The alternate sweater a Shirt takes during Resolution when its preferred sweater has already been worn that Week.
+The alternate sweater a Pants Row offers during Resolution when its own sweater has already been worn that Week. Always another row's sweater, so the shoes come across with it.
 _Avoid_: secondary, backup, alternate, substitute
 
 ### Recorded decisions

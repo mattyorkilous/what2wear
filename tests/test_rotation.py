@@ -11,7 +11,14 @@ from datetime import date
 import pytest
 
 from what2wear.core import handle
-from what2wear.model import Closet, DayType, Shirt, Show, State
+from what2wear.model import (
+    Closet,
+    DayType,
+    PantsRow,
+    Shirt,
+    Show,
+    State,
+)
 
 MON, TUE, WED, THU, FRI = 0, 1, 2, 3, 4
 
@@ -214,9 +221,16 @@ def _state(
 def _closet(
     names_and_pants: list[tuple[str, str]], anchor: date, shirt: str
 ) -> Closet:
+    # A row per pants colour worn, named after it. Nothing here
+    # asserts on sweaters or shoes -- that is `test_resolution.py`'s
+    # business -- but a Closet is not valid without them.
     return Closet(
         shirts=tuple(
             Shirt(name=n, pants=p) for n, p in names_and_pants
+        ),
+        pants=tuple(
+            PantsRow(p, sweater=f"{p}-sweater", shoes=f"{p}-shoes")
+            for p in dict.fromkeys(p for _, p in names_and_pants)
         ),
         anchor_date=anchor,
         anchor_shirt=shirt,
