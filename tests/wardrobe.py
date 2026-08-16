@@ -1,8 +1,8 @@
 """The authored wardrobe, in memory.
 
-This mirrors the shipped `what2wear.yaml` so that the core can be exercised
-against the real closets without a test ever touching a file. `test_config.py`
-pins the two together.
+This mirrors the shipped `what2wear.yaml` so that the core can be
+exercised against the real closets without a test ever touching a
+file. `test_config.py` pins the two together.
 """
 
 from datetime import date

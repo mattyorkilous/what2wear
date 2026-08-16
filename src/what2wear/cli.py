@@ -19,34 +19,19 @@ CONFIG_ENV_VAR = "WHAT2WEAR_CONFIG"
 DEFAULT_CONFIG = Path("what2wear.yaml")
 
 
-def default_config() -> Path:
-    """Where to look when no --config is given.
-
-    Relative to the working directory unless $WHAT2WEAR_CONFIG says otherwise,
-    so the command works from anywhere without the core knowing where files live.
-    """
-    return Path(os.environ.get(CONFIG_ENV_VAR) or DEFAULT_CONFIG)
-
-
 def main(argv: Sequence[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     try:
-        state = load_state(args.config if args.config is not None else default_config())
+        state = load_state(
+            args.config
+            if args.config is not None
+            else _default_config()
+        )
     except ConfigError as error:
         print(error, file=sys.stderr)
         return 2
-    print(render(handle(Show(on=args.on), state, today=date.today())))
+    print(_render(handle(Show(on=args.on), state, today=date.today())))
     return 0
-
-
-def render(response: Response) -> str:
-    return "\n".join(
-        [
-            f"{response.on:%a %d %b %Y} - {response.day_type} day",
-            f"  shirt  {response.outfit.shirt}",
-            f"  pants  {response.outfit.pants}",
-        ]
-    )
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -66,13 +51,38 @@ def _parser() -> argparse.ArgumentParser:
         type=Path,
         default=None,
         metavar="PATH",
-        help=f"the closet config to read; defaults to ${CONFIG_ENV_VAR}, or {DEFAULT_CONFIG}",
+        help=(
+            "the closet config to read; defaults to"
+            f" ${CONFIG_ENV_VAR}, or {DEFAULT_CONFIG}"
+        ),
     )
     return parser
+
+
+def _default_config() -> Path:
+    """Where to look when no --config is given.
+
+    Relative to the working directory unless $WHAT2WEAR_CONFIG says
+    otherwise, so the command works from anywhere without the core
+    knowing where files live.
+    """
+    return Path(os.environ.get(CONFIG_ENV_VAR) or DEFAULT_CONFIG)
+
+
+def _render(response: Response) -> str:
+    return "\n".join(
+        [
+            f"{response.on:%a %d %b %Y} - {response.day_type} day",
+            f"  shirt  {response.outfit.shirt}",
+            f"  pants  {response.outfit.pants}",
+        ]
+    )
 
 
 def _date(text: str) -> date:
     try:
         return datetime.strptime(text, "%Y-%m-%d").date()
     except ValueError:
-        raise argparse.ArgumentTypeError(f"{text!r} is not a date of the form YYYY-MM-DD") from None
+        raise argparse.ArgumentTypeError(
+            f"{text!r} is not a date of the form YYYY-MM-DD"
+        ) from None

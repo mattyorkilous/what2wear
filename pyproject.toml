@@ -17,12 +17,13 @@ what2wear = "what2wear:main"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-# Import the package from the source tree rather than the installed copy, so the
-# suite runs the same whether or not the project has been installed.
+# Import the package from the source tree rather than the installed
+# copy, so the suite runs the same whether or not the project has
+# been installed.
 pythonpath = ["src", "tests"]
 
 [tool.ruff]
-line-length = 100
+line-length = 72
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
