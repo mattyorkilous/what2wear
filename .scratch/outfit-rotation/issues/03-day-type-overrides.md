@@ -10,14 +10,14 @@ This ticket introduces the append-only decision log, kept separate from the hand
 
 **Blocked by:** 01 — Rotation for any date
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] A command records that a date is a Home Day; another records that it is an Office Day
-- [ ] Both default to today and accept an explicit date
-- [ ] Future dates are accepted and are reflected in look-ahead for that date and all later ones
-- [ ] Past dates are accepted and change what earlier dates resolve to
-- [ ] Overriding an Office Day to a Home Day leaves the office Position untouched, so the skipped Shirt appears on the next Office Day
-- [ ] Overriding a Home Day to an Office Day advances the office Rotation on that date
-- [ ] Recorded decisions are appended to a log the tool owns; the hand-authored Closet config is never touched
-- [ ] Holidays and leave are recorded through the same command as any other override, with no distinct handling
-- [ ] Tests pass recorded decisions in as part of the in-memory state rather than reading them from disk
+- [x] A command records that a date is a Home Day; another records that it is an Office Day
+- [x] Both default to today and accept an explicit date
+- [x] Future dates are accepted and are reflected in look-ahead for that date and all later ones
+- [x] Past dates are accepted and change what earlier dates resolve to
+- [x] Overriding an Office Day to a Home Day leaves the office Position untouched, so the skipped Shirt appears on the next Office Day
+- [x] Overriding a Home Day to an Office Day advances the office Rotation on that date
+- [x] Recorded decisions are appended to a log the tool owns; the hand-authored Closet config is never touched
+- [x] Holidays and leave are recorded through the same command as any other override, with no distinct handling
+- [x] Tests pass recorded decisions in as part of the in-memory state rather than reading them from disk
