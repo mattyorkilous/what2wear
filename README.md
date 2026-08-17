@@ -20,11 +20,11 @@ That one choice shapes the whole design. Looking ahead to a future date is the s
 
 Resolution keys off **pants, not shirts** — each closet carries one pants row per colour, holding the sweater, shoes and jacket that follow from it. This is also why fallbacks exist at all: an office sweater collision is precisely two shirts in the same week sharing pants. See [ADR-0003](docs/adr/0003-garments-are-keyed-by-pants-not-by-shirt.md).
 
-The one exception to deriving everything is the home layer alternation, which needs a stored cursor because past weather isn't reconstructable the way the calendar is. That's deliberate and documented in [ADR-0002](docs/adr/0002-home-layer-alternation-is-a-stored-cursor.md) — it is not an inconsistency waiting to be cleaned up.
+Home layers alternate on the calendar too. Every home day is a jacket day or a sweater day by its own rotation, and the weather decides only whether the layer gets worn — so a mild day in the middle of a cold stretch spends its turn wearing nothing, and you can land on the same kind of layer either side of it. That trade buys a system with nothing stored anywhere. See [ADR-0004](docs/adr/0004-home-layers-alternate-on-the-calendar.md), which supersedes ADR-0002.
 
 ## Planned interface
 
-A deliberately disposable CLI, to be replaced later by something usable from a phone. All but `--reset` work today; that arrives with its ticket:
+A deliberately disposable CLI, to be replaced later by something usable from a phone. The reset flags don't work yet; they arrive with their tickets:
 
 ```
 what2wear                      # today's outfit
@@ -32,6 +32,7 @@ what2wear --on 2026-08-24      # any date, past or future
 what2wear --stay-home [date]   # this office day is now a home day
 what2wear --go-in [date]       # this home day is now an office day
 what2wear --reset [shirt]      # skip to the next shirt, or jump to a named one
+what2wear --reset-layer        # flip the home jacket/sweater alternation
 ```
 
 Holidays and leave aren't separate concepts — they're just `--stay-home` on the relevant date.

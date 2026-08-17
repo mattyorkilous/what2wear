@@ -12,9 +12,9 @@ Doing it by memory fails in specific ways: you can't remember what you wore thre
 
 A tool that answers "what am I wearing today" in one command, and "what will I be wearing on any given date" in another.
 
-It walks a fixed, hand-authored list of Shirts — one Closet for the office, one for home — advancing each Rotation only on days of its own kind. Pants come welded to the Shirt. Shoes and sweaters follow from the pants. At the office it guarantees no sweater and no pair of shoes repeats within a Monday-start Week, falling back to an alternate sweater when two Shirts in the same Week share pants. At home, when it's cold, it alternates jacket and sweater so the same kind of Layer never comes twice running.
+It walks a fixed, hand-authored list of Shirts — one Closet for the office, one for home — advancing each Rotation only on days of its own kind. Pants come welded to the Shirt. Shoes and sweaters follow from the pants. At the office it guarantees no sweater and no pair of shoes repeats within a Monday-start Week, falling back to an alternate sweater when two Shirts in the same Week share pants. At home, jacket and sweater alternate across Home Days on their own Rotation, so every Home Day is a jacket day or a sweater day before the weather is consulted at all; the temperature decides only whether the Layer gets worn.
 
-Because Position is derived from the calendar rather than stored, looking ahead is the same operation as looking at today, and the Rotation stays correct whether or not the tool gets used on a given day. Overrides let a day switch sides (staying home on an office day, going in on a home day, a holiday), and a reset shifts the Rotation when the Shirt on offer isn't wanted.
+Because every Position is derived from the calendar rather than stored, looking ahead is the same operation as looking at today, and the Rotations stay correct whether or not the tool gets used on a given day. Overrides let a day switch sides (staying home on an office day, going in on a home day, a holiday), and a reset shifts the Rotation when the Shirt on offer isn't wanted.
 
 ## User Stories
 
@@ -32,7 +32,7 @@ Because Position is derived from the calendar rather than stored, looking ahead 
 7. As someone planning a week, I want to ask what I'll be wearing on a specific future date, so that I can pack or plan around it.
 8. As someone planning, I want look-ahead to use exactly the same rules as today, so that the answer I'm given is the answer I'll actually get on the day.
 9. As someone planning past the weather forecast horizon, I want the Shirt, pants and shoes anyway, so that a distant date still gives me most of the answer.
-10. As someone planning past the forecast horizon, I want the Layer marked explicitly as unknown rather than guessed or omitted, so that I can tell the difference between "no Layer" and "can't say yet".
+10. As someone planning past the forecast horizon, I want to be told which Layer that date calls for with only the cold/warm condition left open, so that I can tell "no Layer" apart from "that jacket, if it turns out cold".
 11. As someone planning, I want to ask about a past date, so that I can check what the rule says I wore.
 
 ### Office rules
@@ -46,8 +46,8 @@ Because Position is derived from the calendar rather than stored, looking ahead 
 
 ### Home rules
 
-18. As someone at home on a cold day, I want the Layer to alternate against the last Layer I actually wore, so that I'm not in a jacket two days running.
-19. As someone at home, I want warm days to be skipped over rather than resetting the alternation, so that a mild Tuesday between two cold days doesn't put me back in a jacket.
+18. As someone at home, I want each Home Day to be a jacket day or a sweater day by the calendar alone, so that the answer never depends on which past days happened to be cold.
+19. As someone at home on a warm day, I want that day to spend its turn anyway, so that the alternation keeps running whether or not I open the tool. A mild Tuesday between two cold days will put me back in the same kind of Layer on the Wednesday, which I accept as the price of never storing anything.
 20. As someone at home, I want office sweaters to have no effect on the home alternation, so that the two settings stay independent.
 21. As someone at home, I don't want a no-repeat rule applied, so that the home Closet stays simple.
 
@@ -63,22 +63,24 @@ Because Position is derived from the calendar rather than stored, looking ahead 
 29. As someone resetting by name, I want the Closet inferred from the day's type, so that I don't have to disambiguate.
 30. As someone resetting by name, I want an error if that Shirt isn't in the day's Closet, so that a typo doesn't silently do the wrong thing.
 31. As someone who has reset, I want every later date to shift with it, so that the Rotation stays continuous rather than snapping back.
+32. As someone whose home Layer has drifted from what I actually wore, I want to reset the Home Layer Rotation on its own, so that correcting it doesn't disturb the Shirt I'm due.
 
 ### Configuration
 
-32. As the owner of the wardrobe, I want to author both Closets in a YAML file, so that changing my clothes doesn't mean changing code.
-33. As the owner, I want to author sweater, jacket and shoe mappings keyed by pants rather than by Shirt, so that there are three rows to maintain instead of nine.
-34. As the owner, I want to set which weekdays are Office Days, so that a schedule change is a config edit.
-35. As the owner, I want to set the temperature threshold below which a Layer is recommended, so that I can tune it by season or preference.
-36. As the owner, I want to set the Anchor Date for each Closet as a date plus the Shirt worn that day, so that re-anchoring reads the way I actually think about it.
-37. As the owner, I want my hand-written YAML never rewritten by the tool, so that comments and formatting survive.
-38. As the owner, I want recorded decisions kept in append-only files separate from my config, so that a recorded override can never corrupt my Closet.
+33. As the owner of the wardrobe, I want to author both Closets in a YAML file, so that changing my clothes doesn't mean changing code.
+34. As the owner, I want to author sweater, jacket and shoe mappings keyed by pants rather than by Shirt, so that there are three rows to maintain instead of nine.
+35. As the owner, I want to set which weekdays are Office Days, so that a schedule change is a config edit.
+36. As the owner, I want to set the temperature threshold below which a Layer is recommended, so that I can tune it by season or preference.
+37. As the owner, I want to set the Anchor Date for each Closet as a date plus the Shirt worn that day, so that re-anchoring reads the way I actually think about it.
+38. As the owner, I want the home Anchor Date to name the Layer worn that day as well, so that the alternation starts where I say it does rather than at an arbitrary phase.
+39. As the owner, I want my hand-written YAML never rewritten by the tool, so that comments and formatting survive.
+40. As the owner, I want recorded decisions kept in append-only files separate from my config, so that a recorded override can never corrupt my Closet.
 
 ### Correctness over time
 
-39. As an intermittent user, I want the Rotation to advance with the calendar even on days I don't run the tool, so that skipping a few days doesn't desynchronise anything.
-40. As a user, I want weekends treated as ordinary Home Days, so that every date has exactly one answer.
-41. As a user, I want the same Shirt always paired with the same pants, so that the authored combinations stay intact.
+41. As an intermittent user, I want every Rotation to advance with the calendar even on days I don't run the tool, so that skipping a few days doesn't desynchronise anything.
+42. As a user, I want weekends treated as ordinary Home Days, so that every date has exactly one answer.
+43. As a user, I want the same Shirt always paired with the same pants, so that the authored combinations stay intact.
 
 ## Implementation Decisions
 
@@ -93,7 +95,7 @@ Because Position is derived from the calendar rather than stored, looking ahead 
 
   `state` is the parsed Closets plus all recorded decisions. `weather` is a mapping of date to daily high. `Response` carries what to display and, optionally, a decision to append. Confirmed with the developer as the intended test surface.
 
-- **Layered purity, per ADR-0001 and ADR-0002.** Shirt, pants, shoes and office sweaters are pure functions of the calendar and can be resolved for any date, past or future. Home Layers depend on a stored cursor and are the one exception.
+- **Uniform purity, per ADR-0001 and ADR-0004.** Shirt, pants, shoes, office sweaters and the kind of home Layer are all pure functions of the calendar and resolve for any date, past or future. Nothing is stored and nothing is consumed. Weather is the only input that can be missing, and it gates only whether a Layer is worn.
 
 ### Domain model
 
@@ -104,39 +106,41 @@ Because Position is derived from the calendar rather than stored, looking ahead 
 
 ### Position derivation
 
-- **Position** is derived, never stored:
+- **Position** is derived, never stored, for every Rotation:
 
   ```
-  position(date) = (days_of_that_type_between(anchor, date) + reset_offsets_before(date)) mod len(closet)
+  position(date) = (days_of_that_type_between(anchor, date) + reset_offsets_before(date)) mod len(rotation)
   ```
 
-- Each Closet has its own **Anchor Date**, expressed as a date and the Shirt worn on it. The office anchor is a date that is an Office Day; the home anchor a date that is a Home Day.
-- **Day Type Overrides** are `(date, office|home)` records. They take precedence over the weekly weekday pattern, apply to any date past or future, and are the single mechanism covering staying home, going in, holidays and leave.
-- **Resets** are recorded as a signed offset effective from a date forward, permanently. A bare reset records `+1`. A reset naming a Shirt records the delta from the derived Shirt to the named one, resolved within the Closet implied by that date's type; naming a Shirt absent from that Closet is an error.
+  The Shirt Rotations use `len(closet)`; the Home Layer Rotation uses `2`. Both home Rotations count the same Home Days but carry their own Reset offsets, so shifting one leaves the other alone.
+
+- Each Closet has its own **Anchor Date**, expressed as a date and the Shirt worn on it. The office anchor is a date that is an Office Day; the home anchor a date that is a Home Day, and it additionally names the Layer worn — `sweater` or `jacket` — which fixes Position 0 of the Home Layer Rotation. The field is required rather than defaulted: a defaulted phase is an arbitrary one nobody can see.
+- **Day Type Overrides** are `(date, office|home)` records. They take precedence over the weekly weekday pattern, apply to any date past or future, and are the single mechanism covering staying home, going in, holidays and leave. An override moves both home Rotations, because both count Home Days.
+- **Resets** are recorded as `(date, rotation, offset)` — a signed offset effective from that date forward, permanently, against one named Rotation. A bare Shirt reset records `+1`. A reset naming a Shirt records the delta from the derived Shirt to the named one, resolved within the Closet implied by that date's type; naming a Shirt absent from that Closet is an error. A Layer reset records `+1` against the Home Layer Rotation and takes no argument: over two items, "advance by one" and "flip to the other" are the same operation, so a named form could only ever be a redundant no-op. It is legal on an Office Day — that day doesn't consult the Home Layer Rotation, but the offset lands cleanly on the next Home Day, and "flip my next home Layer" is a reasonable thing to type on a Wednesday.
 
 ### Resolution
 
 - Office sweater resolution walks the Week's Office Days in date order from Monday, taking each Shirt's pants-mapped sweater unless already used that Week, in which case the Fallback. If both are taken — only reachable when a Week has four or more Office Days — take the primary anyway and mark the Response as having a repeat.
-- Home Layer resolution: if the daily high is at or above the threshold, no Layer. Otherwise take the opposite kind to the most recent recorded home Layer, and record the result. Office sweaters are never consulted and never recorded here.
+- Home Layer resolution: the Home Layer Rotation's Position says whether the date is a sweater day or a jacket day, and the pants row supplies the garment. If the daily high is at or above the threshold, no Layer is worn — the day still spends its turn. Office sweaters are never consulted.
 - Office Layer resolution has no alternation — below the threshold, the pants-mapped sweater is worn.
+- One threshold covers both kinds. Per-kind thresholds are now *possible*, since the kind is known before the temperature is, but they aren't wanted yet and splitting the value later is a config change the model doesn't resist.
 
 ### Persistence
 
-- Three files, all repo-local under a configurable base path so the location can move to a user config directory later without touching the core.
+- Two files, both under the platform's user config directory.
 - Hand-authored Closet config in YAML, parsed and validated with pydantic at the boundary. Never written by the tool.
-- Recorded decisions (Day Type Overrides and Resets) in an append-only log.
-- Recorded home Layers in a separate append-only log, per ADR-0002.
+- Recorded decisions (Day Type Overrides and Resets) in an append-only log. There is no second log: per ADR-0004 nothing about a Layer needs recording.
 
 ### Weather
 
 - Open-Meteo, no API key. Fixed coordinates for the Washington DC area. Threshold defaults to 50°F, configurable.
-- Only the forecast endpoint is used; no historical archive. Dates beyond the forecast horizon resolve Shirt, pants and shoes normally and mark the Layer unknown.
+- Only the forecast endpoint is used; no historical archive. Dates beyond the forecast horizon resolve Shirt, pants, shoes *and the Layer garment* normally — all of them derive from the calendar — and hedge only the cold/warm condition.
 - A failed or unavailable forecast degrades the same way as being past the horizon rather than failing the command.
 
 ### CLI
 
 - Flags take a `--` prefix. Bare invocation shows today.
-- `--on <date>`, `--stay-home [date]`, `--go-in [date]`, `--reset [shirt]`. Date arguments default to today.
+- `--on <date>`, `--stay-home [date]`, `--go-in [date]`, `--reset [shirt]`, `--reset-layer`. Date arguments default to today.
 - The CLI is deliberately disposable — a thin renderer over `handle`, expected to be replaced by a phone-friendly UI later.
 
 ### Tooling
@@ -156,11 +160,11 @@ Everything is tested through `handle`. The dense cases:
 - **A worked calendar.** The agreed Aug 15–24 2026 sequence is the primary integration test: it exercises the home wrap from lgreen back to white, the Friday Aug 21 sweater Fallback where tan pants want black but Monday already took it, the shoes moving from black to white alongside that Fallback, and the Week resetting on Monday Aug 24 so lblue takes grey cleanly.
 - **All five office Week shapes.** Because 5 Shirts and 3 Office Days are coprime, the Week shapes cycle over five weeks. Two of them require a Fallback and three don't; all five are asserted.
 - **Four-office-day Weeks.** A `--go-in` producing an unavoidable repeat returns a deterministic Outfit and flags the repeat.
-- **Layer alternation.** Jacket then sweater then jacket across cold Home Days; a warm day in between skipped without resetting; office sweaters interleaved and shown to have no effect.
-- **Layer gaps.** Behaviour after a stretch with no recorded Layer, per ADR-0002's accepted limitation.
+- **Layer alternation.** Jacket, sweater, jacket across consecutive Home Days; a warm day in the middle spending its turn silently, so the days either side of it land on the *same* kind — the consequence ADR-0004 accepts, asserted rather than avoided; office sweaters interleaved and shown to have no effect.
+- **Layer resets.** `--reset-layer` flips every subsequent Home Day and leaves the Shirt Rotation untouched; a Shirt reset leaves the Layer Rotation untouched; one issued on an Office Day lands on the next Home Day.
 - **Overrides.** Staying home leaves the office Position untouched so the skipped Shirt appears on the next Office Day; going in advances it; a future-dated override changes look-ahead; a holiday behaves identically to any other override.
 - **Resets.** Bare reset advances by one; a named reset computes the right delta; every later date shifts; a name from the wrong Closet errors.
-- **Horizon.** A date past the forecast window returns Shirt, pants and shoes with the Layer marked unknown; an unavailable forecast degrades identically.
+- **Horizon.** A date past the forecast window returns Shirt, pants, shoes and the named Layer garment, with only the cold/warm condition hedged; an unavailable forecast degrades identically. Covered for both Closets.
 - **Determinism.** The same inputs always produce the same Response, and look-ahead to a date matches what that date returns when it arrives, absent intervening decisions.
 
 ### Prior art
@@ -173,7 +177,7 @@ None — this is the first code in the repo. These tests set the pattern: table-
 - **Editing the Closet through a UI.** Config is hand-authored YAML for now. When UI editing arrives the tool will start writing that file and comments will be lost; that trade is deliberately deferred.
 - **Wear history.** The tool says what to wear; it does not record what was actually worn. This is why ADR-0001 accepts that editing a Closet rewrites the past.
 - **Closet versioning.** Adding a Shirt reshuffles every derived Position. Accepted, not mitigated.
-- **Historical weather.** No archive endpoint, per ADR-0002.
+- **Historical weather.** No archive endpoint. Nothing needs one now: past weather no longer affects any Position, only whether a Layer you already know the name of was worn.
 - **Garment-level availability.** No "these shoes are at the cobbler, route around them". Would require garment identity, which the pants-keyed model deliberately avoids.
 - **Multiple users, sync, auth, deployment.**
 - **Generating combinations.** Shirts and their pants are authored by hand, never assembled from separate lists.
@@ -181,7 +185,8 @@ None — this is the first code in the repo. These tests set the pattern: table-
 
 ## Further Notes
 
-- The glossary in `CONTEXT.md` is authoritative for naming. In particular Rotation (choosing the Shirt) and Resolution (deciding everything else about the day) are distinct steps and shouldn't be conflated in code or tests.
-- Two ADRs govern this area and should be read before changing the core: ADR-0001 on Positions being derived from the calendar, and ADR-0002 on the home Layer cursor being a deliberate exception to it. A future reader is likely to see the Layer cursor as an inconsistency to clean up; it isn't.
+- The glossary in `CONTEXT.md` is authoritative for naming. In particular Rotation (choosing the Shirt, or the kind of Layer) and Resolution (deciding everything else about the day) are distinct steps and shouldn't be conflated in code or tests. Bare "Rotation" means the Shirt Rotation where no Layer is in scope; qualify it wherever both are live.
+- Two ADRs govern this area and should be read before changing the core: ADR-0001 on Positions being derived from the calendar, and ADR-0004 on the home Layer alternation riding that same derivation. ADR-0002 recorded the opposite and is superseded; a reader who finds the stored-cursor design described anywhere is looking at retired reasoning.
 - The 9-Shirt home and 5-Shirt office Closets are coprime with 4 home days and 3 office days per Week respectively, so the same Shirt takes 9 and 5 Weeks to return to the same weekday. This is a desirable property of the current sizes rather than something the code enforces — a 6-Shirt office Closet would put the same Shirt on alternate Mondays.
+- The Home Layer Rotation's 2 is likewise coprime with the home Closet's 9, so a given Shirt takes 18 Home Days to meet the same kind of Layer again. Also unenforced: an even-sized home Closet would weld every Shirt to one kind of Layer forever.
 - Build order: pure core first, then config loading and the event log, then the CLI, then weather and Layers last. The core is testable in full before any I/O exists.

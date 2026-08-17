@@ -1,4 +1,13 @@
+---
+Status: superseded by ADR-0004
+---
+
 # The Home Layer alternation is a stored cursor
+
+> Superseded by [ADR-0004](./0004-home-layers-alternate-on-the-calendar.md). The
+> alternation now advances on every Home Day rather than every cold one, which
+> makes it derivable and removes the cursor and its log entirely. The reasoning
+> below is kept because it explains why the exception looked necessary.
 
 Home Layers alternate: on a cold Home Day you wear a jacket if your last Home Layer was a sweater, and a sweater if it was a jacket. Warm days are skipped over rather than resetting the alternation. We record each resolved Home Layer in an append-only log and read the most recent entry, rather than deriving the alternation from history as ADR-0001 requires of Positions.
 

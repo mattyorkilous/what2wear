@@ -23,7 +23,7 @@ What one Closet pairs with one colour of pants — the sweater and shoes that fo
 _Avoid_: mapping, entry, pairing, combination
 
 **Layer**:
-A sweater or a jacket, worn over a Shirt when the day is cold enough. The Office Closet has sweaters only; the Home Closet has both.
+A sweater or a jacket, worn over a Shirt when the day is cold enough. The Office Closet has sweaters only; the Home Closet has both, and which of the two a Home Day calls for comes from the Home Layer Rotation, not from the weather. Temperature decides only _whether_ the Layer is worn, so a warm Home Day spends its turn wearing nothing.
 _Avoid_: outerwear, overlayer, coat
 
 **Outfit**:
@@ -49,8 +49,16 @@ _Avoid_: work week, rotation week, sprint
 ### Sequencing
 
 **Rotation**:
-The repeating traversal of a single Closet, in order, wrapping at the end. Each Closet has its own Rotation, and a Rotation advances only on days of its own kind — Office Days do not move the Home Rotation, or vice versa.
+The repeating traversal of an ordered list, in order, wrapping at the end. A Rotation advances only on days of its own kind — Office Days do not move a home Rotation, or vice versa. There are three: a Shirt Rotation per Closet, and the Home Layer Rotation.
 _Avoid_: cycle, schedule, queue
+
+**Shirt Rotation**:
+The Rotation over one Closet's Shirts. Where a Closet is in scope and Layers are not, "Rotation" unqualified means this one.
+_Avoid_: closet rotation, main rotation
+
+**Home Layer Rotation**:
+The Rotation over the two kinds of home Layer, sweater and jacket, that decides which kind a Home Day calls for. It advances on the same Home Days as the Home Shirt Rotation but counts separately, so a Reset to one leaves the other where it was. The Office Closet has no equivalent — office Layers follow from pants alone.
+_Avoid_: parity, cursor, flip, toggle
 
 **Position**:
 Where a Rotation stands on a given date — the index of the Shirt worn that date. A Position is always derived from the calendar, never stored and never consumed; asking about a future date uses the same derivation as asking about today.
@@ -71,9 +79,9 @@ A record that a specific date is an Office Day or a Home Day regardless of the w
 _Avoid_: exception, holiday, PTO, absence
 
 **Reset**:
-A record that shifts a Rotation's Position from a given date forward, permanently. Used when the Shirt you were given isn't the one you want.
+A record that shifts one named Rotation's Position from a given date forward, permanently. Used when the Shirt you were given isn't the one you want, or when the Home Layer Rotation has fallen out of step with what you actually wore.
 _Avoid_: skip, reroll, shuffle, override
 
 **Anchor Date**:
-The date on which every Rotation sits at Position 0. All Positions are counted from it.
+The date on which a Closet's Rotations sit at Position 0. All Positions are counted from it. Each Closet has one, given as a date plus the Shirt worn on it; the home Anchor Date additionally names the Layer worn, because the Home Layer Rotation counts from the same date.
 _Avoid_: epoch, start date, origin
