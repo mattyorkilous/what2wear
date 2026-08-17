@@ -1,5 +1,4 @@
-"""Rotation for any date, driven entirely through the pure `handle`
-seam.
+"""Rotation for any date, driven through the pure `handle` seam.
 
 Every test builds State in memory, passes an explicit date, and
 asserts on the returned Response. Nothing here reads a file, a clock

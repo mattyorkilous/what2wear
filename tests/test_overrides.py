@@ -8,7 +8,8 @@ so the dates below line up with the worked calendar.
 from dataclasses import replace
 from datetime import date
 
-from wardrobe import WARDROBE
+from conftest import WARDROBE
+
 from what2wear.core import handle
 from what2wear.model import DayType, DayTypeOverride, State
 

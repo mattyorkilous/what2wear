@@ -1,5 +1,7 @@
-"""The config boundary: a hand-authored Wardrobe in, validated State
-out, nothing written back.
+"""The config boundary.
+
+A hand-authored Wardrobe in, validated State out, nothing written
+back.
 """
 
 from datetime import date
@@ -7,8 +9,11 @@ from pathlib import Path
 
 import pytest
 
-from wardrobe import WARDROBE
-from what2wear.config import ConfigError, MissingWardrobe, load_state
+from what2wear.config import (
+    ConfigError,
+    MissingWardrobeError,
+    load_state,
+)
 from what2wear.model import PantsRow, Shirt
 
 VALID = """
@@ -99,7 +104,7 @@ class TestValidation:
         # fresh installation with first-run wording instead -- which is
         # why the path travels and the wording does not.
         absent = tmp_path / "absent.yaml"
-        with pytest.raises(MissingWardrobe) as raised:
+        with pytest.raises(MissingWardrobeError) as raised:
             load_state(absent)
         assert raised.value.args == (absent,)
 
@@ -125,7 +130,7 @@ class TestValidation:
 
     def test_an_empty_closet_is_rejected(self, tmp_path: Path) -> None:
         text = VALID.replace("    - { name: h1, pants: blue }\n", "")
-        with pytest.raises(ConfigError, match="home.shirts"):
+        with pytest.raises(ConfigError, match=r"home\.shirts"):
             load_state(_write(tmp_path, text))
 
     def test_duplicate_shirt_names_within_a_closet_are_rejected(
@@ -254,7 +259,7 @@ class TestValidation:
             "navy: { sweater: grey, shoes: white }",
             "navy: { sweater: grey, shoes: white, jacket: brown }",
         )
-        with pytest.raises(ConfigError, match="office.pants.navy"):
+        with pytest.raises(ConfigError, match=r"office\.pants\.navy"):
             load_state(_write(tmp_path, text))
 
     def test_a_home_row_may_not_name_a_fallback(
@@ -265,7 +270,7 @@ class TestValidation:
             "blue: { sweater: yellow, jacket: brown, shoes: black,"
             " fallback: grey }",
         )
-        with pytest.raises(ConfigError, match="home.pants.blue"):
+        with pytest.raises(ConfigError, match=r"home\.pants\.blue"):
             load_state(_write(tmp_path, text))
 
     def test_an_unknown_top_level_key_is_rejected(
@@ -273,13 +278,6 @@ class TestValidation:
     ) -> None:
         with pytest.raises(ConfigError, match="sweaters"):
             load_state(_write(tmp_path, VALID + "\nsweaters: {}\n"))
-
-
-def test_the_example_wardrobe_matches_the_tested_one() -> None:
-    assert (
-        load_state(Path(__file__).parent.parent / "example.yaml")
-        == WARDROBE
-    )
 
 
 def _write(tmp_path: Path, text: str) -> Path:

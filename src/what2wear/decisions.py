@@ -14,12 +14,11 @@ from what2wear.model import DayType, DayTypeOverride
 
 
 class DecisionsError(Exception):
-    """The decision log cannot be read, written, or does not read as a
-    log at all."""
+    """The decision log cannot be read or written, or is not one."""
 
 
 def load_decisions(path: Path) -> tuple[DayTypeOverride, ...]:
-    """Every decision recorded so far, in the order recorded.
+    """Read every decision recorded so far, in the order recorded.
 
     A log that does not exist yet is an empty one -- nothing has been
     recorded, which is not an error.
@@ -29,9 +28,8 @@ def load_decisions(path: Path) -> tuple[DayTypeOverride, ...]:
     except FileNotFoundError:
         return ()
     except OSError as error:
-        raise DecisionsError(
-            f"could not read {path}: {error}"
-        ) from None
+        message = f"could not read {path}: {error}"
+        raise DecisionsError(message) from None
 
     try:
         return tuple(
@@ -46,14 +44,15 @@ def load_decisions(path: Path) -> tuple[DayTypeOverride, ...]:
             )
         )
     except (KeyError, TypeError, ValueError) as error:
-        raise DecisionsError(
-            f"{path} does not read as a decision log: {error}"
-        ) from None
+        message = f"{path} does not read as a decision log: {error}"
+        raise DecisionsError(message) from None
 
 
 def append_decision(path: Path, decision: DayTypeOverride) -> None:
-    """Add one record to the end of the log, starting it if this is the
-    first."""
+    """Add one record to the end of the log.
+
+    Starts the log if this is the first record.
+    """
     record = {
         "on": decision.on.isoformat(),
         "day_type": decision.day_type,
@@ -62,6 +61,5 @@ def append_decision(path: Path, decision: DayTypeOverride) -> None:
         with path.open("a") as log:
             log.write(f"{json.dumps(record)}\n")
     except OSError as error:
-        raise DecisionsError(
-            f"could not record to {path}: {error}"
-        ) from None
+        message = f"could not record to {path}: {error}"
+        raise DecisionsError(message) from None

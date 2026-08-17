@@ -9,8 +9,8 @@ Layers arrive with the weather.
 from datetime import date
 
 import pytest
+from conftest import WARDROBE
 
-from wardrobe import WARDROBE
 from what2wear.core import handle
 from what2wear.model import DayType, Outfit
 

@@ -1,16 +1,17 @@
-"""Resolution: the sweater and shoes that follow from the pants, and
-the office Week Fallback.
+"""Resolution: what follows from the pants, and the Week Fallback.
 
-Everything is driven through the pure `handle` seam and asserted on
-the resolved Outfit -- never on how a Week was walked.
+The sweater and the shoes follow from the pants; the Fallback covers
+an office Week that would otherwise repeat one. Everything is driven
+through the pure `handle` seam and asserted on the resolved Outfit --
+never on how a Week was walked.
 """
 
 from dataclasses import replace
 from datetime import date
 
 import pytest
+from conftest import WARDROBE
 
-from wardrobe import WARDROBE
 from what2wear.core import handle
 from what2wear.model import Outfit, Response, State
 
@@ -105,8 +106,10 @@ class TestOfficeWeeks:
 
 
 class TestFourOfficeDays:
-    """A fourth Office Day exhausts the sweaters a Week can offer, so
-    one of them has to come round twice."""
+    """A fourth Office Day exhausts the sweaters a Week can offer.
+
+    One of them has to come round twice.
+    """
 
     STATE = replace(
         WARDROBE, office_weekdays=frozenset({MON, TUE, WED, THU})

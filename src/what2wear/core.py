@@ -79,8 +79,10 @@ def _home_response(state: State, on: date) -> Response:
 
 
 def _office_days_of_week(state: State, on: date) -> tuple[date, ...]:
-    """The Office Days of the Monday-start Week containing `on`, in
-    date order."""
+    """List the Office Days of the Week containing `on`.
+
+    Monday-start, and in date order.
+    """
     monday = on - timedelta(days=on.weekday())
     week = (monday + timedelta(days=offset) for offset in range(7))
     return tuple(
@@ -91,12 +93,12 @@ def _office_days_of_week(state: State, on: date) -> tuple[date, ...]:
 def _resolve_office_day(
     state: State, resolved: tuple[Response, ...], on: date
 ) -> tuple[Response, ...]:
-    """The Week resolved so far, plus this Office Day settled against
-    the sweaters it has already spent.
+    """Settle one Office Day against the sweaters the Week has spent.
 
-    Shoes follow the sweater rather than the pants, so a Fallback
-    brings the donor row's shoes along with it and shoes inherit the
-    no-repeat guarantee instead of being checked for it.
+    Returns the Week resolved so far plus this day. Shoes follow the
+    sweater rather than the pants, so a Fallback brings the donor
+    row's shoes along with it and shoes inherit the no-repeat
+    guarantee instead of being checked for it.
     """
     shirt = _shirt(state, DayType.OFFICE, on)
     taken = frozenset(response.outfit.sweater for response in resolved)
@@ -118,11 +120,12 @@ def _resolve_office_day(
 
 
 def _office_sweater(row: PantsRow, taken: frozenset[str]) -> str:
-    """The row's own sweater, its Fallback once that is taken, and the
-    row's own again when both are.
+    """Choose a sweater the Week has not already taken.
 
-    That last case means the Week has more Office Days than it has
-    sweaters left to offer, and is the only way a sweater repeats.
+    The row's own, its Fallback once that is taken, and the row's own
+    again when both are. That last case means the Week has more
+    Office Days than it has sweaters left to offer, and is the only
+    way a sweater repeats.
     """
     if row.sweater not in taken:
         return row.sweater
@@ -132,7 +135,7 @@ def _office_sweater(row: PantsRow, taken: frozenset[str]) -> str:
 
 
 def _shirt(state: State, day_type: DayType, on: date) -> Shirt:
-    """What Rotation offers on a date, before Resolution touches it."""
+    """Take what Rotation offers on a date, before Resolution."""
     closet = state.office if day_type is DayType.OFFICE else state.home
     return closet.shirts[_position(state, closet, day_type, on)]
 
@@ -140,8 +143,10 @@ def _shirt(state: State, day_type: DayType, on: date) -> Shirt:
 def _position(
     state: State, closet: Closet, day_type: DayType, on: date
 ) -> int:
-    """Where the Rotation stands on a date -- derived from the
-    calendar, per ADR-0001."""
+    """Derive where the Rotation stands on a date.
+
+    From the calendar, never from a stored cursor, per ADR-0001.
+    """
     steps = _days_of_type_between(
         state, day_type, closet.anchor_date, on
     )
@@ -153,12 +158,12 @@ def _position(
 def _days_of_type_between(
     state: State, day_type: DayType, start: date, end: date
 ) -> int:
-    """Count days of `day_type` in [start, end), negative when `end`
-    precedes `start`.
+    """Count days of `day_type` in [start, end).
 
-    Whole weeks are counted arithmetically so that a date years out
-    costs the same as tomorrow, which is why the weekly pattern is
-    counted first and the Overrides corrected for afterwards.
+    Negative when `end` precedes `start`. Whole weeks are counted
+    arithmetically so that a date years out costs the same as
+    tomorrow, which is why the weekly pattern is counted first and the
+    Overrides corrected for afterwards.
     """
     if end < start:
         return -_days_of_type_between(state, day_type, end, start)

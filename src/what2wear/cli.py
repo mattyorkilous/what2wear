@@ -5,15 +5,19 @@ replaced by something phone-friendly later.
 """
 
 import argparse
-import sys
 from collections.abc import Sequence
 from dataclasses import replace
-from datetime import date
+from datetime import UTC, date, datetime
 from pathlib import Path
 
 from platformdirs import user_config_path
+from rich.console import Console
 
-from what2wear.config import ConfigError, MissingWardrobe, load_state
+from what2wear.config import (
+    ConfigError,
+    MissingWardrobeError,
+    load_state,
+)
 from what2wear.core import handle
 from what2wear.decisions import (
     DecisionsError,
@@ -22,10 +26,18 @@ from what2wear.decisions import (
 )
 from what2wear.model import DayType, Response
 
+# Soft-wrapped and unhighlighted: an Outfit is a fixed little table,
+# and nothing about it improves for being reflowed or coloured in.
+_OUT = Console(highlight=False, soft_wrap=True)
+_ERR = Console(stderr=True, highlight=False, soft_wrap=True)
+
 
 def run() -> int:
-    """The entry point: the Wardrobe lives where this platform keeps a
-    user's config, and no invocation can point it elsewhere."""
+    """Answer from the Wardrobe this platform keeps for the user.
+
+    The one seam that reads the platform directory, so no invocation
+    can point the Wardrobe anywhere else.
+    """
     return main(config_dir=user_config_path("what2wear"))
 
 
@@ -46,19 +58,28 @@ def main(argv: Sequence[str] | None = None, *, config_dir: Path) -> int:
         response = handle(
             on,
             replace(state, overrides=load_decisions(log)),
-            today=date.today(),
+            today=_today(),
             record=record,
         )
         if response.decision is not None:
             append_decision(log, response.decision)
-    except MissingWardrobe:
-        print(_first_run(config), file=sys.stderr)
+    except MissingWardrobeError:
+        _ERR.print(_first_run(config))
         return 2
     except (ConfigError, DecisionsError) as error:
-        print(error, file=sys.stderr)
+        _ERR.print(str(error))
         return 2
-    print(_render(response))
+    _OUT.print(_render(response))
     return 0
+
+
+def _today() -> date:
+    """Give the wearer's own today.
+
+    Local rather than UTC: the calendar this walks is the one on the
+    wall, and a date is only ever a date here.
+    """
+    return datetime.now(UTC).astimezone().date()
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -98,7 +119,7 @@ def _parser() -> argparse.ArgumentParser:
 def _command(
     args: argparse.Namespace,
 ) -> tuple[date | None, DayType | None]:
-    """The date being asked about, and what to record about it.
+    """Take the date being asked about, and what to record about it.
 
     A date of `None` means today, so the recording flags are suppressed
     when absent rather than defaulted -- absence is the missing
@@ -112,13 +133,18 @@ def _command(
 
 
 def _first_run(config: Path) -> str:
-    """Nothing is configured yet, which is not a failure -- so say
-    where the Wardrobe goes and what to start it from."""
+    """Say where the Wardrobe goes and what to start it from.
+
+    Nothing is configured yet, which is a first run rather than a
+    failure, so it reads as an invitation and not as an error.
+    """
     return "\n".join(
         [
             f"no wardrobe at {config}",
-            "write one there to get started -- copy example.yaml from"
-            " the what2wear repo and make it yours",
+            (
+                "write one there to get started -- copy example.yaml"
+                " from the what2wear repo and make it yours"
+            ),
         ]
     )
 
@@ -147,14 +173,16 @@ def _date(text: str) -> date:
     try:
         return date.fromisoformat(text)
     except ValueError:
-        raise argparse.ArgumentTypeError(
-            f"{text!r} is not a date of the form YYYY-MM-DD"
-        ) from None
+        message = f"{text!r} is not a date of the form YYYY-MM-DD"
+        raise argparse.ArgumentTypeError(message) from None
 
 
 def _repeat_note(response: Response) -> tuple[str, ...]:
-    """Say so when the Week has no sweater left to offer, rather than
-    letting the repeat pass unremarked."""
+    """Call out a Week with no sweater left to offer.
+
+    Said rather than left to be noticed, so a repeat never looks like
+    the tool having simply lost track.
+    """
     return (
         ("  note     already worn this week -- no free sweater left",)
         if response.unavoidable_repeat

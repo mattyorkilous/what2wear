@@ -6,7 +6,7 @@ what a real closet holds is `test_config.py`'s business, and editing
 it must not break these.
 """
 
-from datetime import date
+from datetime import UTC, date, datetime
 from pathlib import Path
 
 import pytest
@@ -44,8 +44,11 @@ REPEATING_CONFIG = CONFIG_TEXT.replace(
 
 @pytest.fixture
 def config_dir(tmp_path: Path) -> Path:
-    """A configured installation: a Wardrobe where the tool looks for
-    one, and the decision log that will land beside it."""
+    """Set up a configured installation.
+
+    A Wardrobe where the tool looks for one, and the directory the
+    decision log will land in beside it.
+    """
     (tmp_path / "config.yaml").write_text(CONFIG_TEXT)
     return tmp_path
 
@@ -89,7 +92,7 @@ def test_a_bare_invocation_prints_something_for_today(
     config_dir: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     assert main([], config_dir=config_dir) == 0
-    assert f"{date.today():%a %d %b %Y}" in capsys.readouterr().out
+    assert f"{_today():%a %d %b %Y}" in capsys.readouterr().out
 
 
 def test_an_unavoidable_repeat_is_called_out(
@@ -160,8 +163,9 @@ class TestRecordingADayTypeOverride:
         self, config_dir: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
         assert _run("--stay-home", None, config_dir) == 0
-        assert f"{date.today():%a %d %b %Y}" in capsys.readouterr().out
-        assert date.today().isoformat() in _log(config_dir).read_text()
+        out = capsys.readouterr().out
+        assert f"{_today():%a %d %b %Y}" in out
+        assert _today().isoformat() in _log(config_dir).read_text()
 
     def test_what_was_recorded_is_said_back(
         self, config_dir: Path, capsys: pytest.CaptureFixture[str]
@@ -216,3 +220,8 @@ def _run(flag: str, on: str | None, config_dir: Path) -> int:
 
 def _log(config_dir: Path) -> Path:
     return config_dir / "decisions.jsonl"
+
+
+def _today() -> date:
+    """Read the wearer's own today, the way the shell does."""
+    return datetime.now(UTC).astimezone().date()

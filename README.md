@@ -91,7 +91,7 @@ src/what2wear/              the package
 
 ## Design
 
-The architecture is a functional core with an imperative shell. All domain logic sits behind a single pure entry point taking parsed state, a date and a weather mapping; the shell only reads files, reads the clock, fetches the forecast, prints and appends. That one seam is the whole test surface — no mocks, no fixtures on disk, no clock reads in tests.
+The architecture is a functional core with an imperative shell. All domain logic sits behind a single pure entry point taking parsed state, a date and a weather mapping; the shell only reads files, reads the clock, fetches the forecast, prints and appends. That one seam is the whole test surface — no mocks, no clock reads in tests. The one file the suite does read is `example.yaml`, loaded once as the wardrobe the core is exercised against, so the closets under test are the ones the config boundary really parses.
 
 Read [`CONTEXT.md`](CONTEXT.md) before touching anything, then the ADRs for the area you're working in.
 
