@@ -16,14 +16,52 @@ class State:
     office: Closet
     home: Closet
     office_weekdays: frozenset[int]
+    overrides: tuple[DayTypeOverride, ...] = ()
 
     def day_type(self, on: date) -> DayType:
-        """Office Days follow the weekday pattern; every other date is
-        a Home Day."""
+        """What kind of day a date actually is.
+
+        A Day Type Override wins over the weekly pattern, and a later
+        record wins over an earlier one for the same date.
+        """
+        return next(
+            (
+                override.day_type
+                for override in reversed(self.overrides)
+                if override.on == on
+            ),
+            self.pattern_day_type(on),
+        )
+
+    def pattern_day_type(self, on: date) -> DayType:
+        """What the weekly pattern alone says, before any Override.
+
+        Office Days follow the configured weekdays; every other date is
+        a Home Day.
+        """
         return (
             DayType.OFFICE
             if on.weekday() in self.office_weekdays
             else DayType.HOME
+        )
+
+    def overridden_days(
+        self, day_type: DayType, start: date, end: date
+    ) -> int:
+        """How many days of `day_type` the Overrides in [start, end)
+        add to the weekly pattern, or take away from it.
+
+        This is what parks a Rotation: a day overridden away from its
+        own kind stops counting, so the Shirt it would have worn falls
+        to the next day of that kind instead of being lost.
+        """
+        return sum(
+            (self.day_type(on) is day_type)
+            - (self.pattern_day_type(on) is day_type)
+            for on in frozenset(
+                override.on for override in self.overrides
+            )
+            if start <= on < end
         )
 
 
@@ -98,6 +136,19 @@ class DayType(StrEnum):
 
 
 @dataclass(frozen=True)
+class DayTypeOverride:
+    """A record that one date is an Office Day or a Home Day whatever
+    the weekly pattern says.
+
+    Staying home on a Wednesday, going in on a Saturday, a public
+    holiday and a day of leave are all this one thing.
+    """
+
+    on: date
+    day_type: DayType
+
+
+@dataclass(frozen=True)
 class Response:
     """What a command resolved to, ready for a shell to render."""
 
@@ -105,9 +156,7 @@ class Response:
     day_type: DayType
     outfit: Outfit
     unavoidable_repeat: bool = False
-    """This Week ran out of office sweaters, so this one is worn
-    twice. Only reachable when a Week has more Office Days than the
-    Office Closet has sweaters left to offer it."""
+    decision: DayTypeOverride | None = None
 
 
 @dataclass(frozen=True)

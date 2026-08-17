@@ -5,11 +5,13 @@ the day -- so far the sweater and the shoes that follow from its
 pants. Layers and the weather that calls for them arrive later.
 """
 
+from dataclasses import replace
 from datetime import date, timedelta
 
 from what2wear.model import (
     Closet,
     DayType,
+    DayTypeOverride,
     Outfit,
     PantsRow,
     Response,
@@ -18,16 +20,32 @@ from what2wear.model import (
 )
 
 
-def handle(on: date | None, state: State, today: date) -> Response:
+def handle(
+    on: date | None,
+    state: State,
+    today: date,
+    record: DayType | None = None,
+) -> Response:
     """Answer a question about a date, defaulting to today.
 
-    The one seam every command routes through.
+    The one seam every command routes through. `record` asks for that
+    date to become an Office Day or a Home Day: the answer is resolved
+    as though the Override were already in force, and comes back with
+    the decision for the shell to append.
     """
     day = today if on is None else on
+    if record is None:
+        return _response(state, day)
+    decision = DayTypeOverride(day, day_type=record)
+    recorded = replace(state, overrides=(*state.overrides, decision))
+    return replace(_response(recorded, day), decision=decision)
+
+
+def _response(state: State, on: date) -> Response:
     return (
-        _office_response(state, day)
-        if state.day_type(day) is DayType.OFFICE
-        else _home_response(state, day)
+        _office_response(state, on)
+        if state.day_type(on) is DayType.OFFICE
+        else _home_response(state, on)
     )
 
 
@@ -139,7 +157,8 @@ def _days_of_type_between(
     precedes `start`.
 
     Whole weeks are counted arithmetically so that a date years out
-    costs the same as tomorrow.
+    costs the same as tomorrow, which is why the weekly pattern is
+    counted first and the Overrides corrected for afterwards.
     """
     if end < start:
         return -_days_of_type_between(state, day_type, end, start)
@@ -151,7 +170,12 @@ def _days_of_type_between(
         else 7 - office_per_week
     )
     tail = start + timedelta(days=whole_weeks * 7)
-    return whole_weeks * per_week + sum(
-        state.day_type(tail + timedelta(days=offset)) is day_type
-        for offset in range(remaining_days)
+    return (
+        whole_weeks * per_week
+        + sum(
+            state.pattern_day_type(tail + timedelta(days=offset))
+            is day_type
+            for offset in range(remaining_days)
+        )
+        + state.overridden_days(day_type, start, end)
     )

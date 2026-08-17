@@ -136,3 +136,109 @@ def test_an_unavoidable_repeat_is_called_out(
 def test_a_malformed_date_is_rejected() -> None:
     with pytest.raises(SystemExit):
         main(["--on", "the 21st"])
+
+
+class TestRecordingADayTypeOverride:
+    def test_staying_home_answers_from_the_home_closet(
+        self,
+        config: Path,
+        decisions: Path,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        assert _run("--stay-home", "2026-08-19", config) == 0
+        out = capsys.readouterr().out
+        assert "Wed 19 Aug 2026 - home day" in out
+        assert "shirt    tee" in out
+
+    def test_going_in_answers_from_the_office_closet(
+        self,
+        config: Path,
+        decisions: Path,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        assert _run("--go-in", "2026-08-22", config) == 0
+        out = capsys.readouterr().out
+        assert "Sat 22 Aug 2026 - office day" in out
+        assert "shirt    oxford" in out
+
+    def test_the_date_defaults_to_today(
+        self,
+        config: Path,
+        decisions: Path,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        assert _run("--stay-home", None, config) == 0
+        assert f"{date.today():%a %d %b %Y}" in capsys.readouterr().out
+        assert date.today().isoformat() in decisions.read_text()
+
+    def test_what_was_recorded_is_said_back(
+        self,
+        config: Path,
+        decisions: Path,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        assert _run("--go-in", "2026-08-22", config) == 0
+        assert "recorded" in capsys.readouterr().out
+
+    def test_a_recorded_override_changes_a_later_invocation(
+        self,
+        config: Path,
+        decisions: Path,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        # Friday would be denim; with Wednesday spent at home the
+        # office rotation is parked, so Friday wears Wednesday's.
+        assert _run("--on", "2026-08-21", config) == 0
+        assert "shirt    denim" in capsys.readouterr().out
+        assert _run("--stay-home", "2026-08-19", config) == 0
+        capsys.readouterr()
+        assert _run("--on", "2026-08-21", config) == 0
+        assert "shirt    chambray" in capsys.readouterr().out
+
+    def test_the_log_is_appended_to_and_the_config_untouched(
+        self, config: Path, decisions: Path
+    ) -> None:
+        before = config.read_text()
+        _run("--stay-home", "2026-08-19", config)
+        _run("--go-in", "2026-08-22", config)
+        assert len(decisions.read_text().splitlines()) == 2
+        assert config.read_text() == before
+
+    def test_an_unreadable_log_fails_with_a_clear_message(
+        self,
+        config: Path,
+        decisions: Path,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        decisions.write_text("not a decision log\n")
+        assert _run("--on", "2026-08-21", config) == 2
+        assert "decision log" in capsys.readouterr().err
+
+    def test_asking_and_recording_are_not_combined(
+        self, config: Path
+    ) -> None:
+        with pytest.raises(SystemExit):
+            main(
+                [
+                    "--on",
+                    "2026-08-21",
+                    "--stay-home",
+                    "--config",
+                    str(config),
+                ]
+            )
+
+
+@pytest.fixture
+def decisions(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """Where the log goes, pointed off the working directory so a test
+    never appends to the repo's own."""
+    path = tmp_path / "decisions.jsonl"
+    monkeypatch.setenv("WHAT2WEAR_DECISIONS", str(path))
+    return path
+
+
+def _run(flag: str, on: str | None, config: Path) -> int:
+    return main(
+        [flag, *([] if on is None else [on]), "--config", str(config)]
+    )

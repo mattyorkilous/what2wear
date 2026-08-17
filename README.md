@@ -4,7 +4,7 @@ Tells you what to wear today, and what you'll wear on any future day.
 
 It walks a fixed, hand-authored list of shirts — one closet for the office, one for home — advancing each rotation only on days of its own kind. Pants come welded to the shirt; shoes and sweaters follow from the pants. At the office it guarantees no sweater and no pair of shoes repeats within a Monday-start week. At home, when it's cold, it alternates jacket and sweater so the same kind of layer never comes twice running.
 
-> **Status: complete outfits.** Tickets 01 and 02 are in: rotation for any date, config parsing, the CLI, and resolution — sweaters and shoes keyed by pants, with the office week fallback. `what2wear` and `what2wear --on <date>` give you the shirt, its pants, its sweater, its shoes and whether it's an office day. Overrides, resets, layers and weather are still ahead.
+> **Status: overrides.** Tickets 01–03 are in: rotation for any date, config parsing, the CLI, resolution — sweaters and shoes keyed by pants, with the office week fallback — and day type overrides on top of an append-only decision log. `what2wear` and `what2wear --on <date>` give you the shirt, its pants, its sweater, its shoes and whether it's an office day; `--stay-home` and `--go-in` switch a date's side. Resets, layers and weather are still ahead.
 
 ## How it works
 
@@ -24,7 +24,7 @@ The one exception to deriving everything is the home layer alternation, which ne
 
 ## Planned interface
 
-A deliberately disposable CLI, to be replaced later by something usable from a phone. The first two work today; the rest arrive with their tickets:
+A deliberately disposable CLI, to be replaced later by something usable from a phone. All but `--reset` work today; that arrives with its ticket:
 
 ```
 what2wear                      # today's outfit
@@ -69,6 +69,8 @@ Re-anchoring is just "today I'm wearing X".
 A `fallback` is the sweater to take when the primary is already worn that week. It's always another row's primary — the config refuses one that isn't — which is what lets the fallback bring that row's shoes along with it.
 
 The tool reads `what2wear.yaml` in the working directory. Set `WHAT2WEAR_CONFIG` to keep it elsewhere, or pass `--config`.
+
+Decisions are appended to `what2wear.decisions.jsonl` alongside it, one JSON record per line; set `WHAT2WEAR_DECISIONS` to keep it elsewhere. It is only ever appended to, and the YAML is never written at all.
 
 ## Layout
 
