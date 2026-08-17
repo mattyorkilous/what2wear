@@ -10,9 +10,13 @@ Tells you what to wear today, and what you'll wear on a future day, by walking a
 The authored unit of a Closet, and the only garment a human writes down. A Shirt carries the pants welded to it and nothing else — its sweater, its shoes and its jacket all follow from those pants.
 _Avoid_: look, outfit, combination, top
 
+**Wardrobe**:
+Both Closets together with the weekday pattern that says which of them a date draws from — everything a human authors, in one file. There is exactly one per installation, it lives as `config.yaml` where the platform keeps a user's config, and the tool reads it and never writes it. "Config" names the platform's directory and the file in it; the thing written there is a Wardrobe.
+_Avoid_: settings, profile, closet file
+
 **Closet**:
 An ordered list of Shirts for one setting, together with the Pants Rows that dress them. There are exactly two, the Office Closet and the Home Closet, and they are independently sized.
-_Avoid_: wardrobe, collection, drawer
+_Avoid_: collection, drawer
 
 **Pants Row**:
 What one Closet pairs with one colour of pants — the sweater and shoes that follow from it, plus the jacket or the Fallback, depending on the Closet. The same colour names different garments in the two Closets.

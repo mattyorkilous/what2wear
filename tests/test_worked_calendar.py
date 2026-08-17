@@ -1,16 +1,16 @@
-"""The agreed Aug 15-24 2026 sequence, against the authored wardrobe.
+"""The agreed Aug 15-24 2026 sequence, against the example Wardrobe.
 
 The whole Outfit now -- Shirt, pants, sweater and shoes -- including
-the Friday Aug 21 Fallback, where tan pants want black but Monday
-already took it, and the shoes move from black to white alongside it.
+the Friday Aug 21 Fallback, where slate pants want ink but Monday
+already took it, and the shoes move from ebony to bone alongside it.
 Layers arrive with the weather.
 """
 
 from datetime import date
 
 import pytest
+from conftest import WARDROBE
 
-from wardrobe import WARDROBE
 from what2wear.core import handle
 from what2wear.model import DayType, Outfit
 
@@ -18,53 +18,53 @@ SEQUENCE = [
     (
         date(2026, 8, 15),
         DayType.HOME,
-        Outfit("lgreen", "tan", "blue", "black"),
+        Outfit("pique", "slate", "indigo", "ebony"),
     ),  # Sat -- the home anchor
     (
         date(2026, 8, 16),
         DayType.HOME,
-        Outfit("white", "blue", "yellow", "black"),
+        Outfit("poplin", "sand", "mustard", "ebony"),
     ),  # Sun -- wraps back to the start
     (
         date(2026, 8, 17),
         DayType.OFFICE,
-        Outfit("dblue", "tan", "black", "black"),
+        Outfit("sateen", "slate", "ink", "ebony"),
     ),  # Mon -- the office anchor
     (
         date(2026, 8, 18),
         DayType.HOME,
-        Outfit("brown", "black", "beige", "white"),
+        Outfit("henley", "moss", "oatmeal", "bone"),
     ),
     (
         date(2026, 8, 19),
         DayType.OFFICE,
-        Outfit("white", "blue", "beige", "brown"),
+        Outfit("poplin", "sand", "cream", "walnut"),
     ),
     (
         date(2026, 8, 20),
         DayType.HOME,
-        Outfit("dgreen", "tan", "blue", "black"),
+        Outfit("jersey", "slate", "indigo", "ebony"),
     ),
     (
         date(2026, 8, 21),
         DayType.OFFICE,
-        Outfit("black", "tan", "grey", "white"),
+        Outfit("twill", "slate", "ash", "bone"),
     ),  # Fri -- shares tan with Monday, so the fallback and its shoes
     (
         date(2026, 8, 22),
         DayType.HOME,
-        Outfit("black", "blue", "yellow", "black"),
+        Outfit("twill", "sand", "mustard", "ebony"),
     ),
     (
         date(2026, 8, 23),
         DayType.HOME,
-        Outfit("purple", "black", "beige", "white"),
+        Outfit("waffle", "moss", "oatmeal", "bone"),
     ),
     (
         date(2026, 8, 24),
         DayType.OFFICE,
-        Outfit("lblue", "black", "grey", "white"),
-    ),  # Mon -- a fresh week, so lblue takes grey cleanly
+        Outfit("flannel", "moss", "ash", "bone"),
+    ),  # Mon -- a fresh week, so flannel takes ash cleanly
 ]
 
 

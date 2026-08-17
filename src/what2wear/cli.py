@@ -5,14 +5,19 @@ replaced by something phone-friendly later.
 """
 
 import argparse
-import os
-import sys
 from collections.abc import Sequence
 from dataclasses import replace
-from datetime import date
+from datetime import UTC, date, datetime
 from pathlib import Path
 
-from what2wear.config import ConfigError, load_state
+from platformdirs import user_config_path
+from rich.console import Console
+
+from what2wear.config import (
+    ConfigError,
+    MissingWardrobeError,
+    load_state,
+)
 from what2wear.core import handle
 from what2wear.decisions import (
     DecisionsError,
@@ -21,36 +26,60 @@ from what2wear.decisions import (
 )
 from what2wear.model import DayType, Response
 
-CONFIG_ENV_VAR = "WHAT2WEAR_CONFIG"
-DEFAULT_CONFIG = Path("what2wear.yaml")
-DECISIONS_ENV_VAR = "WHAT2WEAR_DECISIONS"
-DEFAULT_DECISIONS = Path("what2wear.decisions.jsonl")
+# Soft-wrapped and unhighlighted: an Outfit is a fixed little table,
+# and nothing about it improves for being reflowed or coloured in.
+_OUT = Console(highlight=False, soft_wrap=True)
+_ERR = Console(stderr=True, highlight=False, soft_wrap=True)
 
 
-def main(argv: Sequence[str] | None = None) -> int:
+def run() -> int:
+    """Answer from the Wardrobe this platform keeps for the user.
+
+    The one seam that reads the platform directory, so no invocation
+    can point the Wardrobe anywhere else.
+    """
+    return main(config_dir=user_config_path("what2wear"))
+
+
+def main(argv: Sequence[str] | None = None, *, config_dir: Path) -> int:
     """Read the two files, answer, record what the answer decided.
 
     Recording comes before printing so that a log the tool cannot write
-    to is reported rather than printed over.
+    to is reported rather than printed over. Nothing here creates the
+    directory: the Wardrobe is read first, so a successful read has
+    already proved it exists.
     """
     args = _parser().parse_args(argv)
-    log = Path(os.environ.get(DECISIONS_ENV_VAR) or DEFAULT_DECISIONS)
+    config = config_dir / "config.yaml"
+    log = config_dir / "decisions.jsonl"
     on, record = _command(args)
     try:
-        state = load_state(_config_path(args.config))
+        state = load_state(config)
         response = handle(
             on,
             replace(state, overrides=load_decisions(log)),
-            today=date.today(),
+            today=_today(),
             record=record,
         )
         if response.decision is not None:
             append_decision(log, response.decision)
-    except (ConfigError, DecisionsError) as error:
-        print(error, file=sys.stderr)
+    except MissingWardrobeError:
+        _ERR.print(_first_run(config))
         return 2
-    print(_render(response))
+    except (ConfigError, DecisionsError) as error:
+        _ERR.print(str(error))
+        return 2
+    _OUT.print(_render(response))
     return 0
+
+
+def _today() -> date:
+    """Give the wearer's own today.
+
+    Local rather than UTC: the calendar this walks is the one on the
+    wall, and a date is only ever a date here.
+    """
+    return datetime.now(UTC).astimezone().date()
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -84,23 +113,13 @@ def _parser() -> argparse.ArgumentParser:
         metavar="YYYY-MM-DD",
         help="record that a date is an office day; defaults to today",
     )
-    parser.add_argument(
-        "--config",
-        type=Path,
-        default=None,
-        metavar="PATH",
-        help=(
-            "the closet config to read; defaults to"
-            f" ${CONFIG_ENV_VAR}, or {DEFAULT_CONFIG}"
-        ),
-    )
     return parser
 
 
 def _command(
     args: argparse.Namespace,
 ) -> tuple[date | None, DayType | None]:
-    """The date being asked about, and what to record about it.
+    """Take the date being asked about, and what to record about it.
 
     A date of `None` means today, so the recording flags are suppressed
     when absent rather than defaulted -- absence is the missing
@@ -113,15 +132,21 @@ def _command(
     return args.on, None
 
 
-def _config_path(given: Path | None) -> Path:
-    """The flag, then the environment, then the default.
+def _first_run(config: Path) -> str:
+    """Say where the Wardrobe goes and what to start it from.
 
-    The default is relative to the working directory, so the command
-    works from anywhere without the core knowing where files live.
+    Nothing is configured yet, which is a first run rather than a
+    failure, so it reads as an invitation and not as an error.
     """
-    if given is not None:
-        return given
-    return Path(os.environ.get(CONFIG_ENV_VAR) or DEFAULT_CONFIG)
+    return "\n".join(
+        [
+            f"no wardrobe at {config}",
+            (
+                "write one there to get started -- copy example.yaml"
+                " from the what2wear repo and make it yours"
+            ),
+        ]
+    )
 
 
 def _render(response: Response) -> str:
@@ -148,14 +173,16 @@ def _date(text: str) -> date:
     try:
         return date.fromisoformat(text)
     except ValueError:
-        raise argparse.ArgumentTypeError(
-            f"{text!r} is not a date of the form YYYY-MM-DD"
-        ) from None
+        message = f"{text!r} is not a date of the form YYYY-MM-DD"
+        raise argparse.ArgumentTypeError(message) from None
 
 
 def _repeat_note(response: Response) -> tuple[str, ...]:
-    """Say so when the Week has no sweater left to offer, rather than
-    letting the repeat pass unremarked."""
+    """Call out a Week with no sweater left to offer.
+
+    Said rather than left to be noticed, so a repeat never looks like
+    the tool having simply lost track.
+    """
     return (
         ("  note     already worn this week -- no free sweater left",)
         if response.unavoidable_repeat

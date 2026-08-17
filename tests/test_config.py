@@ -1,5 +1,7 @@
-"""The config boundary: hand-authored YAML in, validated State out,
-nothing written back.
+"""The config boundary.
+
+A hand-authored Wardrobe in, validated State out, nothing written
+back.
 """
 
 from datetime import date
@@ -7,8 +9,11 @@ from pathlib import Path
 
 import pytest
 
-from wardrobe import WARDROBE
-from what2wear.config import ConfigError, load_state
+from what2wear.config import (
+    ConfigError,
+    MissingWardrobeError,
+    load_state,
+)
 from what2wear.model import PantsRow, Shirt
 
 VALID = """
@@ -92,9 +97,16 @@ class TestLoading:
 
 
 class TestValidation:
-    def test_a_missing_file_says_so(self, tmp_path: Path) -> None:
-        with pytest.raises(ConfigError, match="no config file at"):
-            load_state(tmp_path / "absent.yaml")
+    def test_a_missing_wardrobe_is_its_own_kind_of_error(
+        self, tmp_path: Path
+    ) -> None:
+        # Distinct from a malformed one, so the shell can answer a
+        # fresh installation with first-run wording instead -- which is
+        # why the path travels and the wording does not.
+        absent = tmp_path / "absent.yaml"
+        with pytest.raises(MissingWardrobeError) as raised:
+            load_state(absent)
+        assert raised.value.args == (absent,)
 
     def test_malformed_yaml_says_so(self, tmp_path: Path) -> None:
         with pytest.raises(ConfigError, match="is not valid YAML"):
@@ -118,7 +130,7 @@ class TestValidation:
 
     def test_an_empty_closet_is_rejected(self, tmp_path: Path) -> None:
         text = VALID.replace("    - { name: h1, pants: blue }\n", "")
-        with pytest.raises(ConfigError, match="home.shirts"):
+        with pytest.raises(ConfigError, match=r"home\.shirts"):
             load_state(_write(tmp_path, text))
 
     def test_duplicate_shirt_names_within_a_closet_are_rejected(
@@ -192,7 +204,7 @@ class TestValidation:
     def test_a_file_that_is_not_text_says_so(
         self, tmp_path: Path
     ) -> None:
-        path = tmp_path / "what2wear.yaml"
+        path = tmp_path / "config.yaml"
         path.write_bytes(b"\xff\xfe\x00\x01not utf-8 at all")
         with pytest.raises(ConfigError, match="is not UTF-8 text"):
             load_state(path)
@@ -247,7 +259,7 @@ class TestValidation:
             "navy: { sweater: grey, shoes: white }",
             "navy: { sweater: grey, shoes: white, jacket: brown }",
         )
-        with pytest.raises(ConfigError, match="office.pants.navy"):
+        with pytest.raises(ConfigError, match=r"office\.pants\.navy"):
             load_state(_write(tmp_path, text))
 
     def test_a_home_row_may_not_name_a_fallback(
@@ -258,7 +270,7 @@ class TestValidation:
             "blue: { sweater: yellow, jacket: brown, shoes: black,"
             " fallback: grey }",
         )
-        with pytest.raises(ConfigError, match="home.pants.blue"):
+        with pytest.raises(ConfigError, match=r"home\.pants\.blue"):
             load_state(_write(tmp_path, text))
 
     def test_an_unknown_top_level_key_is_rejected(
@@ -268,14 +280,7 @@ class TestValidation:
             load_state(_write(tmp_path, VALID + "\nsweaters: {}\n"))
 
 
-def test_the_shipped_config_matches_the_tested_wardrobe() -> None:
-    assert (
-        load_state(Path(__file__).parent.parent / "what2wear.yaml")
-        == WARDROBE
-    )
-
-
 def _write(tmp_path: Path, text: str) -> Path:
-    path = tmp_path / "what2wear.yaml"
+    path = tmp_path / "config.yaml"
     path.write_text(text)
     return path

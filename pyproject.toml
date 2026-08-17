@@ -8,12 +8,14 @@ authors = [
 ]
 requires-python = ">=3.14"
 dependencies = [
+    "platformdirs>=4.11.3",
     "pydantic>=2.13.4",
     "pyyaml>=6.0.3",
+    "rich>=15.0.0",
 ]
 
 [project.scripts]
-what2wear = "what2wear.cli:main"
+what2wear = "what2wear.cli:run"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -26,11 +28,36 @@ pythonpath = ["src", "tests"]
 line-length = 72
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP", "B", "SIM"]
+select = ["ALL"]
+# What ALL asks for that this repo has already decided against. Each
+# line is a standing decision, not a backlog.
+ignore = [
+    # Formatter conflicts -- ruff format owns this.
+    "COM812",
+    # Each is half of a pair ALL cannot hold at once; the other half
+    # (D211, D212) is the style this repo writes.
+    "D203",
+    "D213",
+    # Moving imports under TYPE_CHECKING would break pydantic, which
+    # resolves annotations at runtime.
+    "TC003",
+    # Not a distributed work -- no per-file copyright headers.
+    "CPY001",
+]
 
-[tool.ruff.lint.isort]
-# `wardrobe` is the in-memory test wardrobe under tests/, not a dependency.
-known-first-party = ["what2wear", "wardrobe"]
+[tool.ruff.lint.per-file-ignores]
+# Tests assert, are not a package, and say 2 when they mean exit 2.
+# A test's name is its documentation, so no docstring per case.
+"tests/*" = [
+    "S101",
+    "INP001",
+    "PLR0913",
+    "PLR0917",
+    "PLR2004",
+    "D101",
+    "D102",
+    "D103",
+]
 
 [build-system]
 requires = ["uv_build>=0.10.9,<0.11.0"]

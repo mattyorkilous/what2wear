@@ -38,7 +38,17 @@ Holidays and leave aren't separate concepts — they're just `--stay-home` on th
 
 ## Configuration
 
-Closets, the office weekday pattern, the anchor dates and the temperature threshold live in a hand-authored YAML file that the tool never rewrites. Recorded decisions — day type overrides, resets, and resolved home layers — go to append-only logs the tool owns, kept separate so recording one can never corrupt your closet.
+Your wardrobe — both closets, the office weekday pattern, the anchor dates and the temperature threshold — is a hand-authored YAML file that the tool never rewrites. It lives at `config.yaml` in your platform's user config directory (`~/Library/Application Support/what2wear` on macOS, `~/.config/what2wear` on Linux), and there is no flag, environment variable or working-directory fallback to point it elsewhere: where it lives is a property of the installation, not of an invocation.
+
+Nothing is configured to begin with, and the tool creates nothing. On a fresh install it names the exact path it looked at and stops:
+
+```
+$ what2wear
+no wardrobe at /Users/you/Library/Application Support/what2wear/config.yaml
+write one there to get started -- copy example.yaml from the what2wear repo and make it yours
+```
+
+Copy [`example.yaml`](example.yaml) to that path, make it your own closets, and you're set. Recorded decisions — day type overrides, resets, and resolved home layers — are appended to `decisions.jsonl` beside it, one JSON record per line; they are kept in their own file so recording one can never corrupt your wardrobe.
 
 Each closet carries its shirts, its three pants rows and its own anchor, and the anchor is expressed the way you'd actually say it:
 
@@ -46,21 +56,21 @@ Each closet carries its shirts, its three pants rows and its own anchor, and the
 office_weekdays: [mon, wed, fri]
 
 office:
-  anchor: { date: 2026-08-17, shirt: dblue }
+  anchor: { date: 2026-08-17, shirt: sateen }
   shirts:
-    - { name: dblue, pants: tan }
+    - { name: sateen, pants: slate }
     # ...
   pants:
-    tan: { sweater: black, shoes: black, fallback: grey }
+    slate: { sweater: ink, shoes: ebony, fallback: ash }
     # ...
 
 home:
-  anchor: { date: 2026-08-15, shirt: lgreen }
+  anchor: { date: 2026-08-15, shirt: pique }
   shirts:
-    - { name: white, pants: blue }
+    - { name: poplin, pants: sand }
     # ...
   pants:
-    blue: { sweater: yellow, jacket: brown, shoes: black }
+    sand: { sweater: mustard, jacket: bomber, shoes: ebony }
     # ...
 ```
 
@@ -68,14 +78,11 @@ Re-anchoring is just "today I'm wearing X".
 
 A `fallback` is the sweater to take when the primary is already worn that week. It's always another row's primary — the config refuses one that isn't — which is what lets the fallback bring that row's shoes along with it.
 
-The tool reads `what2wear.yaml` in the working directory. Set `WHAT2WEAR_CONFIG` to keep it elsewhere, or pass `--config`.
-
-Decisions are appended to `what2wear.decisions.jsonl` alongside it, one JSON record per line; set `WHAT2WEAR_DECISIONS` to keep it elsewhere. It is only ever appended to, and the YAML is never written at all.
-
 ## Layout
 
 ```
 CONTEXT.md                  glossary — authoritative for naming
+example.yaml                a wardrobe to copy and make yours
 docs/adr/                   architecture decisions
 docs/agents/                conventions for agent workflows
 .scratch/outfit-rotation/   spec and implementation tickets
@@ -84,7 +91,7 @@ src/what2wear/              the package
 
 ## Design
 
-The architecture is a functional core with an imperative shell. All domain logic sits behind a single pure entry point taking parsed state, a date and a weather mapping; the shell only reads files, reads the clock, fetches the forecast, prints and appends. That one seam is the whole test surface — no mocks, no fixtures on disk, no clock reads in tests.
+The architecture is a functional core with an imperative shell. All domain logic sits behind a single pure entry point taking parsed state, a date and a weather mapping; the shell only reads files, reads the clock, fetches the forecast, prints and appends. That one seam is the whole test surface — no mocks, no clock reads in tests. The one file the suite does read is `example.yaml`, loaded once as the wardrobe the core is exercised against, so the closets under test are the ones the config boundary really parses.
 
 Read [`CONTEXT.md`](CONTEXT.md) before touching anything, then the ADRs for the area you're working in.
 

@@ -10,8 +10,7 @@ from enum import StrEnum
 
 @dataclass(frozen=True)
 class State:
-    """Everything the core needs to answer a question, parsed and in
-    memory."""
+    """Everything the core needs to answer a question, in memory."""
 
     office: Closet
     home: Closet
@@ -19,7 +18,7 @@ class State:
     overrides: tuple[DayTypeOverride, ...] = ()
 
     def day_type(self, on: date) -> DayType:
-        """What kind of day a date actually is.
+        """Say what kind of day a date actually is.
 
         A Day Type Override wins over the weekly pattern, and a later
         record wins over an earlier one for the same date.
@@ -34,10 +33,10 @@ class State:
         )
 
     def pattern_day_type(self, on: date) -> DayType:
-        """What the weekly pattern alone says, before any Override.
+        """Say what the weekly pattern alone makes a date.
 
-        Office Days follow the configured weekdays; every other date is
-        a Home Day.
+        Before any Override. Office Days follow the configured
+        weekdays; every other date is a Home Day.
         """
         return (
             DayType.OFFICE
@@ -48,10 +47,10 @@ class State:
     def overridden_days(
         self, day_type: DayType, start: date, end: date
     ) -> int:
-        """How many days of `day_type` the Overrides in [start, end)
-        add to the weekly pattern, or take away from it.
+        """Count what the Overrides in [start, end) add or take away.
 
-        This is what parks a Rotation: a day overridden away from its
+        Days of `day_type`, against the weekly pattern. This is what
+        parks a Rotation: a day overridden away from its
         own kind stops counting, so the Shirt it would have worn falls
         to the next day of that kind instead of being lost.
         """
@@ -67,8 +66,7 @@ class State:
 
 @dataclass(frozen=True)
 class Closet:
-    """An ordered list of Shirts for one setting, the rows that say
-    what goes with their pants, and the Anchor Date it counts from.
+    """One setting's Shirts, its Pants Rows and its Anchor Date.
 
     The anchor is authored the way it is spoken -- a date and the
     Shirt worn on that date -- rather than as a Position.
@@ -83,6 +81,7 @@ class Closet:
     anchor_shirt: str
 
     def index_of(self, name: str) -> int:
+        """Give the Position a named Shirt sits at."""
         return next(
             index
             for index, shirt in enumerate(self.shirts)
@@ -90,10 +89,11 @@ class Closet:
         )
 
     def row_for(self, pants: str) -> PantsRow:
+        """Give the row that dresses a colour of pants."""
         return next(row for row in self.pants if row.pants == pants)
 
     def row_wearing(self, sweater: str) -> PantsRow:
-        """The row this sweater belongs to.
+        """Trace a sweater back to the row it belongs to.
 
         Office sweaters pair one-to-one with rows -- the config
         boundary refuses a Closet where they don't -- so a Fallback
@@ -104,8 +104,7 @@ class Closet:
 
 @dataclass(frozen=True)
 class Shirt:
-    """The authored unit of a Closet, carrying the pants welded to
-    it."""
+    """The authored unit of a Closet, carrying its pants."""
 
     name: str
     pants: str
@@ -137,11 +136,11 @@ class DayType(StrEnum):
 
 @dataclass(frozen=True)
 class DayTypeOverride:
-    """A record that one date is an Office Day or a Home Day whatever
-    the weekly pattern says.
+    """A record of what one date is, whatever the pattern says.
 
-    Staying home on a Wednesday, going in on a Saturday, a public
-    holiday and a day of leave are all this one thing.
+    An Office Day or a Home Day. Staying home on a Wednesday, going
+    in on a Saturday, a public holiday and a day of leave are all this
+    one thing.
     """
 
     on: date

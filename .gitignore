@@ -11,6 +11,3 @@ wheels/
 
 # macOS
 .DS_Store
-
-# The decision log -- the tool's own, and whoever's wardrobe this is.
-what2wear.decisions.jsonl

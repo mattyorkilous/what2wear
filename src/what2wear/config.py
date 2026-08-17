@@ -27,8 +27,15 @@ WEEKDAYS = {
 
 
 class ConfigError(Exception):
-    """The config is missing, unparseable, or does not describe a
-    usable wardrobe."""
+    """The Wardrobe is missing, unparseable or unusable."""
+
+
+class MissingWardrobeError(ConfigError):
+    """There is no Wardrobe at all -- a fresh installation.
+
+    Carries the path and no wording: a first run is not a failure, and
+    what to say about it is the shell's to decide.
+    """
 
 
 class _Strict(BaseModel):
@@ -78,32 +85,31 @@ class _Config(_Strict):
 
 
 def load_state(path: Path) -> State:
-    """Parse and validate the closet config, or raise ConfigError with
-    a clear message."""
+    """Parse and validate the Wardrobe, or raise ConfigError."""
     try:
         text = path.read_text()
     except FileNotFoundError:
-        raise ConfigError(f"no config file at {path}") from None
+        raise MissingWardrobeError(path) from None
     except UnicodeDecodeError:
-        raise ConfigError(
+        message = (
             f"{path} is not UTF-8 text -- is it really the config file?"
-        ) from None
+        )
+        raise ConfigError(message) from None
     except OSError as error:
-        raise ConfigError(f"could not read {path}: {error}") from None
+        message = f"could not read {path}: {error}"
+        raise ConfigError(message) from None
 
     try:
         document = yaml.safe_load(text)
     except yaml.YAMLError as error:
-        raise ConfigError(
-            f"{path} is not valid YAML: {error}"
-        ) from None
+        message = f"{path} is not valid YAML: {error}"
+        raise ConfigError(message) from None
 
     try:
         config = _Config.model_validate(document)
     except ValidationError as error:
-        raise ConfigError(
-            f"{path} is not a valid config:\n{_explain(error)}"
-        ) from None
+        message = f"{path} is not a valid config:\n{_explain(error)}"
+        raise ConfigError(message) from None
 
     state = State(
         office=_closet(config.office, "office"),
@@ -131,24 +137,27 @@ def _closet(
     names = Counter(shirt.name for shirt in config.shirts)
     duplicates = [name for name, count in names.items() if count > 1]
     if duplicates:
-        raise ConfigError(
+        message = (
             f"{setting} closet: duplicate shirt name"
             f" {', '.join(repr(name) for name in duplicates)}"
         )
+        raise ConfigError(message)
     if config.anchor.shirt not in names:
-        raise ConfigError(
+        message = (
             f"{setting} anchor shirt {config.anchor.shirt!r} is not in"
             f" the {setting} closet"
         )
+        raise ConfigError(message)
     unmapped = sorted(
         {shirt.pants for shirt in config.shirts}
         - {row.pants for row in rows}
     )
     if unmapped:
-        raise ConfigError(
+        message = (
             f"{setting} closet: no pants row for"
             f" {', '.join(repr(pants) for pants in unmapped)}"
         )
+        raise ConfigError(message)
     return Closet(
         shirts=tuple(
             Shirt(name=shirt.name, pants=shirt.pants)
@@ -161,11 +170,11 @@ def _closet(
 
 
 def _rows(pants: Mapping[str, _Pants]) -> tuple[PantsRow, ...]:
-    """Turn the pants-keyed mapping into rows that know their own
-    colour.
+    """Turn the pants-keyed mapping into self-describing rows.
 
-    Whichever of `fallback` and `jacket` the setting allows comes
-    across with the rest; the other one was never parsed.
+    Each row carries the colour it was keyed by. Whichever of
+    `fallback` and `jacket` the setting allows comes across with the
+    rest; the other one was never parsed.
     """
     return tuple(
         PantsRow(pants=colour, **row.model_dump())
@@ -176,51 +185,55 @@ def _rows(pants: Mapping[str, _Pants]) -> tuple[PantsRow, ...]:
 def _weekdays(names: list[str]) -> frozenset[int]:
     unknown = [name for name in names if name.lower() not in WEEKDAYS]
     if unknown:
-        raise ConfigError(
+        message = (
             "office_weekdays: unknown weekday"
             f" {', '.join(repr(name) for name in unknown)}"
             f" -- use {', '.join(WEEKDAYS)}"
         )
+        raise ConfigError(message)
     return frozenset(WEEKDAYS[name.lower()] for name in names)
 
 
 def _check_anchor_day_types(state: State) -> None:
-    """An Anchor Date has to be a day of its own Closet's kind, or it
-    counts nothing.
+    """Reject an Anchor Date that is not its own Closet's kind.
 
-    This is also what rejects a week with no Home Days: make every
-    weekday an Office Day and no home anchor can satisfy it.
+    An anchor on a day the Closet never sees counts nothing. This is
+    also what rejects a week with no Home Days: make every weekday an
+    Office Day and no home anchor can satisfy it.
     """
     if state.day_type(state.office.anchor_date) is not DayType.OFFICE:
-        raise ConfigError(
+        message = (
             f"office anchor: {state.office.anchor_date} is not an"
             " office day under office_weekdays"
         )
+        raise ConfigError(message)
     if state.day_type(state.home.anchor_date) is not DayType.HOME:
-        raise ConfigError(
+        message = (
             f"home anchor: {state.home.anchor_date} is not a home day"
             " under office_weekdays"
         )
+        raise ConfigError(message)
 
 
 def _check_office_pants(rows: tuple[PantsRow, ...]) -> None:
-    """Office sweaters pair one-to-one with office shoes, and a
-    Fallback is always another row's sweater.
+    """Hold the office rows to what the no-repeat rule needs.
 
-    Together those are what let a Fallback bring the donor row's shoes
-    along with it, and what makes no-repeat shoes follow from
-    no-repeat sweaters.
+    Office sweaters pair one-to-one with office shoes, and a Fallback
+    is always another row's sweater. Together those are what let a
+    Fallback bring the donor row's shoes along with it, and what makes
+    no-repeat shoes follow from no-repeat sweaters.
     """
     sweaters = Counter(row.sweater for row in rows)
     shared = tuple(
         sweater for sweater, count in sweaters.items() if count > 1
     )
     if shared:
-        raise ConfigError(
+        message = (
             "office pants: more than one row wears sweater"
             f" {', '.join(repr(sweater) for sweater in shared)}, so"
             " its shoes are ambiguous"
         )
+        raise ConfigError(message)
     stray = tuple(
         row
         for row in rows
@@ -234,7 +247,8 @@ def _check_office_pants(rows: tuple[PantsRow, ...]) -> None:
         described = ", ".join(
             f"{row.fallback!r} for {row.pants} pants" for row in stray
         )
-        raise ConfigError(
+        message = (
             f"office pants: fallback {described} is no other row's"
             " sweater"
         )
+        raise ConfigError(message)
