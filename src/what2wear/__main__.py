@@ -1,3 +1,3 @@
-from what2wear.cli import main
+from what2wear.cli import run
 
-raise SystemExit(main())
+raise SystemExit(run())

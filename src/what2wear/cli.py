@@ -5,14 +5,15 @@ replaced by something phone-friendly later.
 """
 
 import argparse
-import os
 import sys
 from collections.abc import Sequence
 from dataclasses import replace
 from datetime import date
 from pathlib import Path
 
-from what2wear.config import ConfigError, load_state
+from platformdirs import user_config_path
+
+from what2wear.config import ConfigError, MissingWardrobe, load_state
 from what2wear.core import handle
 from what2wear.decisions import (
     DecisionsError,
@@ -21,23 +22,27 @@ from what2wear.decisions import (
 )
 from what2wear.model import DayType, Response
 
-CONFIG_ENV_VAR = "WHAT2WEAR_CONFIG"
-DEFAULT_CONFIG = Path("what2wear.yaml")
-DECISIONS_ENV_VAR = "WHAT2WEAR_DECISIONS"
-DEFAULT_DECISIONS = Path("what2wear.decisions.jsonl")
+
+def run() -> int:
+    """The entry point: the Wardrobe lives where this platform keeps a
+    user's config, and no invocation can point it elsewhere."""
+    return main(config_dir=user_config_path("what2wear"))
 
 
-def main(argv: Sequence[str] | None = None) -> int:
+def main(argv: Sequence[str] | None = None, *, config_dir: Path) -> int:
     """Read the two files, answer, record what the answer decided.
 
     Recording comes before printing so that a log the tool cannot write
-    to is reported rather than printed over.
+    to is reported rather than printed over. Nothing here creates the
+    directory: the Wardrobe is read first, so a successful read has
+    already proved it exists.
     """
     args = _parser().parse_args(argv)
-    log = Path(os.environ.get(DECISIONS_ENV_VAR) or DEFAULT_DECISIONS)
+    config = config_dir / "config.yaml"
+    log = config_dir / "decisions.jsonl"
     on, record = _command(args)
     try:
-        state = load_state(_config_path(args.config))
+        state = load_state(config)
         response = handle(
             on,
             replace(state, overrides=load_decisions(log)),
@@ -46,6 +51,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         if response.decision is not None:
             append_decision(log, response.decision)
+    except MissingWardrobe:
+        print(_first_run(config), file=sys.stderr)
+        return 2
     except (ConfigError, DecisionsError) as error:
         print(error, file=sys.stderr)
         return 2
@@ -84,16 +92,6 @@ def _parser() -> argparse.ArgumentParser:
         metavar="YYYY-MM-DD",
         help="record that a date is an office day; defaults to today",
     )
-    parser.add_argument(
-        "--config",
-        type=Path,
-        default=None,
-        metavar="PATH",
-        help=(
-            "the closet config to read; defaults to"
-            f" ${CONFIG_ENV_VAR}, or {DEFAULT_CONFIG}"
-        ),
-    )
     return parser
 
 
@@ -113,15 +111,16 @@ def _command(
     return args.on, None
 
 
-def _config_path(given: Path | None) -> Path:
-    """The flag, then the environment, then the default.
-
-    The default is relative to the working directory, so the command
-    works from anywhere without the core knowing where files live.
-    """
-    if given is not None:
-        return given
-    return Path(os.environ.get(CONFIG_ENV_VAR) or DEFAULT_CONFIG)
+def _first_run(config: Path) -> str:
+    """Nothing is configured yet, which is not a failure -- so say
+    where the Wardrobe goes and what to start it from."""
+    return "\n".join(
+        [
+            f"no wardrobe at {config}",
+            "write one there to get started -- copy example.yaml from"
+            " the what2wear repo and make it yours",
+        ]
+    )
 
 
 def _render(response: Response) -> str:

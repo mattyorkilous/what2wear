@@ -1,8 +1,8 @@
-"""The authored wardrobe, in memory.
+"""The example Wardrobe, in memory.
 
-This mirrors the shipped `what2wear.yaml` so that the core can be
-exercised against the real closets without a test ever touching a
-file. `test_config.py` pins the two together.
+This mirrors the shipped `example.yaml` so that the core can be
+exercised against whole closets without a test ever touching a file.
+`test_config.py` pins the two together.
 """
 
 from datetime import date
@@ -12,49 +12,58 @@ from what2wear.model import Closet, PantsRow, Shirt, State
 WARDROBE = State(
     office=Closet(
         shirts=(
-            Shirt("white", "blue"),
-            Shirt("black", "tan"),
-            Shirt("lblue", "black"),
-            Shirt("striped", "blue"),
-            Shirt("dblue", "tan"),
+            Shirt("poplin", "sand"),
+            Shirt("twill", "slate"),
+            Shirt("flannel", "moss"),
+            Shirt("gingham", "sand"),
+            Shirt("sateen", "slate"),
         ),
         pants=(
             PantsRow(
-                "blue", sweater="beige", shoes="brown", fallback="grey"
+                "sand", sweater="cream", shoes="walnut", fallback="ash"
             ),
             PantsRow(
-                "tan", sweater="black", shoes="black", fallback="grey"
+                "slate", sweater="ink", shoes="ebony", fallback="ash"
             ),
-            PantsRow("black", sweater="grey", shoes="white"),
+            PantsRow("moss", sweater="ash", shoes="bone"),
         ),
         anchor_date=date(2026, 8, 17),
-        anchor_shirt="dblue",
+        anchor_shirt="sateen",
     ),
     home=Closet(
         shirts=(
-            Shirt("white", "blue"),
-            Shirt("brown", "black"),
-            Shirt("dgreen", "tan"),
-            Shirt("black", "blue"),
-            Shirt("purple", "black"),
-            Shirt("dblue", "tan"),
-            Shirt("beige", "blue"),
-            Shirt("lblue", "black"),
-            Shirt("lgreen", "tan"),
+            Shirt("poplin", "sand"),
+            Shirt("henley", "moss"),
+            Shirt("jersey", "slate"),
+            Shirt("twill", "sand"),
+            Shirt("waffle", "moss"),
+            Shirt("sateen", "slate"),
+            Shirt("rugby", "sand"),
+            Shirt("flannel", "moss"),
+            Shirt("pique", "slate"),
         ),
         pants=(
             PantsRow(
-                "blue", sweater="yellow", shoes="black", jacket="brown"
+                "sand",
+                sweater="mustard",
+                shoes="ebony",
+                jacket="bomber",
             ),
             PantsRow(
-                "tan", sweater="blue", shoes="black", jacket="black"
+                "slate",
+                sweater="indigo",
+                shoes="ebony",
+                jacket="peacoat",
             ),
             PantsRow(
-                "black", sweater="beige", shoes="white", jacket="black"
+                "moss",
+                sweater="oatmeal",
+                shoes="bone",
+                jacket="peacoat",
             ),
         ),
         anchor_date=date(2026, 8, 15),
-        anchor_shirt="lgreen",
+        anchor_shirt="pique",
     ),
     office_weekdays=frozenset({0, 2, 4}),
 )

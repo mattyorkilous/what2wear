@@ -1,5 +1,5 @@
-"""The config boundary: hand-authored YAML in, validated State out,
-nothing written back.
+"""The config boundary: a hand-authored Wardrobe in, validated State
+out, nothing written back.
 """
 
 from datetime import date
@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 from wardrobe import WARDROBE
-from what2wear.config import ConfigError, load_state
+from what2wear.config import ConfigError, MissingWardrobe, load_state
 from what2wear.model import PantsRow, Shirt
 
 VALID = """
@@ -92,9 +92,16 @@ class TestLoading:
 
 
 class TestValidation:
-    def test_a_missing_file_says_so(self, tmp_path: Path) -> None:
-        with pytest.raises(ConfigError, match="no config file at"):
-            load_state(tmp_path / "absent.yaml")
+    def test_a_missing_wardrobe_is_its_own_kind_of_error(
+        self, tmp_path: Path
+    ) -> None:
+        # Distinct from a malformed one, so the shell can answer a
+        # fresh installation with first-run wording instead -- which is
+        # why the path travels and the wording does not.
+        absent = tmp_path / "absent.yaml"
+        with pytest.raises(MissingWardrobe) as raised:
+            load_state(absent)
+        assert raised.value.args == (absent,)
 
     def test_malformed_yaml_says_so(self, tmp_path: Path) -> None:
         with pytest.raises(ConfigError, match="is not valid YAML"):
@@ -192,7 +199,7 @@ class TestValidation:
     def test_a_file_that_is_not_text_says_so(
         self, tmp_path: Path
     ) -> None:
-        path = tmp_path / "what2wear.yaml"
+        path = tmp_path / "config.yaml"
         path.write_bytes(b"\xff\xfe\x00\x01not utf-8 at all")
         with pytest.raises(ConfigError, match="is not UTF-8 text"):
             load_state(path)
@@ -268,14 +275,14 @@ class TestValidation:
             load_state(_write(tmp_path, VALID + "\nsweaters: {}\n"))
 
 
-def test_the_shipped_config_matches_the_tested_wardrobe() -> None:
+def test_the_example_wardrobe_matches_the_tested_one() -> None:
     assert (
-        load_state(Path(__file__).parent.parent / "what2wear.yaml")
+        load_state(Path(__file__).parent.parent / "example.yaml")
         == WARDROBE
     )
 
 
 def _write(tmp_path: Path, text: str) -> Path:
-    path = tmp_path / "what2wear.yaml"
+    path = tmp_path / "config.yaml"
     path.write_text(text)
     return path

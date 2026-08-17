@@ -27,8 +27,16 @@ WEEKDAYS = {
 
 
 class ConfigError(Exception):
-    """The config is missing, unparseable, or does not describe a
-    usable wardrobe."""
+    """The Wardrobe is missing, unparseable, or does not describe a
+    usable one."""
+
+
+class MissingWardrobe(ConfigError):
+    """There is no Wardrobe at all -- a fresh installation.
+
+    Carries the path and no wording: a first run is not a failure, and
+    what to say about it is the shell's to decide.
+    """
 
 
 class _Strict(BaseModel):
@@ -83,7 +91,7 @@ def load_state(path: Path) -> State:
     try:
         text = path.read_text()
     except FileNotFoundError:
-        raise ConfigError(f"no config file at {path}") from None
+        raise MissingWardrobe(path) from None
     except UnicodeDecodeError:
         raise ConfigError(
             f"{path} is not UTF-8 text -- is it really the config file?"
