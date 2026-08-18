@@ -11,7 +11,6 @@ dependencies = [
     "platformdirs>=4.11.3",
     "pydantic>=2.13.4",
     "pyyaml>=6.0.3",
-    "rich>=15.0.0",
 ]
 
 [project.scripts]
@@ -46,6 +45,9 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
+# The CLI is the one place that prints.
+"src/what2wear/cli.py" = ["T201"]
+
 # Tests assert, are not a package, and say 2 when they mean exit 2.
 # A test's name is its documentation, so no docstring per case.
 "tests/*" = [

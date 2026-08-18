@@ -5,13 +5,13 @@ replaced by something phone-friendly later.
 """
 
 import argparse
+import sys
 from collections.abc import Sequence
 from dataclasses import replace
 from datetime import UTC, date, datetime
 from pathlib import Path
 
 from platformdirs import user_config_path
-from rich.console import Console
 
 from what2wear.config import (
     ConfigError,
@@ -25,11 +25,6 @@ from what2wear.decisions import (
     load_decisions,
 )
 from what2wear.model import DayType, Response
-
-# Soft-wrapped and unhighlighted: an Outfit is a fixed little table,
-# and nothing about it improves for being reflowed or coloured in.
-_OUT = Console(highlight=False, soft_wrap=True)
-_ERR = Console(stderr=True, highlight=False, soft_wrap=True)
 
 
 def run() -> int:
@@ -64,22 +59,13 @@ def main(argv: Sequence[str] | None = None, *, config_dir: Path) -> int:
         if response.decision is not None:
             append_decision(log, response.decision)
     except MissingWardrobeError:
-        _ERR.print(_first_run(config))
+        print(_first_run(config), file=sys.stderr)
         return 2
     except (ConfigError, DecisionsError) as error:
-        _ERR.print(str(error))
+        print(error, file=sys.stderr)
         return 2
-    _OUT.print(_render(response))
+    print(_render(response))
     return 0
-
-
-def _today() -> date:
-    """Give the wearer's own today.
-
-    Local rather than UTC: the calendar this walks is the one on the
-    wall, and a date is only ever a date here.
-    """
-    return datetime.now(UTC).astimezone().date()
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -116,6 +102,14 @@ def _parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _date(text: str) -> date:
+    try:
+        return date.fromisoformat(text)
+    except ValueError:
+        message = f"{text!r} is not a date of the form YYYY-MM-DD"
+        raise argparse.ArgumentTypeError(message) from None
+
+
 def _command(
     args: argparse.Namespace,
 ) -> tuple[date | None, DayType | None]:
@@ -130,6 +124,15 @@ def _command(
     if "go_in" in args:
         return args.go_in, DayType.OFFICE
     return args.on, None
+
+
+def _today() -> date:
+    """Give the wearer's own today.
+
+    Local rather than UTC: the calendar this walks is the one on the
+    wall, and a date is only ever a date here.
+    """
+    return datetime.now(UTC).astimezone().date()
 
 
 def _first_run(config: Path) -> str:
@@ -167,14 +170,6 @@ def _render(response: Response) -> str:
             ),
         ]
     )
-
-
-def _date(text: str) -> date:
-    try:
-        return date.fromisoformat(text)
-    except ValueError:
-        message = f"{text!r} is not a date of the form YYYY-MM-DD"
-        raise argparse.ArgumentTypeError(message) from None
 
 
 def _repeat_note(response: Response) -> tuple[str, ...]:
