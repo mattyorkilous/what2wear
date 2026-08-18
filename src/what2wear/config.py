@@ -42,6 +42,25 @@ class _Strict(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+class _Config(_Strict):
+    office_weekdays: Annotated[list[str], Field(min_length=1)]
+    office: _OfficeCloset
+    home: _HomeCloset
+
+
+class _Closet(_Strict):
+    anchor: _Anchor
+    shirts: Annotated[list[_Shirt], Field(min_length=1)]
+
+
+class _OfficeCloset(_Closet):
+    pants: dict[str, _OfficePants]
+
+
+class _HomeCloset(_Closet):
+    pants: dict[str, _HomePants]
+
+
 class _Anchor(_Strict):
     date: date
     shirt: str
@@ -63,25 +82,6 @@ class _OfficePants(_Pants):
 
 class _HomePants(_Pants):
     jacket: str
-
-
-class _Closet(_Strict):
-    anchor: _Anchor
-    shirts: Annotated[list[_Shirt], Field(min_length=1)]
-
-
-class _OfficeCloset(_Closet):
-    pants: dict[str, _OfficePants]
-
-
-class _HomeCloset(_Closet):
-    pants: dict[str, _HomePants]
-
-
-class _Config(_Strict):
-    office_weekdays: Annotated[list[str], Field(min_length=1)]
-    office: _OfficeCloset
-    home: _HomeCloset
 
 
 def load_state(path: Path) -> State:
@@ -182,39 +182,6 @@ def _rows(pants: Mapping[str, _Pants]) -> tuple[PantsRow, ...]:
     )
 
 
-def _weekdays(names: list[str]) -> frozenset[int]:
-    unknown = [name for name in names if name.lower() not in WEEKDAYS]
-    if unknown:
-        message = (
-            "office_weekdays: unknown weekday"
-            f" {', '.join(repr(name) for name in unknown)}"
-            f" -- use {', '.join(WEEKDAYS)}"
-        )
-        raise ConfigError(message)
-    return frozenset(WEEKDAYS[name.lower()] for name in names)
-
-
-def _check_anchor_day_types(state: State) -> None:
-    """Reject an Anchor Date that is not its own Closet's kind.
-
-    An anchor on a day the Closet never sees counts nothing. This is
-    also what rejects a week with no Home Days: make every weekday an
-    Office Day and no home anchor can satisfy it.
-    """
-    if state.day_type(state.office.anchor_date) is not DayType.OFFICE:
-        message = (
-            f"office anchor: {state.office.anchor_date} is not an"
-            " office day under office_weekdays"
-        )
-        raise ConfigError(message)
-    if state.day_type(state.home.anchor_date) is not DayType.HOME:
-        message = (
-            f"home anchor: {state.home.anchor_date} is not a home day"
-            " under office_weekdays"
-        )
-        raise ConfigError(message)
-
-
 def _check_office_pants(rows: tuple[PantsRow, ...]) -> None:
     """Hold the office rows to what the no-repeat rule needs.
 
@@ -250,5 +217,38 @@ def _check_office_pants(rows: tuple[PantsRow, ...]) -> None:
         message = (
             f"office pants: fallback {described} is no other row's"
             " sweater"
+        )
+        raise ConfigError(message)
+
+
+def _weekdays(names: list[str]) -> frozenset[int]:
+    unknown = [name for name in names if name.lower() not in WEEKDAYS]
+    if unknown:
+        message = (
+            "office_weekdays: unknown weekday"
+            f" {', '.join(repr(name) for name in unknown)}"
+            f" -- use {', '.join(WEEKDAYS)}"
+        )
+        raise ConfigError(message)
+    return frozenset(WEEKDAYS[name.lower()] for name in names)
+
+
+def _check_anchor_day_types(state: State) -> None:
+    """Reject an Anchor Date that is not its own Closet's kind.
+
+    An anchor on a day the Closet never sees counts nothing. This is
+    also what rejects a week with no Home Days: make every weekday an
+    Office Day and no home anchor can satisfy it.
+    """
+    if state.day_type(state.office.anchor_date) is not DayType.OFFICE:
+        message = (
+            f"office anchor: {state.office.anchor_date} is not an"
+            " office day under office_weekdays"
+        )
+        raise ConfigError(message)
+    if state.day_type(state.home.anchor_date) is not DayType.HOME:
+        message = (
+            f"home anchor: {state.home.anchor_date} is not a home day"
+            " under office_weekdays"
         )
         raise ConfigError(message)
