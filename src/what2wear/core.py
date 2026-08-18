@@ -62,22 +62,6 @@ def _office_response(state: State, on: date) -> Response:
     return next(response for response in resolved if response.on == on)
 
 
-def _home_response(state: State, on: date) -> Response:
-    """Home has no no-repeat rule, so the pants say everything."""
-    shirt = _shirt(state, DayType.HOME, on)
-    row = state.home.row_for(shirt.pants)
-    return Response(
-        on=on,
-        day_type=DayType.HOME,
-        outfit=Outfit(
-            shirt=shirt.name,
-            pants=shirt.pants,
-            sweater=row.sweater,
-            shoes=row.shoes,
-        ),
-    )
-
-
 def _office_days_of_week(state: State, on: date) -> tuple[date, ...]:
     """List the Office Days of the Week containing `on`.
 
@@ -132,6 +116,22 @@ def _office_sweater(row: PantsRow, taken: frozenset[str]) -> str:
     if row.fallback is not None and row.fallback not in taken:
         return row.fallback
     return row.sweater
+
+
+def _home_response(state: State, on: date) -> Response:
+    """Home has no no-repeat rule, so the pants say everything."""
+    shirt = _shirt(state, DayType.HOME, on)
+    row = state.home.row_for(shirt.pants)
+    return Response(
+        on=on,
+        day_type=DayType.HOME,
+        outfit=Outfit(
+            shirt=shirt.name,
+            pants=shirt.pants,
+            sweater=row.sweater,
+            shoes=row.shoes,
+        ),
+    )
 
 
 def _shirt(state: State, day_type: DayType, on: date) -> Shirt:
