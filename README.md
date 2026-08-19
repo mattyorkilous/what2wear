@@ -4,7 +4,7 @@ Tells you what to wear today, and what you'll wear on any future day.
 
 It walks a fixed, hand-authored list of shirts — one closet for the office, one for home — advancing each rotation only on days of its own kind. Pants come welded to the shirt; shoes and sweaters follow from the pants. At the office it guarantees no sweater and no pair of shoes repeats within a Monday-start week. At home, when it's cold, it alternates jacket and sweater so the same kind of layer never comes twice running.
 
-> **Status: overrides.** Tickets 01–03 are in: rotation for any date, config parsing, the CLI, resolution — sweaters and shoes keyed by pants, with the office week fallback — and day type overrides on top of an append-only decision log. `what2wear` and `what2wear --on <date>` give you the shirt, its pants, its sweater, its shoes and whether it's an office day; `--stay-home` and `--go-in` switch a date's side. Resets, layers and weather are still ahead.
+> **Status: resets.** Tickets 01–04 are in: rotation for any date, config parsing, the CLI, resolution — sweaters and shoes keyed by pants, with the office week fallback — and day type overrides and shirt resets on top of an append-only decision log. `what2wear` and `what2wear --on <date>` give you the shirt, its pants, its sweater, its shoes and whether it's an office day; `--stay-home` and `--go-in` switch a date's side, and `--reset` moves the shirt rotation on for good. Layers and weather are still ahead.
 
 ## How it works
 
@@ -13,7 +13,7 @@ It walks a fixed, hand-authored list of shirts — one closet for the office, on
 The rotation position for any date is *derived* from the calendar rather than stored as a cursor:
 
 ```
-position(date) = (days_of_that_type_since_anchor + reset_offsets_before(date)) mod len(closet)
+position(date) = (days_of_that_type_since_anchor + reset_offsets_since_anchor(date)) mod len(closet)
 ```
 
 That one choice shapes the whole design. Looking ahead to a future date is the same function call as looking at today, not a separate simulation that can drift. The rotation also stays correct whether or not you run the tool on a given day — you wore clothes either way. See [ADR-0001](docs/adr/0001-positions-derived-from-the-calendar.md).
@@ -24,14 +24,14 @@ Home layers alternate on the calendar too. Every home day is a jacket day or a s
 
 ## Planned interface
 
-A deliberately disposable CLI, to be replaced later by something usable from a phone. The reset flags don't work yet; they arrive with their tickets:
+A deliberately disposable CLI, to be replaced later by something usable from a phone. `--reset-layer` doesn't work yet; it arrives with its ticket:
 
 ```
 what2wear                      # today's outfit
 what2wear --on 2026-08-24      # any date, past or future
 what2wear --stay-home [date]   # this office day is now a home day
 what2wear --go-in [date]       # this home day is now an office day
-what2wear --reset [shirt]      # skip to the next shirt, or jump to a named one
+what2wear --reset [shirt]      # move on to the next shirt, or jump to a named one
 what2wear --reset-layer        # flip the home jacket/sweater alternation
 ```
 

@@ -212,6 +212,44 @@ class TestRecordingADayTypeOverride:
             )
 
 
+class TestRecordingAReset:
+    def test_a_bare_reset_records_a_shift_of_one(
+        self, config_dir: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        assert main(["--reset"], config_dir=config_dir) == 0
+        assert "recorded" in capsys.readouterr().out
+        assert '"rotation": "shirt"' in _log(config_dir).read_text()
+        assert '"offset": 1' in _log(config_dir).read_text()
+
+    def test_a_shirt_the_day_does_not_have_is_refused(
+        self, config_dir: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        # Neither closet holds it, so today's kind cannot matter.
+        assert main(["--reset", "nonesuch"], config_dir=config_dir) == 2
+        assert "nonesuch" in capsys.readouterr().err
+        assert not _log(config_dir).exists()
+
+    def test_a_recorded_reset_moves_a_later_date_on(
+        self, config_dir: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        # Written by hand on the anchor date itself, which is as far
+        # back as a reset can count from: Friday would be denim, and
+        # the shift makes it oxford.
+        _log(config_dir).write_text(
+            '{"on": "2026-08-17", "rotation": "shirt", "offset": 1}\n'
+        )
+        assert _run("--on", "2026-08-21", config_dir) == 0
+        assert "shirt    oxford" in capsys.readouterr().out
+
+    def test_asking_and_resetting_are_not_combined(
+        self, config_dir: Path
+    ) -> None:
+        with pytest.raises(SystemExit):
+            main(
+                ["--on", "2026-08-21", "--reset"], config_dir=config_dir
+            )
+
+
 def _run(flag: str, on: str | None, config_dir: Path) -> int:
     return main(
         [flag, *([] if on is None else [on])], config_dir=config_dir

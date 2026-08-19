@@ -10,14 +10,25 @@ The record is `(date, rotation, offset)` — it names which Rotation it shifts, 
 
 **Blocked by:** 03 — Day Type Overrides (shares the append-only decision log)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] A bare reset advances the day's Rotation by one Shirt
-- [ ] A reset naming a Shirt jumps to that Shirt on that date
-- [ ] The Closet is inferred from the date's type; a Shirt name absent from that Closet is a clear error
-- [ ] Naming a Shirt never alters the date's type
-- [ ] A Reset shifts every subsequent date's Position, permanently
-- [ ] A recorded Reset names the Rotation it shifts; this ticket writes only `shirt`, and an unknown target is a clear error rather than a silent default
-- [ ] Resets and Day Type Overrides interleave correctly in the same log, in date order
-- [ ] Multiple Resets accumulate rather than replacing one another
-- [ ] Look-ahead performed before a Reset and the same date resolved after it differ by exactly the recorded shift
+- [x] A bare reset advances the day's Rotation by one Shirt
+- [x] A reset naming a Shirt jumps to that Shirt on that date
+- [x] The Closet is inferred from the date's type; a Shirt name absent from that Closet is a clear error
+- [x] Naming a Shirt never alters the date's type
+- [x] A Reset shifts every subsequent date's Position, permanently
+- [x] A recorded Reset names the Rotation it shifts; this ticket writes only `shirt`, and an unknown target is a clear error rather than a silent default
+- [x] Resets and Day Type Overrides interleave correctly in the same log, in date order
+- [x] Multiple Resets accumulate rather than replacing one another
+- [x] Look-ahead performed before a Reset and the same date resolved after it differ by exactly the recorded shift
+
+## Comments
+
+**Post-review, 2026-08-18.** Two things surfaced reviewing this ticket that the ticket itself doesn't cover.
+
+*The Anchor Date is now the last word.* A Reset dated before its Closet's Anchor Date no longer counts. Without that rule, re-authoring the anchor by hand left every earlier Reset stacked on top of it, so naming a Shirt in the config landed you some arbitrary number of Shirts past it. Recorded in ADR-0001.
+
+*Re-anchoring was considered as the record shape and deferred.* A Reset and an Anchor Date are the same fact --- "on this date you were on this Shirt" --- stored in two shapes in two files. Recording Resets as further anchors, with the latest one on or before a date winning, would collapse them into one concept, match how a Reset is actually thought about, and remove the Closet inference below. It was not taken because this ticket prescribes `(date, rotation, offset)`, and because an offset survives a Closet edit where a recorded Shirt name is left stranded (ADR-0001 accepts Closet edits). Worth reopening if the inference below bites.
+
+*Known consequence, not fixed.* Which Closet a Reset moves is derived at read time from its date's type, because the record names the Rotation and not the Closet. So a Day Type Override recorded later against a Reset's own date carries that Reset to the other Closet, applying an offset computed in one Closet's length to the other's. Reachable in practice: `--reset` in the morning, `--stay-home` for the same date in the afternoon. Fixing it properly means a fourth field on the record, which is a change to this ticket.
+
