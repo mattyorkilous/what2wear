@@ -83,5 +83,5 @@ A record that shifts one named Rotation's Position from a given date forward, pe
 _Avoid_: skip, reroll, shuffle, override
 
 **Anchor Date**:
-The date on which a Closet's Rotations sit at Position 0. All Positions are counted from it. Each Closet has one, given as a date plus the Shirt worn on it; the home Anchor Date additionally names the Layer worn, because the Home Layer Rotation counts from the same date.
+The date on which a Closet's Rotations sit at Position 0. All Positions are counted from it, and a Reset dated before it no longer counts — re-authoring an Anchor Date is the last word on where its Rotations stand. Each Closet has one, given as a date plus the Shirt worn on it; the home Anchor Date additionally names the Layer worn, because the Home Layer Rotation counts from the same date.
 _Avoid_: epoch, start date, origin

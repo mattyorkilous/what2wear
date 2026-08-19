@@ -12,9 +12,13 @@ from what2wear.model import (
     Closet,
     DayType,
     DayTypeOverride,
+    Decision,
     Outfit,
     PantsRow,
+    Reset,
+    ResetRequest,
     Response,
+    Rotation,
     Shirt,
     State,
 )
@@ -24,21 +28,22 @@ def handle(
     on: date | None,
     state: State,
     today: date,
-    record: DayType | None = None,
+    record: DayType | ResetRequest | None = None,
 ) -> Response:
     """Answer a question about a date, defaulting to today.
 
     The one seam every command routes through. `record` asks for that
-    date to become an Office Day or a Home Day: the answer is resolved
-    as though the Override were already in force, and comes back with
-    the decision for the shell to append.
+    date to become an Office Day or a Home Day, or for its Rotation to
+    move: the answer is resolved as though the decision were already
+    in force, and comes back with it for the shell to append.
     """
     day = today if on is None else on
     if record is None:
         return _response(state, day)
-    decision = DayTypeOverride(day, day_type=record)
-    recorded = replace(state, overrides=(*state.overrides, decision))
-    return replace(_response(recorded, day), decision=decision)
+    decision = _decision(state, day, record)
+    return replace(
+        _response(_recorded(state, decision), day), decision=decision
+    )
 
 
 def _response(state: State, on: date) -> Response:
@@ -136,7 +141,7 @@ def _home_response(state: State, on: date) -> Response:
 
 def _shirt(state: State, day_type: DayType, on: date) -> Shirt:
     """Take what Rotation offers on a date, before Resolution."""
-    closet = state.office if day_type is DayType.OFFICE else state.home
+    closet = state.closet(day_type)
     return closet.shirts[_position(state, closet, day_type, on)]
 
 
@@ -145,14 +150,17 @@ def _position(
 ) -> int:
     """Derive where the Rotation stands on a date.
 
-    From the calendar, never from a stored cursor, per ADR-0001.
+    From the calendar and the Resets recorded against it, never from
+    a stored cursor, per ADR-0001.
     """
     steps = _days_of_type_between(
         state, day_type, closet.anchor_date, on
     )
-    return (closet.index_of(closet.anchor_shirt) + steps) % len(
-        closet.shirts
-    )
+    return (
+        closet.index_of(closet.anchor_shirt)
+        + steps
+        + state.shirt_shift(day_type, on)
+    ) % len(closet.shirts)
 
 
 def _days_of_type_between(
@@ -184,3 +192,53 @@ def _days_of_type_between(
         )
         + state.overridden_days(day_type, start, end)
     )
+
+
+def _decision(
+    state: State, on: date, record: DayType | ResetRequest
+) -> Decision:
+    """Settle what a command asked for into what gets written down."""
+    return (
+        DayTypeOverride(on, day_type=record)
+        if isinstance(record, DayType)
+        else Reset(on, Rotation.SHIRT, _offset(state, on, record.shirt))
+    )
+
+
+def _offset(state: State, on: date, shirt: str | None) -> int:
+    """Say how far the Shirt Rotation is being asked to move.
+
+    One Shirt on for a bare Reset; the distance round to a named one
+    otherwise, always forwards, in the Closet the date draws from. A
+    Shirt that Closet does not hold is an error rather than a guess:
+    the same name can sit in the other Closet, or in neither.
+    """
+    if shirt is None:
+        return 1
+    day_type = state.day_type(on)
+    closet = state.closet(day_type)
+    return (
+        _index_of(closet, day_type, shirt)
+        - _position(state, closet, day_type, on)
+    ) % len(closet.shirts)
+
+
+def _index_of(closet: Closet, day_type: DayType, shirt: str) -> int:
+    try:
+        return closet.index_of(shirt)
+    except StopIteration:
+        message = f"no {day_type} shirt named {shirt!r}"
+        raise UnknownShirtError(message) from None
+
+
+def _recorded(state: State, decision: Decision) -> State:
+    """Put a decision into the State as though it were logged."""
+    return (
+        replace(state, overrides=(*state.overrides, decision))
+        if isinstance(decision, DayTypeOverride)
+        else replace(state, resets=(*state.resets, decision))
+    )
+
+
+class UnknownShirtError(Exception):
+    """A Reset named a Shirt the day's Closet does not hold."""

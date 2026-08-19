@@ -18,13 +18,21 @@ from what2wear.config import (
     MissingWardrobeError,
     load_state,
 )
-from what2wear.core import handle
+from what2wear.core import UnknownShirtError, handle
 from what2wear.decisions import (
     DecisionsError,
     append_decision,
     load_decisions,
 )
-from what2wear.model import DayType, Response
+from what2wear.model import (
+    DayType,
+    DayTypeOverride,
+    Decision,
+    Reset,
+    ResetRequest,
+    Response,
+    State,
+)
 
 
 def run() -> int:
@@ -49,19 +57,14 @@ def main(argv: Sequence[str] | None = None, *, config_dir: Path) -> int:
     log = config_dir / "decisions.jsonl"
     on, record = _command(args)
     try:
-        state = load_state(config)
-        response = handle(
-            on,
-            replace(state, overrides=load_decisions(log)),
-            today=_today(),
-            record=record,
-        )
+        state = _with_decisions(load_state(config), load_decisions(log))
+        response = handle(on, state, today=_today(), record=record)
         if response.decision is not None:
             append_decision(log, response.decision)
     except MissingWardrobeError:
         print(_first_run(config), file=sys.stderr)
         return 2
-    except (ConfigError, DecisionsError) as error:
+    except (ConfigError, DecisionsError, UnknownShirtError) as error:
         print(error, file=sys.stderr)
         return 2
     print(_render(response))
@@ -99,6 +102,14 @@ def _parser() -> argparse.ArgumentParser:
         metavar="YYYY-MM-DD",
         help="record that a date is an office day; defaults to today",
     )
+    dates.add_argument(
+        "--reset",
+        nargs="?",
+        const=None,
+        default=argparse.SUPPRESS,
+        metavar="SHIRT",
+        help="move today on to the next shirt, or to a named one",
+    )
     return parser
 
 
@@ -112,18 +123,44 @@ def _date(text: str) -> date:
 
 def _command(
     args: argparse.Namespace,
-) -> tuple[date | None, DayType | None]:
+) -> tuple[date | None, DayType | ResetRequest | None]:
     """Take the date being asked about, and what to record about it.
 
     A date of `None` means today, so the recording flags are suppressed
     when absent rather than defaulted -- absence is the missing
-    attribute.
+    attribute. A Reset takes a Shirt where the others take a date, and
+    so is only ever about today.
     """
     if "stay_home" in args:
         return args.stay_home, DayType.HOME
     if "go_in" in args:
         return args.go_in, DayType.OFFICE
+    if "reset" in args:
+        return None, ResetRequest(args.reset)
     return args.on, None
+
+
+def _with_decisions(
+    state: State, decisions: tuple[Decision, ...]
+) -> State:
+    """Put the one log back into the State, each kind in its field.
+
+    The log is written in the order decided; nothing here needs that
+    order, because every decision carries the date it applies from.
+    """
+    return replace(
+        state,
+        overrides=tuple(
+            decision
+            for decision in decisions
+            if isinstance(decision, DayTypeOverride)
+        ),
+        resets=tuple(
+            decision
+            for decision in decisions
+            if isinstance(decision, Reset)
+        ),
+    )
 
 
 def _today() -> date:
@@ -153,7 +190,6 @@ def _first_run(config: Path) -> str:
 
 
 def _render(response: Response) -> str:
-    decision = response.decision
     return "\n".join(
         [
             f"{response.on:%a %d %b %Y} - {response.day_type} day",
@@ -162,12 +198,7 @@ def _render(response: Response) -> str:
             f"  sweater  {response.outfit.sweater}",
             f"  shoes    {response.outfit.shoes}",
             *_repeat_note(response),
-            # A command that writes something says what it wrote.
-            *(
-                (f"  recorded {decision.on} - {decision.day_type} day",)
-                if decision is not None
-                else ()
-            ),
+            *_recorded_note(response.decision),
         ]
     )
 
@@ -182,4 +213,18 @@ def _repeat_note(response: Response) -> tuple[str, ...]:
         ("  note     already worn this week -- no free sweater left",)
         if response.unavoidable_repeat
         else ()
+    )
+
+
+def _recorded_note(decision: Decision | None) -> tuple[str, ...]:
+    """Say what a command that writes something wrote."""
+    if decision is None:
+        return ()
+    if isinstance(decision, DayTypeOverride):
+        return (f"  recorded {decision.on} - {decision.day_type} day",)
+    return (
+        (
+            f"  recorded {decision.on} - {decision.rotation}"
+            f" rotation {decision.offset:+d}"
+        ),
     )

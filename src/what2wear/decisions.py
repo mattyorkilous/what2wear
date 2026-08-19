@@ -7,21 +7,31 @@ is ever touched.
 """
 
 import json
+from dataclasses import asdict
 from datetime import date
 from pathlib import Path
+from typing import Any
 
-from what2wear.model import DayType, DayTypeOverride
+from what2wear.model import (
+    DayType,
+    DayTypeOverride,
+    Decision,
+    Reset,
+    Rotation,
+)
 
 
 class DecisionsError(Exception):
     """The decision log cannot be read or written, or is not one."""
 
 
-def load_decisions(path: Path) -> tuple[DayTypeOverride, ...]:
+def load_decisions(path: Path) -> tuple[Decision, ...]:
     """Read every decision recorded so far, in the order recorded.
 
-    A log that does not exist yet is an empty one -- nothing has been
-    recorded, which is not an error.
+    Overrides and Resets share the one log and come back interleaved,
+    each still carrying the date it applies from. A log that does not
+    exist yet is an empty one -- nothing has been recorded, which is
+    not an error.
     """
     try:
         text = path.read_text()
@@ -33,10 +43,7 @@ def load_decisions(path: Path) -> tuple[DayTypeOverride, ...]:
 
     try:
         return tuple(
-            DayTypeOverride(
-                on=date.fromisoformat(record["on"]),
-                day_type=DayType(record["day_type"]),
-            )
+            _decision(record)
             for record in (
                 json.loads(line)
                 for line in text.splitlines()
@@ -48,15 +55,29 @@ def load_decisions(path: Path) -> tuple[DayTypeOverride, ...]:
         raise DecisionsError(message) from None
 
 
-def append_decision(path: Path, decision: DayTypeOverride) -> None:
+def _decision(record: dict[str, Any]) -> Decision:
+    """Read one record back as the decision it was written from.
+
+    Which kind it is is what it carries: an Override says what the day
+    became, a Reset which Rotation moved and by how much. A Rotation
+    this version does not know is a bad record rather than a default.
+    """
+    on = date.fromisoformat(record["on"])
+    if "day_type" in record:
+        return DayTypeOverride(on, DayType(record["day_type"]))
+    return Reset(
+        on, Rotation(record["rotation"]), int(record["offset"])
+    )
+
+
+def append_decision(path: Path, decision: Decision) -> None:
     """Add one record to the end of the log.
 
-    Starts the log if this is the first record.
+    Whatever the decision carries is what gets written, so a new kind
+    of decision needs nothing here. Starts the log if this is the
+    first record.
     """
-    record = {
-        "on": decision.on.isoformat(),
-        "day_type": decision.day_type,
-    }
+    record = {**asdict(decision), "on": decision.on.isoformat()}
     try:
         with path.open("a") as log:
             log.write(f"{json.dumps(record)}\n")

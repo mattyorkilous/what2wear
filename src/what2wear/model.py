@@ -16,6 +16,7 @@ class State:
     home: Closet
     office_weekdays: frozenset[int]
     overrides: tuple[DayTypeOverride, ...] = ()
+    resets: tuple[Reset, ...] = ()
 
     def day_type(self, on: date) -> DayType:
         """Say what kind of day a date actually is.
@@ -42,6 +43,34 @@ class State:
             DayType.OFFICE
             if on.weekday() in self.office_weekdays
             else DayType.HOME
+        )
+
+    def closet(self, day_type: DayType) -> Closet:
+        """Give the Closet a kind of day draws from."""
+        return self.office if day_type is DayType.OFFICE else self.home
+
+    def shirt_shift(self, day_type: DayType, on: date) -> int:
+        """Add up what the Resets in force on a date move a Closet by.
+
+        A Reset is permanent from its own date forward. Which Closet
+        it moves is the one its own date drew from, which is why the
+        record names the Shirt Rotation and not which of the two --
+        and why an Override recorded later against that same date
+        carries the Reset across to the other Closet with it.
+
+        Re-authoring an Anchor Date is the last word: a Reset older
+        than the Closet's anchor no longer counts, so an anchor
+        written by hand says where the Rotation stands rather than
+        having the Resets before it quietly stacked back on top. Each
+        Closet is cut off at its own anchor.
+        """
+        anchor = self.closet(day_type).anchor_date
+        return sum(
+            reset.offset
+            for reset in self.resets
+            if reset.rotation is Rotation.SHIRT
+            and anchor <= reset.on <= on
+            and self.day_type(reset.on) is day_type
         )
 
     def overridden_days(
@@ -147,6 +176,43 @@ class DayTypeOverride:
     day_type: DayType
 
 
+class Rotation(StrEnum):
+    """Which Rotation a Reset shifts.
+
+    The Closet a Shirt Reset moves is inferred from its date, so the
+    only thing a record has to name is the kind of Rotation.
+    """
+
+    SHIRT = "shirt"
+
+
+@dataclass(frozen=True)
+class Reset:
+    """A record shifting one Rotation from a date forward, for good.
+
+    Every later date moves with it, so the Rotation stays continuous
+    rather than snapping back the next day.
+    """
+
+    on: date
+    rotation: Rotation
+    offset: int
+
+
+type Decision = DayTypeOverride | Reset
+
+
+@dataclass(frozen=True)
+class ResetRequest:
+    """A command asking for a Reset, before its offset is known.
+
+    Bare, it moves on to the next Shirt. Naming a Shirt jumps to that
+    one instead; the Closet comes from the date, never from the name.
+    """
+
+    shirt: str | None = None
+
+
 @dataclass(frozen=True)
 class Response:
     """What a command resolved to, ready for a shell to render."""
@@ -155,7 +221,7 @@ class Response:
     day_type: DayType
     outfit: Outfit
     unavoidable_repeat: bool = False
-    decision: DayTypeOverride | None = None
+    decision: Decision | None = None
 
 
 @dataclass(frozen=True)
