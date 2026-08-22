@@ -209,7 +209,7 @@ class TestValidation:
         with pytest.raises(ConfigError, match="is not UTF-8 text"):
             load_state(path)
 
-    def test_a_pants_colour_with_no_row_is_rejected(
+    def test_a_pants_color_with_no_row_is_rejected(
         self, tmp_path: Path
     ) -> None:
         text = VALID.replace(

@@ -172,13 +172,13 @@ def _closet(
 def _rows(pants: Mapping[str, _Pants]) -> tuple[PantsRow, ...]:
     """Turn the pants-keyed mapping into self-describing rows.
 
-    Each row carries the colour it was keyed by. Whichever of
+    Each row carries the color it was keyed by. Whichever of
     `fallback` and `jacket` the setting allows comes across with the
     rest; the other one was never parsed.
     """
     return tuple(
-        PantsRow(pants=colour, **row.model_dump())
-        for colour, row in pants.items()
+        PantsRow(pants=color, **row.model_dump())
+        for color, row in pants.items()
     )
 
 

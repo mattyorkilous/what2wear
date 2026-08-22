@@ -57,7 +57,7 @@ home:
 ```
 
 - [x] Sweaters, jackets and shoes resolve from pants, per Closet, with three rows each, as authored under "The mappings" below
-- [x] Every pants colour worn in a Closet has a row, and a Fallback naming a sweater that is no other row's primary is rejected at the config boundary
+- [x] Every pants color worn in a Closet has a row, and a Fallback naming a sweater that is no other row's primary is rejected at the config boundary
 - [x] Office sweaters never repeat within a Monday-start Week
 - [x] Office shoes never repeat within a Monday-start Week, as a consequence of the sweater rule rather than a separate check
 - [x] When two office Shirts in a Week share pants, the later one takes its Fallback sweater

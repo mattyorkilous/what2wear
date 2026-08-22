@@ -6,7 +6,7 @@ Two forms. Bare, it advances to the next Shirt. Given a Shirt name, it jumps str
 
 A Reset is recorded as a permanent shift from that date forward, per ADR-0001. Every later date moves with it; the Rotation stays continuous rather than snapping back the next day. This is also why look-ahead is only valid until the next Reset.
 
-The record is `(date, rotation, offset)` — it names which Rotation it shifts, even though this ticket only ever writes `shirt`. Ticket 06 adds the Home Layer Rotation as a second target. The field is spent now rather than retrofitted because the log is append-only: adding a discriminator later means either migrating written records or inventing a defaulting rule for the ones without it, and one field costs less than either.
+The record is `(date, rotation, offset)` — it names which Rotation it shifts, even though this ticket only ever writes `shirt`. Ticket 06 adds the Home Outerwear Rotation as a second target. The field is spent now rather than retrofitted because the log is append-only: adding a discriminator later means either migrating written records or inventing a defaulting rule for the ones without it, and one field costs less than either.
 
 **Blocked by:** 03 — Day Type Overrides (shares the append-only decision log)
 

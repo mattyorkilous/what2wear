@@ -1,87 +1,184 @@
 # what2wear
 
-Tells you what to wear today, and what you'll wear on a future day, by walking a fixed set of shirts in a repeating order that is aware of whether you're going into the office and how cold it is.
+Tells you what to wear today, and what you'll wear on a future day, by
+walking a fixed set of shirts in a repeating order that is aware of
+whether you're going into the office and how cold it is.
+
+It dresses one person out of one known Wardrobe. Nobody configures it;
+the only things it can be told are which garments have been replaced,
+what kind of day a date is, and where a Rotation stands.
 
 ## Language
 
 ### Clothing
 
-**Shirt**:
-The authored unit of a Closet, and the only garment a human writes down. A Shirt carries the pants welded to it and nothing else — its sweater, its shoes and its jacket all follow from those pants.
-_Avoid_: look, outfit, combination, top
-
 **Wardrobe**:
-Both Closets together with the weekday pattern that says which of them a date draws from — everything a human authors, in one file. There is exactly one per installation, it lives as `config.yaml` where the platform keeps a user's config, and the tool reads it and never writes it. "Config" names the platform's directory and the file in it; the thing written there is a Wardrobe.
-_Avoid_: settings, profile, closet file
+Every garment you own and how they go together — the two Closets, the
+Pants they share, and which sweater, shoes and jacket follow from each
+pair of Pants. The Wardrobe is *given*: its shape is a fact about the
+person the tool dresses, not something the tool is told, so nothing in
+it can be added to, removed or re-paired while the tool is running.
+_Avoid_: settings, profile, config, closet file
 
 **Closet**:
-An ordered list of Shirts for one setting, together with the Pants Rows that dress them. There are exactly two, the Office Closet and the Home Closet, and they are independently sized.
+An ordered list of Shirts for one setting, together with the Pants Rows
+that dress them. There are exactly two, the Office Closet and the Home
+Closet, and they are independently and permanently sized.
 _Avoid_: collection, drawer
 
+**Garment**:
+Anything you put on — a Shirt, a pair of Pants, a sweater, a jacket, a
+pair of shoes. Every Garment has a fixed identity and a Label that can
+change. Within one Closet a Label names exactly one Garment; the same
+Label in the two Closets names two different Garments.
+_Avoid_: item, piece, article
+
+**Label**:
+What a Garment is called — usually its color, sometimes its cut. A
+Label is the only thing about the Wardrobe that moves, and it is the
+whole of what the tool prints at you, so it has to be something you can
+act on. Changing one never disturbs a Rotation, because nothing is
+keyed by it.
+_Avoid_: color, name, description
+
+**Shirt**:
+One position in a Closet, carrying the Pants welded to it. Its sweater,
+its shoes and its jacket all follow from those Pants.
+_Avoid_: look, outfit, combination, top
+
+**Pants**:
+The trousers a Shirt is welded to. There is one set of them and both
+Closets wear it — the same Pants, not two pairs that match. What they
+are *worn with* differs by Closet, which is the Pants Row.
+_Avoid_: trousers, bottoms, legwear
+
 **Pants Row**:
-What one Closet pairs with one colour of pants — the sweater and shoes that follow from it, plus the jacket or the Fallback, depending on the Closet. The same colour names different garments in the two Closets.
+What one Closet pairs with one pair of Pants — the sweater and shoes
+that follow from them, plus the jacket or the Fallback, depending on
+the Closet. Each Closet has its own row per pair of Pants, so the same
+Pants dress differently at the office than at home.
 _Avoid_: mapping, entry, pairing, combination
 
-**Layer**:
-A sweater or a jacket, worn over a Shirt when the day is cold enough. The Office Closet has sweaters only; the Home Closet has both, and which of the two a Home Day calls for comes from the Home Layer Rotation, not from the weather. Temperature decides only _whether_ the Layer is worn, so a warm Home Day spends its turn wearing nothing.
-_Avoid_: outerwear, overlayer, coat
+**Outerwear**:
+A sweater or a jacket, worn over a Shirt when the day is cold enough.
+The jacket is a light indoor one, worn in the same places and for the
+same reason as the sweater — nothing here is a coat. The Office Closet
+has sweaters only; the Home Closet has both, and which of the two a
+Home Day calls for comes from the Home Outerwear Rotation, not from the
+weather. Temperature decides only _whether_ Outerwear is worn, so a
+warm Home Day spends its turn wearing nothing.
+_Avoid_: layer, overlayer, coat, outer layer
 
 **Outfit**:
-The fully resolved set of garments for one date — a Shirt, its pants, its shoes, and any Layer. An Outfit is always derived and never authored.
+The fully resolved set of garments for one date — a Shirt, its Pants,
+its shoes, and any Outerwear. An Outfit is always derived and never stored.
 _Avoid_: look, combination, ensemble
 
 ### Calendar
 
 **Office Day**:
-A date on which you go into the office, and therefore draw from the Office Closet.
+A date on which you go into the office, and therefore draw from the
+Office Closet.
 _Avoid_: in-office day, commute day
 
 **Home Day**:
-A date on which you do not go into the office, and therefore draw from the Home Closet. Weekends are Home Days.
+A date on which you do not go into the office, and therefore draw from
+the Home Closet. Weekends are Home Days.
 _Avoid_: WFH day, remote day, day off
 
-Every date is exactly one of an Office Day or a Home Day. There is no third, unclassified kind of day.
+Every date is exactly one of an Office Day or a Home Day. There is no
+third, unclassified kind of day.
 
 **Week**:
-A Monday-start calendar week. It exists in this domain only as the scope within which office sweaters may not repeat.
+A Monday-start calendar week. It exists in this domain only as the
+scope within which office sweaters may not repeat.
 _Avoid_: work week, rotation week, sprint
 
 ### Sequencing
 
 **Rotation**:
-The repeating traversal of an ordered list, in order, wrapping at the end. A Rotation advances only on days of its own kind — Office Days do not move a home Rotation, or vice versa. There are three: a Shirt Rotation per Closet, and the Home Layer Rotation.
+The repeating traversal of an ordered list, in order, wrapping at the
+end. A Rotation advances only on days of its own kind — Office Days do
+not move a home Rotation, or vice versa. There are three: a Shirt
+Rotation per Closet, and the Home Outerwear Rotation. Each has its own
+Anchor and is Reset independently.
 _Avoid_: cycle, schedule, queue
 
 **Shirt Rotation**:
-The Rotation over one Closet's Shirts. Where a Closet is in scope and Layers are not, "Rotation" unqualified means this one.
+The Rotation over one Closet's Shirts. Where a Closet is in scope and
+Outerwear is not, "Rotation" unqualified means this one.
 _Avoid_: closet rotation, main rotation
 
-**Home Layer Rotation**:
-The Rotation over the two kinds of home Layer, sweater and jacket, that decides which kind a Home Day calls for. It advances on the same Home Days as the Home Shirt Rotation but counts separately, so a Reset to one leaves the other where it was. The Office Closet has no equivalent — office Layers follow from pants alone.
+**Home Outerwear Rotation**:
+The Rotation over the two kinds of home Outerwear, sweater and jacket,
+that decides which kind a Home Day calls for. It advances on the same
+Home Days as the Home Shirt Rotation but counts from its own Anchor, so
+a Reset to one leaves the other where it was. The Office Closet has no
+equivalent — office Outerwear follows from Pants alone.
 _Avoid_: parity, cursor, flip, toggle
 
 **Position**:
-Where a Rotation stands on a given date — the index of the Shirt worn that date. A Position is always derived from the calendar, never stored and never consumed; asking about a future date uses the same derivation as asking about today.
+Where a Rotation stands on a given date — counted forward from its
+Anchor over days of its own kind. A Position is derived, never stored
+and never consumed, so asking about a future date uses the same
+derivation as asking about today. Dates before today have a Position
+too, but it is not offered: a Reset rewrites it, so it would answer a
+question about the past with a fact about the present.
 _Avoid_: cursor, pointer, index
 
 **Resolution**:
-The per-date step that turns a Shirt into an Outfit by settling its sweater, its shoes and its Layer. Distinct from Rotation: Rotation picks the Shirt, Resolution decides everything else about the day.
+The per-date step that turns a Shirt into an Outfit by settling its
+sweater, its shoes and its Outerwear. Distinct from Rotation: Rotation
+picks the Shirt, Resolution decides everything else about the day.
 _Avoid_: selection, calculation, assembly
 
 **Fallback**:
-The alternate sweater a Pants Row offers during Resolution when its own sweater has already been worn that Week. Always another row's sweater, so the shoes come across with it.
+The alternate sweater a Pants Row offers during Resolution when its own
+sweater has already been worn that Week. Always another row's sweater,
+so the shoes come across with it.
 _Avoid_: secondary, backup, alternate, substitute
 
-### Recorded decisions
+### The State
+
+**State**:
+Everything the tool has been told, in the one file it owns. It holds
+the Labels, the Anchors and the Day Type Overrides, and nothing else —
+the Wardrobe's shape is given, so nothing structural can appear here.
+It is the only thing the tool writes, and no human authors it.
+_Avoid_: config, settings, database, log
+
+**Anchor**:
+A date and the Position one Rotation stood at on it. Every Position is
+counted from here. There is one Anchor per Rotation, each moved on its
+own by a Reset, and each stores a Position rather than a Label so that
+a Swap or a Replace cannot move it.
+_Avoid_: epoch, start date, origin, anchor date
 
 **Day Type Override**:
-A record that a specific date is an Office Day or a Home Day regardless of the weekly pattern. Holidays, leave, going in on a Saturday and staying home on a Wednesday are all the same thing.
+A record that a specific date is an Office Day or a Home Day regardless
+of the weekly pattern. Holidays, leave, going in on a Saturday and
+staying home on a Wednesday are all the same thing. One record per
+date, so saying it again replaces what was said before.
 _Avoid_: exception, holiday, PTO, absence
 
 **Reset**:
-A record that shifts one named Rotation's Position from a given date forward, permanently. Used when the Shirt you were given isn't the one you want, or when the Home Layer Rotation has fallen out of step with what you actually wore.
-_Avoid_: skip, reroll, shuffle, override
+The act of moving a Rotation's Anchor to today and a Position you name.
+Used when the Shirt you were given isn't the one you want, or when the
+Home Outerwear Rotation has fallen out of step with what you actually wore.
+It is the only way a Rotation is corrected, and it takes the whole
+Rotation with it rather than skipping a day.
+_Avoid_: skip, reroll, shuffle, override, re-anchor
 
-**Anchor Date**:
-The date on which a Closet's Rotations sit at Position 0. All Positions are counted from it, and a Reset dated before it no longer counts — re-authoring an Anchor Date is the last word on where its Rotations stand. Each Closet has one, given as a date plus the Shirt worn on it; the home Anchor Date additionally names the Layer worn, because the Home Layer Rotation counts from the same date.
-_Avoid_: epoch, start date, origin
+**Replace**:
+The act of giving a Garment a new Label, because you replaced it or
+because it was called the wrong thing. Nothing distinguishes those two:
+no Garment's history is kept, so a new sweater in the same Pants Row
+and a corrected name for the old one are the same event.
+_Avoid_: rename, recolor, edit, update
+
+**Swap**:
+The act of exchanging the Labels of two Shirts in one Closet. Only
+Shirts sharing Pants may be swapped, which makes a Swap purely
+cosmetic — it changes which Shirt you reach for on a given date and
+cannot touch the Pants, the sweater, the shoes or the Fallback.
+_Avoid_: reorder, move, shuffle, rearrange

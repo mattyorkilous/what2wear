@@ -2,9 +2,9 @@
 
 Tells you what to wear today, and what you'll wear on any future day.
 
-It walks a fixed, hand-authored list of shirts — one closet for the office, one for home — advancing each rotation only on days of its own kind. Pants come welded to the shirt; shoes and sweaters follow from the pants. At the office it guarantees no sweater and no pair of shoes repeats within a Monday-start week. At home, when it's cold, it alternates jacket and sweater so the same kind of layer never comes twice running.
+It walks a fixed, hand-authored list of shirts — one closet for the office, one for home — advancing each rotation only on days of its own kind. Pants come welded to the shirt; shoes and sweaters follow from the pants. At the office it guarantees no sweater and no pair of shoes repeats within a Monday-start week. At home, when it's cold, it alternates jacket and sweater so the same kind of outerwear never comes twice running.
 
-> **Status: resets.** Tickets 01–04 are in: rotation for any date, config parsing, the CLI, resolution — sweaters and shoes keyed by pants, with the office week fallback — and day type overrides and shirt resets on top of an append-only decision log. `what2wear` and `what2wear --on <date>` give you the shirt, its pants, its sweater, its shoes and whether it's an office day; `--stay-home` and `--go-in` switch a date's side, and `--reset` moves the shirt rotation on for good. Layers and weather are still ahead.
+> **Status: resets.** Tickets 01–04 are in: rotation for any date, config parsing, the CLI, resolution — sweaters and shoes keyed by pants, with the office week fallback — and day type overrides and shirt resets on top of an append-only decision log. `what2wear` and `what2wear --on <date>` give you the shirt, its pants, its sweater, its shoes and whether it's an office day; `--stay-home` and `--go-in` switch a date's side, and `--reset` moves the shirt rotation on for good. Outerwear and weather are still ahead.
 
 ## How it works
 
@@ -18,13 +18,13 @@ position(date) = (days_of_that_type_since_anchor + reset_offsets_since_anchor(da
 
 That one choice shapes the whole design. Looking ahead to a future date is the same function call as looking at today, not a separate simulation that can drift. The rotation also stays correct whether or not you run the tool on a given day — you wore clothes either way. See [ADR-0001](docs/adr/0001-positions-derived-from-the-calendar.md).
 
-Resolution keys off **pants, not shirts** — each closet carries one pants row per colour, holding the sweater, shoes and jacket that follow from it. This is also why fallbacks exist at all: an office sweater collision is precisely two shirts in the same week sharing pants. See [ADR-0003](docs/adr/0003-garments-are-keyed-by-pants-not-by-shirt.md).
+Resolution keys off **pants, not shirts** — each closet carries one pants row per color, holding the sweater, shoes and jacket that follow from it. This is also why fallbacks exist at all: an office sweater collision is precisely two shirts in the same week sharing pants. See [ADR-0003](docs/adr/0003-garments-are-keyed-by-pants-not-by-shirt.md).
 
-Home layers alternate on the calendar too. Every home day is a jacket day or a sweater day by its own rotation, and the weather decides only whether the layer gets worn — so a mild day in the middle of a cold stretch spends its turn wearing nothing, and you can land on the same kind of layer either side of it. That trade buys a system with nothing stored anywhere. See [ADR-0004](docs/adr/0004-home-layers-alternate-on-the-calendar.md), which supersedes ADR-0002.
+Home outerwear alternates on the calendar too. Every home day is a jacket day or a sweater day by its own rotation, and the weather decides only whether the outerwear gets worn — so a mild day in the middle of a cold stretch spends its turn wearing nothing, and you can land on the same kind of outerwear either side of it. That trade buys a system with nothing stored anywhere. See [ADR-0004](docs/adr/0004-home-outerwear-alternates-on-the-calendar.md), which supersedes ADR-0002.
 
 ## Planned interface
 
-A deliberately disposable CLI, to be replaced later by something usable from a phone. `--reset-layer` doesn't work yet; it arrives with its ticket:
+A deliberately disposable CLI, to be replaced later by something usable from a phone. `--reset-outerwear` doesn't work yet; it arrives with its ticket:
 
 ```
 what2wear                      # today's outfit
@@ -32,7 +32,7 @@ what2wear --on 2026-08-24      # any date, past or future
 what2wear --stay-home [date]   # this office day is now a home day
 what2wear --go-in [date]       # this home day is now an office day
 what2wear --reset [shirt]      # move on to the next shirt, or jump to a named one
-what2wear --reset-layer        # flip the home jacket/sweater alternation
+what2wear --reset-outerwear        # flip the home jacket/sweater alternation
 ```
 
 Holidays and leave aren't separate concepts — they're just `--stay-home` on the relevant date.
@@ -49,7 +49,7 @@ no wardrobe at /Users/you/Library/Application Support/what2wear/config.yaml
 write one there to get started -- copy example.yaml from the what2wear repo and make it yours
 ```
 
-Copy [`example.yaml`](example.yaml) to that path, make it your own closets, and you're set. Recorded decisions — day type overrides, resets, and resolved home layers — are appended to `decisions.jsonl` beside it, one JSON record per line; they are kept in their own file so recording one can never corrupt your wardrobe.
+Copy [`example.yaml`](example.yaml) to that path, make it your own closets, and you're set. Recorded decisions — day type overrides, resets, and resolved home outerwear — are appended to `decisions.jsonl` beside it, one JSON record per line; they are kept in their own file so recording one can never corrupt your wardrobe.
 
 Each closet carries its shirts, its three pants rows and its own anchor, and the anchor is expressed the way you'd actually say it:
 

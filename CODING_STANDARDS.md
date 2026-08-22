@@ -11,6 +11,7 @@ A function is **private** when no other module reaches for it — nothing outsid
 - **A function is defined below the one that calls it** — read top to bottom and every name is explained after you have seen it used. This is what orders the private block.
 - **Siblings are defined in call order** — where the rules above leave a choice, the functions a parent calls appear in the order the parent calls them, so the file reads in the order the work happens.
 - **No loops** — reach for a comprehension, `functools`, or `itertools`. A loop is a place where a name changes meaning halfway down the body; the alternatives don't have one. The one exception is below.
+- **American spellings in prose** — `color`, `behavior`, `anonymize`. This covers comments, docstrings, error messages and documentation. Garment Labels are exempt: they are the wearer's word for their own clothes, so a Label reading `grey` stays `grey`.
 - **Data is immutable** — prefer an immutable structure over a mutable one every time there is a choice, and never rebind a name to a different object. If the thing has changed, it gets a new name.
 
 ## The reduce exception

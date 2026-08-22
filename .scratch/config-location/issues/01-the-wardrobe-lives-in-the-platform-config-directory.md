@@ -6,7 +6,7 @@ Fresh install, nothing configured: running `what2wear` names the exact path it l
 
 The one seam that reads the platform directory is a `run` entry point, called by `__main__` and by the console script; `main` takes the directory as an argument. That is what lets the tests drive a temporary directory without an environment variable, and it is why `main` stops importing `os` altogether.
 
-The Wardrobe currently committed at `what2wear.yaml` is a real person's closet. It becomes an anonymised `example.yaml`, and `tests/wardrobe.py` — which mirrors it — is rewritten to match the fiction. The test pinning the two together survives, re-pointed at `example.yaml`: an in-memory fixture checked against a file the config boundary really parses is worth keeping.
+The Wardrobe currently committed at `what2wear.yaml` is a real person's closet. It becomes an anonymized `example.yaml`, and `tests/wardrobe.py` — which mirrors it — is rewritten to match the fiction. The test pinning the two together survives, re-pointed at `example.yaml`: an in-memory fixture checked against a file the config boundary really parses is worth keeping.
 
 Nothing creates a directory. `main` reads the Wardrobe before it appends any decision, so a successful read has already proved the directory exists.
 
@@ -25,11 +25,11 @@ An `init` command is deliberately out of scope. Creating a Wardrobe for the user
 - [x] The first-run message names the full path it looked at and points at `example.yaml`; exit code stays 2
 - [x] A malformed Wardrobe still reports its parse error, not the first-run message
 - [x] Nothing in the tool creates a directory
-- [x] `what2wear.yaml` is gone, replaced by an anonymised `example.yaml`
+- [x] `what2wear.yaml` is gone, replaced by an anonymized `example.yaml`
 - [x] `tests/wardrobe.py` holds the same fictional Wardrobe, and the test pinning fixture to file is re-pointed at `example.yaml`
 - [x] `.gitignore` no longer needs to exclude a decision log, because nothing writes to the repo
 - [x] Tests drive a temporary directory by argument; the environment-variable and flag-precedence tests are gone rather than ported
 - [x] `platformdirs` is a declared dependency
 - [x] `CONTEXT.md` defines **Wardrobe**, and `wardrobe` is removed from Closet's `_Avoid_` list
-- [x] README's Configuration section describes the new location and the first-run behaviour
+- [x] README's Configuration section describes the new location and the first-run behavior
 - [x] One-off, outside the repo: the current `what2wear.yaml` is copied to the user config path, and the path is reported back

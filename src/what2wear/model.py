@@ -118,7 +118,7 @@ class Closet:
         )
 
     def row_for(self, pants: str) -> PantsRow:
-        """Give the row that dresses a colour of pants."""
+        """Give the row that dresses a color of pants."""
         return next(row for row in self.pants if row.pants == pants)
 
     def row_wearing(self, sweater: str) -> PantsRow:
@@ -141,7 +141,7 @@ class Shirt:
 
 @dataclass(frozen=True)
 class PantsRow:
-    """What one Closet pairs with one pants colour.
+    """What one Closet pairs with one pants color.
 
     Sweaters, jackets and shoes are keyed by pants rather than by
     Shirt, so a Closet has three of these however many Shirts it

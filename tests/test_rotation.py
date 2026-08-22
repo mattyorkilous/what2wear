@@ -206,7 +206,7 @@ def _state(
 def _closet(
     names_and_pants: list[tuple[str, str]], anchor: date, shirt: str
 ) -> Closet:
-    # A row per pants colour worn, named after it. Nothing here
+    # A row per pants color worn, named after it. Nothing here
     # asserts on sweaters or shoes -- that is `test_resolution.py`'s
     # business -- but a Closet is not valid without them.
     return Closet(

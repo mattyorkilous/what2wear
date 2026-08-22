@@ -2,7 +2,7 @@
 
 Rotation picks the Shirt; Resolution decides everything else about
 the day -- so far the sweater and the shoes that follow from its
-pants. Layers and the weather that calls for them arrive later.
+pants. Outerwear and the weather that calls for them arrive later.
 """
 
 from dataclasses import replace

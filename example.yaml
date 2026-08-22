@@ -14,7 +14,7 @@ office:
     - { name: flannel, pants: moss }
     - { name: gingham, pants: sand }
     - { name: sateen, pants: slate }
-  # What goes with each pants colour, one row per colour rather than one
+  # What goes with each pants color, one row per color rather than one
   # per shirt. The fallback is the sweater to take when the primary is
   # already worn this week; it is always another row's primary, so that
   # row's shoes come along with it. Moss needs none: flannel is the only

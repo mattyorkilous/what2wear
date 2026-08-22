@@ -3,7 +3,7 @@
 The whole Outfit now -- Shirt, pants, sweater and shoes -- including
 the Friday Aug 21 Fallback, where slate pants want ink but Monday
 already took it, and the shoes move from ebony to bone alongside it.
-Layers arrive with the weather.
+Outerwear arrives with the weather.
 """
 
 from datetime import date
