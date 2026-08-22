@@ -78,12 +78,14 @@ _Avoid_: look, combination, ensemble
 
 **Office Day**:
 A date on which you go into the office, and therefore draw from the
-Office Closet.
+Office Closet. Which dates those are comes from the Office Weekdays,
+unless a Day Type Override says otherwise.
 _Avoid_: in-office day, commute day
 
 **Home Day**:
 A date on which you do not go into the office, and therefore draw from
-the Home Closet. Weekends are Home Days.
+the Home Closet. Weekends are Home Days unless the Office Weekdays say
+otherwise.
 _Avoid_: WFH day, remote day, day off
 
 Every date is exactly one of an Office Day or a Home Day. There is no
@@ -142,8 +144,9 @@ _Avoid_: secondary, backup, alternate, substitute
 
 **State**:
 Everything the tool has been told, in the one file it owns. It holds
-the Labels, the Anchors and the Day Type Overrides, and nothing else —
-the Wardrobe's shape is given, so nothing structural can appear here.
+the Labels, the Anchors, the Day Type Overrides, the Office Weekdays
+and the Cold Threshold. What may appear here is something the wearer
+told the tool; what may not is the Wardrobe's shape, which is given.
 It is the only thing the tool writes, and no human authors it.
 _Avoid_: config, settings, database, log
 
@@ -156,10 +159,24 @@ _Avoid_: epoch, start date, origin, anchor date
 
 **Day Type Override**:
 A record that a specific date is an Office Day or a Home Day regardless
-of the weekly pattern. Holidays, leave, going in on a Saturday and
+of the Office Weekdays. Holidays, leave, going in on a Saturday and
 staying home on a Wednesday are all the same thing. One record per
 date, so saying it again replaces what was said before.
 _Avoid_: exception, holiday, PTO, absence
+
+**Office Weekdays**:
+The three weekdays that are Office Days unless a Day Type Override says
+otherwise. Which three is told; that there are exactly three is given,
+because the Closet sizes only stay varied against three Office Days and
+four Home Days a week. Changing them re-anchors every Rotation, so no
+Position moves.
+_Avoid_: schedule, pattern, weekly pattern, work week
+
+**Cold Threshold**:
+The temperature below which Outerwear is worn. It decides only whether,
+never which — a warm Home Day still spends its Home Outerwear Rotation
+turn wearing nothing.
+_Avoid_: temperature threshold, cutoff, limit, tolerance
 
 **Reset**:
 The act of moving a Rotation's Anchor to today and a Position you name.

@@ -3,8 +3,8 @@
 Status: ready-for-agent
 
 Supersedes `.scratch/outfit-rotation/spec.md`, which is left intact as
-the record of the design this replaces. Governed by ADR-0005, ADR-0006
-and the amended ADR-0001 and ADR-0003.
+the record of the design this replaces. Governed by ADR-0005, ADR-0006,
+ADR-0007 and the amended ADR-0001 and ADR-0003.
 
 ## Problem Statement
 
@@ -41,9 +41,10 @@ each pair. None of it can be added to, removed or re-paired while the
 tool runs.
 
 Everything the tool is told lives in one State file the tool reads and
-writes and no human authors — the Labels, the three Anchors, and the
-Day Type Overrides. There is no third place, and in particular no file
-a person edits.
+writes and no human authors — the Labels, the three Anchors, the Day
+Type Overrides, and the two facts about the wearer that were never
+about clothes: the Office Weekdays and the Cold Threshold. There is no
+third place, and in particular no file a person edits.
 
 Every fact then has exactly one author. A Reset stops being a recorded
 offset and becomes a move of its Rotation's Anchor, which drops the
@@ -202,6 +203,26 @@ rather than an edit.
     next Home Day, so that "flip my next home Outerwear" works whenever
     I think of it.
 
+### Changing when I go in and how cold I feel it
+
+56. As someone whose office days moved from Monday, Wednesday, Friday
+    to Tuesday, Thursday, Friday, I want one command to say so, so that
+    I'm not recording two Day Type Overrides every week for the rest of
+    my life.
+57. As someone changing my office days, I want every Rotation left
+    exactly where it stood, so that saying when I go in never changes
+    which Shirt I'm due.
+58. As someone who tries to say I go in five days a week, I want to be
+    refused with a reason, so that I don't silently flatten the variety
+    the Closet sizes exist to produce.
+59. As someone who keeps feeling cold at the temperature the tool
+    thinks is warm, I want one command to move the Cold Threshold, so
+    that it matches what I actually feel rather than what it shipped
+    believing.
+60. As someone about to change either, I want the same command with no
+    argument to show me the current value, so that I can see what the
+    tool believes before I overwrite it.
+
 ### The State file
 
 48. As the wearer, I want the tool to own its file completely, so that
@@ -246,10 +267,14 @@ rather than an edit.
   State-in-State-out function.
 - **`read_state` and `write_state` are the only new impure functions**,
   alongside reading the clock, fetching the forecast and printing.
-- **The Wardrobe module holds given structure only** — Closet sizes,
-  Shirt-to-Pants welds, Pants Rows, the office weekday pattern, the
-  temperature threshold, the forecast coordinates, and the starting
-  Labels and Anchors used when no State file exists.
+- **One source module holds everything given** — the Wardrobe's
+  structure, which is Closet sizes, Shirt-to-Pants welds and Pants
+  Rows; the forecast coordinates; and the starting values the State
+  overlays when no State file exists, which are the Labels, the
+  Anchors, the Office Weekdays and the Cold Threshold. It stays
+  `wardrobe.py`, because nearly everything in it and nearly every
+  reference to it is the Wardrobe; its docstring is what says it holds
+  the starting values too.
 - **`show-closet` gets no core seam.** The listing is a walk over the
   Wardrobe and the Labels, so it renders in the shell like every other
   output.
@@ -276,13 +301,17 @@ rather than an edit.
   Written by a temporary file in the same directory followed by an
   atomic replace — a partial write must never be observable, which is
   the guarantee the append-only log used to provide for free.
-- Holds three things: a Label per Garment, three Anchors, and the Day
-  Type Overrides.
+- Holds five things: a Label per Garment, three Anchors, the Day Type
+  Overrides, the Office Weekdays and the Cold Threshold. The last two
+  arrive in 07 per ADR-0007; they are told facts about the wearer
+  rather than about the Wardrobe, and they are five named facts in a
+  flat file rather than two groups.
 - **Nothing in it may reference a Garment by Label.** Labels move, so
   Anchors store Positions and the Overrides are keyed by date. A Label
   appears only at the edges: typed at a command, printed in an answer.
 - A missing file is not an error and not a first run — it reads as the
-  given Labels and Anchors with no Overrides. The directory is created
+  starting values with no Overrides, and so does a file written before
+  a later ticket added a field. The directory is created
   the first time something is written.
 - Day Type Overrides are a date-keyed mapping rather than a list, so
   recording the opposite for a date is an overwrite. The
@@ -356,6 +385,8 @@ rather than an edit.
   what2wear replace <target> <label>
   what2wear swap <closet> <label> <label>
   what2wear show-closet
+  what2wear office-weekdays [mon wed fri]
+  what2wear cold-threshold [55]
   ```
 
 - **A Garment is addressed by a dotted target** — `office.shirt.white`,
@@ -375,8 +406,8 @@ rather than an edit.
 
 ### Weather
 
-- Open-Meteo, no API key, fixed coordinates, threshold given in source
-  at 50°F. Forecast endpoint only; no historical archive.
+- Open-Meteo, no API key, fixed coordinates, Cold Threshold starting
+  in source at 50°F. Forecast endpoint only; no historical archive.
 - Dates beyond the forecast horizon resolve the Shirt, Pants, shoes
   *and the named Outerwear garment*, hedging only the cold/warm
   condition.
@@ -452,6 +483,13 @@ mutation case: it takes a State and a command and returns a State, so
 - **Horizon.** A date past the forecast window returns Shirt, Pants,
   shoes and the named Outerwear garment with only the condition
   hedged; an unavailable forecast degrades identically. Both Closets.
+- **Office Weekdays and the Cold Threshold.** Exactly three weekdays
+  are accepted and every other count refused; setting them changes no
+  date's Outfit by itself, because all three Anchors move with the
+  change; restating the current three changes nothing; a mid-Week
+  change moving that Week's Fallback is asserted rather than avoided;
+  and a new Cold Threshold changes whether Outerwear is worn and no
+  Position.
 - **The State file round-trips.** A State written and read back is the
   same State, and a missing file reads as the given Labels and Anchors
   with no Overrides.
@@ -473,9 +511,13 @@ test is deleted rather than re-pointed.
   per ADR-0005. A sixth office Shirt is a source change and a commit.
 - **Re-pairing.** Which sweater follows which Pants is structure. A
   Swap looks like a re-pairing and deliberately is not.
-- **Changing the office weekday pattern or the temperature threshold at
-  runtime.** Both are given. A schedule change is a commit-worthy
-  event; add a command the day it is wrong, not before.
+- **Changing how many days a week are Office Days.** Which three
+  weekdays they are became told in 07; that there are three is
+  structure, for the reasons ADR-0007 records, and stays a source
+  change with the same standing as a sixth office Shirt.
+- **Changing the forecast coordinates at runtime.** Coordinates change
+  when the wearer moves house, which is rarer than most source changes
+  this repo makes, and a wrong one fails loudly rather than quietly.
 - **Any UI beyond the CLI.** The phone-usable interface is the eventual
   goal and the seams are being shaped for it, but nothing web, hosted
   or authenticated is built here.
@@ -502,8 +544,10 @@ test is deleted rather than re-pointed.
   Shirt, or the kind of Outerwear) and Resolution (deciding everything
   else about the day) are distinct steps and shouldn't be conflated in
   code or tests.
-- Five ADRs govern this area. ADR-0005 and ADR-0006 are new and record
-  the decisions this spec implements. ADR-0001 and ADR-0003 are amended
+- Six ADRs govern this area. ADR-0005 and ADR-0006 are new and record
+  the decisions this spec implements; ADR-0007 amends ADR-0006's "and
+  nothing else" to let the State hold told facts that are not about
+  clothes. ADR-0001 and ADR-0003 are amended
   — read the amendment notes at the top of each. ADR-0002 is superseded
   by ADR-0004 and describes a stored cursor that no longer exists.
 - The nine-Shirt home and five-Shirt office Closets are coprime with
@@ -513,8 +557,11 @@ test is deleted rather than re-pointed.
   these are now guaranteed by source rather than merely true of the
   current configuration, but nothing enforces them if the source
   changes — a six-Shirt office Closet would put the same Shirt on
-  alternate Mondays.
+  alternate Mondays. This is also why 07 lets the wearer say *which*
+  three weekdays they go in and never *how many*: at five Office Days
+  a week the same office Shirt would land on every Monday forever.
 - Build order: the given Wardrobe and the State file first, then the
   two seams over them, then the commands, then Outerwear and weather
-  last. The old tickets 05 and 06 are re-cut under this spec rather
-  than ported.
+  last, and the two told facts that are not about clothes last of all.
+  The old tickets 05 and 06 are re-cut under this spec rather than
+  ported.

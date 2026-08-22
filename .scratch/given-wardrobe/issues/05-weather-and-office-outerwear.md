@@ -28,7 +28,7 @@ specified the same behavior against the old seam.
 - [ ] A failed or unavailable forecast degrades identically to being beyond the horizon, never to an error
 - [ ] Weather enters the answering seam as an argument — a mapping of date to daily high — so the core touches no network
 - [ ] Forecasts come from a provider needing no API key or stored secret, for coordinates given in source
-- [ ] The temperature threshold is given in source and is not settable at runtime
+- [ ] The temperature threshold's starting value is given in source; 07 is what makes it settable, and nothing here should be shaped to prevent that
 - [ ] The forecast endpoint only; no historical archive is called, for any date
 - [ ] Tests cover cold, warm, beyond-horizon and lookup-failure without touching the network
 - [ ] The README describes Outerwear as it now behaves
