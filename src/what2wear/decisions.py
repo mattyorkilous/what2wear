@@ -1,9 +1,7 @@
 """The decision log: append-only, and the tool's own.
 
-Kept apart from the hand-authored closet config on purpose -- writing
-a decision can never reach the file the author wrote by hand. One JSON
-record per line, so appending is a write to the end and nothing else
-is ever touched.
+The only file there is. One JSON record per line, so appending is a
+write to the end and nothing else is ever touched.
 """
 
 import json
@@ -74,11 +72,13 @@ def append_decision(path: Path, decision: Decision) -> None:
     """Add one record to the end of the log.
 
     Whatever the decision carries is what gets written, so a new kind
-    of decision needs nothing here. Starts the log if this is the
-    first record.
+    of decision needs nothing here. Starts the log, and the directory
+    it lives in, if this is the first record -- a fresh installation
+    has neither until something is recorded.
     """
     record = {**asdict(decision), "on": decision.on.isoformat()}
     try:
+        path.parent.mkdir(parents=True, exist_ok=True)
         with path.open("a") as log:
             log.write(f"{json.dumps(record)}\n")
     except OSError as error:

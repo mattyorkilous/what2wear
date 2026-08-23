@@ -1,4 +1,4 @@
-"""The imperative shell: reads the config, reads the clock, prints.
+"""The imperative shell: reads the log, reads the clock, prints.
 
 Deliberately disposable -- a thin renderer over `handle`, expected to be
 replaced by something phone-friendly later.
@@ -7,18 +7,12 @@ replaced by something phone-friendly later.
 import argparse
 import sys
 from collections.abc import Sequence
-from dataclasses import replace
 from datetime import UTC, date, datetime
 from pathlib import Path
 
 from platformdirs import user_config_path
 
-from what2wear.config import (
-    ConfigError,
-    MissingWardrobeError,
-    load_state,
-)
-from what2wear.core import UnknownShirtError, handle
+from what2wear.core import PastDateError, UnknownShirtError, handle
 from what2wear.decisions import (
     DecisionsError,
     append_decision,
@@ -36,35 +30,33 @@ from what2wear.model import (
 
 
 def run() -> int:
-    """Answer from the Wardrobe this platform keeps for the user.
+    """Answer from the log this platform keeps for the user.
 
     The one seam that reads the platform directory, so no invocation
-    can point the Wardrobe anywhere else.
+    can point the tool's own file anywhere else.
     """
-    return main(config_dir=user_config_path("what2wear"))
+    return main(state_dir=user_config_path("what2wear"))
 
 
-def main(argv: Sequence[str] | None = None, *, config_dir: Path) -> int:
-    """Read the two files, answer, record what the answer decided.
+def main(argv: Sequence[str] | None = None, *, state_dir: Path) -> int:
+    """Answer, then record what the answer decided.
 
     Recording comes before printing so that a log the tool cannot write
-    to is reported rather than printed over. Nothing here creates the
-    directory: the Wardrobe is read first, so a successful read has
-    already proved it exists.
+    to is reported rather than printed over.
     """
     args = _parser().parse_args(argv)
-    config = config_dir / "config.yaml"
-    log = config_dir / "decisions.jsonl"
+    log = state_dir / "decisions.jsonl"
     on, record = _command(args)
     try:
-        state = _with_decisions(load_state(config), load_decisions(log))
+        state = _with_decisions(load_decisions(log))
         response = handle(on, state, today=_today(), record=record)
         if response.decision is not None:
             append_decision(log, response.decision)
-    except MissingWardrobeError:
-        print(_first_run(config), file=sys.stderr)
-        return 2
-    except (ConfigError, DecisionsError, UnknownShirtError) as error:
+    except (
+        DecisionsError,
+        PastDateError,
+        UnknownShirtError,
+    ) as error:
         print(error, file=sys.stderr)
         return 2
     print(_render(response))
@@ -140,16 +132,13 @@ def _command(
     return args.on, None
 
 
-def _with_decisions(
-    state: State, decisions: tuple[Decision, ...]
-) -> State:
-    """Put the one log back into the State, each kind in its field.
+def _with_decisions(decisions: tuple[Decision, ...]) -> State:
+    """Read the one log into a State, each kind in its field.
 
     The log is written in the order decided; nothing here needs that
     order, because every decision carries the date it applies from.
     """
-    return replace(
-        state,
+    return State(
         overrides=tuple(
             decision
             for decision in decisions
@@ -170,23 +159,6 @@ def _today() -> date:
     wall, and a date is only ever a date here.
     """
     return datetime.now(UTC).astimezone().date()
-
-
-def _first_run(config: Path) -> str:
-    """Say where the Wardrobe goes and what to start it from.
-
-    Nothing is configured yet, which is a first run rather than a
-    failure, so it reads as an invitation and not as an error.
-    """
-    return "\n".join(
-        [
-            f"no wardrobe at {config}",
-            (
-                "write one there to get started -- copy example.yaml"
-                " from the what2wear repo and make it yours"
-            ),
-        ]
-    )
 
 
 def _render(response: Response) -> str:

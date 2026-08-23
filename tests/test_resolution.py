@@ -6,61 +6,65 @@ through the pure `handle` seam and asserted on the resolved Outfit --
 never on how a Week was walked.
 """
 
-from dataclasses import replace
 from datetime import date
 
 import pytest
-from conftest import WARDROBE
 
 from what2wear.core import handle
-from what2wear.model import Outfit, Response, State
+from what2wear.model import (
+    DayType,
+    DayTypeOverride,
+    Outfit,
+    Response,
+    State,
+)
 
-MON, TUE, WED, THU = 0, 1, 2, 3
+TODAY = date(2026, 8, 22)
 
 # The five office Week shapes. Five Shirts and three Office Days are
 # coprime, so the Weeks cycle over five before repeating. Three resolve
 # cleanly; two share pants and need a Fallback.
 WEEK_SHAPES = (
     (
-        (date(2026, 8, 17), "sateen", "slate", "ink", "ebony"),
-        (date(2026, 8, 19), "poplin", "sand", "cream", "walnut"),
-        # Slate again, and Monday took ink -- so the Fallback, and its
+        (date(2026, 8, 24), "white", "blue", "beige", "brown"),
+        (date(2026, 8, 26), "black", "tan", "black", "black"),
+        (date(2026, 8, 28), "lblue", "black", "grey", "white"),
+    ),
+    (
+        (date(2026, 8, 31), "striped", "blue", "beige", "brown"),
+        (date(2026, 9, 2), "dblue", "tan", "black", "black"),
+        # Blue again, and Monday took beige -- so the Fallback, and its
         # donor row's shoes with it.
-        (date(2026, 8, 21), "twill", "slate", "ash", "bone"),
+        (date(2026, 9, 4), "white", "blue", "grey", "white"),
     ),
     (
-        (date(2026, 8, 24), "flannel", "moss", "ash", "bone"),
-        (date(2026, 8, 26), "gingham", "sand", "cream", "walnut"),
-        (date(2026, 8, 28), "sateen", "slate", "ink", "ebony"),
+        (date(2026, 9, 7), "black", "tan", "black", "black"),
+        (date(2026, 9, 9), "lblue", "black", "grey", "white"),
+        (date(2026, 9, 11), "striped", "blue", "beige", "brown"),
     ),
     (
-        (date(2026, 8, 31), "poplin", "sand", "cream", "walnut"),
-        (date(2026, 9, 2), "twill", "slate", "ink", "ebony"),
-        (date(2026, 9, 4), "flannel", "moss", "ash", "bone"),
+        (date(2026, 9, 14), "dblue", "tan", "black", "black"),
+        (date(2026, 9, 16), "white", "blue", "beige", "brown"),
+        # Tan again, and Monday took black.
+        (date(2026, 9, 18), "black", "tan", "grey", "white"),
     ),
     (
-        (date(2026, 9, 7), "gingham", "sand", "cream", "walnut"),
-        (date(2026, 9, 9), "sateen", "slate", "ink", "ebony"),
-        # Sand again, and Monday took cream.
-        (date(2026, 9, 11), "poplin", "sand", "ash", "bone"),
-    ),
-    (
-        (date(2026, 9, 14), "twill", "slate", "ink", "ebony"),
-        (date(2026, 9, 16), "flannel", "moss", "ash", "bone"),
-        (date(2026, 9, 18), "gingham", "sand", "cream", "walnut"),
+        (date(2026, 9, 21), "lblue", "black", "grey", "white"),
+        (date(2026, 9, 23), "striped", "blue", "beige", "brown"),
+        (date(2026, 9, 25), "dblue", "tan", "black", "black"),
     ),
 )
 
-# One Monday-start Week of Home Days. Sunday wears moss pants again,
-# so its oatmeal sweater and bone shoes repeat Tuesday's inside the
+# One Monday-start Week of Home Days. Sunday wears blue pants again,
+# so its yellow sweater and black shoes repeat Tuesday's inside the
 # Week -- at the office that would force a Fallback; at home it is
 # simply what the row says, which is the no-no-repeat rule in the only
 # form it can be observed.
 HOME_WEEK = (
-    (date(2026, 8, 18), "henley", "moss", "oatmeal", "bone"),
-    (date(2026, 8, 20), "jersey", "slate", "indigo", "ebony"),
-    (date(2026, 8, 22), "twill", "sand", "mustard", "ebony"),
-    (date(2026, 8, 23), "waffle", "moss", "oatmeal", "bone"),
+    (date(2026, 9, 1), "beige", "blue", "yellow", "black"),
+    (date(2026, 9, 3), "lblue", "black", "beige", "white"),
+    (date(2026, 9, 5), "lgreen", "tan", "blue", "black"),
+    (date(2026, 9, 6), "white", "blue", "yellow", "black"),
 )
 
 
@@ -98,32 +102,33 @@ class TestOfficeWeeks:
     def test_a_week_that_resolves_cleanly_flags_no_repeat(self) -> None:
         assert not any(
             _response(day[0]).unavoidable_repeat
-            for day in WEEK_SHAPES[1]
+            for day in WEEK_SHAPES[0]
         )
 
     def test_a_fallback_is_not_an_unavoidable_repeat(self) -> None:
-        assert not _response(date(2026, 8, 21)).unavoidable_repeat
+        assert not _response(date(2026, 9, 4)).unavoidable_repeat
 
 
 class TestFourOfficeDays:
     """A fourth Office Day exhausts the sweaters a Week can offer.
 
-    One of them has to come round twice.
+    Going in on the Saturday is the only way to reach one, now that
+    the weekly pattern is given. One sweater has to come round twice.
     """
 
-    STATE = replace(
-        WARDROBE, office_weekdays=frozenset({MON, TUE, WED, THU})
+    STATE = State(
+        overrides=(DayTypeOverride(date(2026, 8, 29), DayType.OFFICE),)
     )
 
     @pytest.mark.parametrize(
         ("on", "shirt", "pants", "sweater", "shoes"),
         [
-            (date(2026, 8, 17), "sateen", "slate", "ink", "ebony"),
-            (date(2026, 8, 18), "poplin", "sand", "cream", "walnut"),
-            (date(2026, 8, 19), "twill", "slate", "ash", "bone"),
-            # Moss pants want ash, Wednesday's Fallback took it, and
-            # that row has no Fallback of its own.
-            (date(2026, 8, 20), "flannel", "moss", "ash", "bone"),
+            (date(2026, 8, 24), "white", "blue", "beige", "brown"),
+            (date(2026, 8, 26), "black", "tan", "black", "black"),
+            (date(2026, 8, 28), "lblue", "black", "grey", "white"),
+            # Blue pants want beige, Monday took it, and the grey its
+            # row falls back on went to the Friday.
+            (date(2026, 8, 29), "striped", "blue", "beige", "brown"),
         ],
     )
     def test_the_week_still_resolves(
@@ -140,16 +145,16 @@ class TestFourOfficeDays:
 
     def test_the_repeated_day_is_flagged(self) -> None:
         assert _response(
-            date(2026, 8, 20), self.STATE
+            date(2026, 8, 29), self.STATE
         ).unavoidable_repeat
 
     def test_the_days_before_it_are_not(self) -> None:
         assert not any(
             _response(on, self.STATE).unavoidable_repeat
             for on in (
-                date(2026, 8, 17),
-                date(2026, 8, 18),
-                date(2026, 8, 19),
+                date(2026, 8, 24),
+                date(2026, 8, 26),
+                date(2026, 8, 28),
             )
         )
 
@@ -176,9 +181,9 @@ class TestHome:
         )
 
 
-def _outfit(on: date, state: State = WARDROBE) -> Outfit:
+def _outfit(on: date, state: State | None = None) -> Outfit:
     return _response(on, state).outfit
 
 
-def _response(on: date, state: State = WARDROBE) -> Response:
-    return handle(on, state, today=date(2026, 8, 15))
+def _response(on: date, state: State | None = None) -> Response:
+    return handle(on, state or State(), today=TODAY)

@@ -1,222 +1,157 @@
 """Rotation for any date, driven through the pure `handle` seam.
 
-Every test builds State in memory, passes an explicit date, and
-asserts on the returned Response. Nothing here reads a file, a clock
-or the network, and nothing reaches into how a Position was derived.
+The Wardrobe is given, so every test drives the real one, passes an
+explicit date and asserts on the returned Response. Nothing here reads
+a file, a clock or the network, and nothing reaches into how a
+Position was derived.
+
+With nothing recorded the Anchor is today at Position 0, so `today` is
+held fixed at `TODAY` wherever a Position is being asserted.
 """
 
 from datetime import date
 
 import pytest
 
-from what2wear.core import handle
+from what2wear.core import PastDateError, handle
 from what2wear.model import (
-    Closet,
     DayType,
-    PantsRow,
-    Shirt,
+    DayTypeOverride,
+    Response,
     State,
 )
 
-MON, TUE, WED, THU, FRI = 0, 1, 2, 3, 4
+TODAY = date(2026, 8, 22)
+SAT22, SUN23 = date(2026, 8, 22), date(2026, 8, 23)
+MON24, TUE25, WED26 = (
+    date(2026, 8, 24),
+    date(2026, 8, 25),
+    date(2026, 8, 26),
+)
+THU27, FRI28, SAT29 = (
+    date(2026, 8, 27),
+    date(2026, 8, 28),
+    date(2026, 8, 29),
+)
+FRI_SEP4 = date(2026, 9, 4)
 
 
 class TestDayType:
-    def test_configured_weekdays_are_office_days(self) -> None:
-        s = _state(office_weekdays=frozenset({MON, WED, FRI}))
-        for day in (
-            date(2026, 8, 17),
-            date(2026, 8, 19),
-            date(2026, 8, 21),
-        ):
-            assert handle(day, s, today=day).day_type is DayType.OFFICE
+    def test_the_given_weekdays_are_office_days(self) -> None:
+        assert all(
+            _on(day).day_type is DayType.OFFICE
+            for day in (MON24, WED26, FRI28)
+        )
 
     def test_every_other_weekday_is_a_home_day(self) -> None:
-        s = _state(office_weekdays=frozenset({MON, WED, FRI}))
-        for day in (date(2026, 8, 18), date(2026, 8, 20)):
-            assert handle(day, s, today=day).day_type is DayType.HOME
+        assert all(
+            _on(day).day_type is DayType.HOME for day in (TUE25, THU27)
+        )
 
     def test_weekends_are_home_days(self) -> None:
-        s = _state()
-        for day in (date(2026, 8, 15), date(2026, 8, 16)):
-            assert handle(day, s, today=day).day_type is DayType.HOME
-
-    def test_the_weekday_pattern_is_configurable(self) -> None:
-        s = _state(
-            office_weekdays=frozenset({TUE, THU}),
-            office_anchor=date(2026, 8, 18),
-            home_anchor=date(2026, 8, 17),
+        assert all(
+            _on(day).day_type is DayType.HOME
+            for day in (SAT22, SUN23, SAT29)
         )
-        tuesday, monday = date(2026, 8, 18), date(2026, 8, 17)
-        assert (
-            handle(tuesday, s, today=tuesday).day_type is DayType.OFFICE
-        )
-        assert handle(monday, s, today=monday).day_type is DayType.HOME
 
 
 class TestBareInvocation:
     def test_no_date_resolves_today(self) -> None:
-        s = _state()
-        today = date(2026, 8, 17)
-        assert handle(None, s, today=today) == handle(
-            today, s, today=today
-        )
+        assert handle(None, State(), today=TODAY) == _on(TODAY)
 
     def test_the_response_carries_the_date_it_resolved(self) -> None:
-        s = _state()
-        assert handle(None, s, today=date(2026, 8, 19)).on == date(
-            2026, 8, 19
-        )
+        assert handle(None, State(), today=TODAY).on == TODAY
 
 
 class TestRotation:
-    def test_the_anchor_date_wears_the_anchor_shirt(self) -> None:
-        s = _state(
-            office_anchor=date(2026, 8, 17), office_anchor_shirt="o2"
-        )
-        assert (
-            handle(
-                date(2026, 8, 17), s, today=date(2026, 8, 17)
-            ).outfit.shirt
-            == "o2"
-        )
+    def test_today_stands_at_the_top_of_its_closet(self) -> None:
+        # Nothing recorded, so the Anchor is today at Position 0 and
+        # a fresh installation opens on white.
+        assert _on(TODAY).outfit.shirt == "white"
 
     def test_the_office_rotation_advances_only_on_office_days(
         self,
     ) -> None:
-        s = _state()
-        worn = [
-            handle(day, s, today=day).outfit.shirt
-            for day in (
-                date(2026, 8, 17),
-                date(2026, 8, 19),
-                date(2026, 8, 21),
-            )
-        ]
-        assert worn == ["o1", "o2", "o3"]
+        worn = [_on(day).outfit.shirt for day in (MON24, WED26, FRI28)]
+        assert worn == ["white", "black", "lblue"]
 
     def test_home_days_in_between_do_not_move_the_office_rotation(
         self,
     ) -> None:
-        s = _state()
-        # Wed 19th follows Mon 17th in the office rotation despite
-        # Tue 18th at home.
-        assert (
-            handle(
-                date(2026, 8, 19), s, today=date(2026, 8, 19)
-            ).outfit.shirt
-            == "o2"
-        )
+        # Wed 26th follows Mon 24th in the office rotation despite
+        # Tue 25th at home.
+        assert _on(WED26).outfit.shirt == "black"
 
     def test_the_home_rotation_advances_only_on_home_days(self) -> None:
-        s = _state(
-            home_shirts=[
-                ("h1", "blue"),
-                ("h2", "black"),
-                ("h3", "khaki"),
-            ]
-        )
-        worn = [
-            handle(day, s, today=day).outfit.shirt
-            for day in (
-                date(2026, 8, 15),
-                date(2026, 8, 16),
-                date(2026, 8, 18),
-            )
-        ]
-        assert worn == ["h1", "h2", "h3"]
+        worn = [_on(day).outfit.shirt for day in (SAT22, SUN23, TUE25)]
+        assert worn == ["white", "brown", "dgreen"]
 
     def test_each_rotation_wraps_at_the_end_of_its_closet(self) -> None:
-        s = _state()
-        # Three office shirts, so the fourth office day comes back
-        # round to o1.
-        assert (
-            handle(
-                date(2026, 8, 24), s, today=date(2026, 8, 24)
-            ).outfit.shirt
-            == "o1"
-        )
-
-    def test_dates_before_the_anchor_walk_the_rotation_backwards(
-        self,
-    ) -> None:
-        s = _state()
-        worn = [
-            handle(day, s, today=day).outfit.shirt
-            for day in (date(2026, 8, 12), date(2026, 8, 14))
-        ]
-        assert worn == ["o2", "o3"]
+        # Five office shirts, so the sixth office day since the anchor
+        # comes back round to white.
+        assert _on(FRI_SEP4).outfit.shirt == "white"
 
     def test_pants_come_welded_to_the_shirt(self) -> None:
-        s = _state(
-            office_shirts=[
-                ("o1", "tan"),
-                ("o2", "navy"),
-                ("o3", "grey"),
-            ]
-        )
-        outfit = handle(
-            date(2026, 8, 19), s, today=date(2026, 8, 19)
-        ).outfit
-        assert (outfit.shirt, outfit.pants) == ("o2", "navy")
+        outfit = _on(TUE25).outfit
+        assert (outfit.shirt, outfit.pants) == ("dgreen", "tan")
 
     @pytest.mark.parametrize(
         ("day", "shirt"),
         [
-            (date(2031, 8, 18), "o1"),
-            (date(2031, 8, 20), "o2"),
-            (date(2031, 8, 22), "o3"),
+            (date(2031, 8, 18), "white"),
+            (date(2031, 8, 20), "black"),
+            (date(2031, 8, 22), "lblue"),
         ],
     )
     def test_dates_years_out_resolve_by_the_same_rule(
         self, day: date, shirt: str
     ) -> None:
-        # 2026-08-17 to 2031-08-18 is 1827 days = 261 whole weeks, so
-        # the office rotation has advanced 783 days -- a multiple of
-        # 3 -- and sits back at o1.
-        s = _state()
-        assert handle(day, s, today=day).outfit.shirt == shirt
+        assert _on(day).outfit.shirt == shirt
 
 
-def _state(
-    office_shirts: list[tuple[str, str]] | None = None,
-    home_shirts: list[tuple[str, str]] | None = None,
-    office_anchor: date = date(2026, 8, 17),
-    office_anchor_shirt: str = "o1",
-    home_anchor: date = date(2026, 8, 15),
-    home_anchor_shirt: str = "h1",
-    office_weekdays: frozenset[int] = frozenset({MON, WED, FRI}),
-) -> State:
-    return State(
-        office=_closet(
-            office_shirts
-            or [("o1", "tan"), ("o2", "navy"), ("o3", "grey")],
-            office_anchor,
-            office_anchor_shirt,
-        ),
-        home=_closet(
-            home_shirts or [("h1", "blue"), ("h2", "black")],
-            home_anchor,
-            home_anchor_shirt,
-        ),
-        office_weekdays=office_weekdays,
-    )
+class TestThePast:
+    def test_a_date_before_today_is_refused(self) -> None:
+        with pytest.raises(PastDateError):
+            handle(MON24, State(), today=WED26)
+
+    def test_the_refusal_names_the_date_and_says_why(self) -> None:
+        with pytest.raises(PastDateError, match="2026-08-24"):
+            handle(MON24, State(), today=WED26)
+        with pytest.raises(PastDateError, match="past is not"):
+            handle(MON24, State(), today=WED26)
+
+    def test_today_itself_is_not_the_past(self) -> None:
+        assert _on(TODAY).outfit.shirt == "white"
+
+    def test_recording_against_a_past_date_is_not_refused(self) -> None:
+        # Only the question has no answer. Correcting what a date now
+        # behind us was still has to be possible.
+        response = handle(
+            MON24, State(), today=WED26, record=DayType.HOME
+        )
+        assert response.decision == DayTypeOverride(MON24, DayType.HOME)
+
+    def test_an_override_behind_a_date_still_parks_its_rotation(
+        self,
+    ) -> None:
+        # Monday spent at home, so the office rotation is parked and
+        # Wednesday wears the white Monday would have.
+        stayed_home = DayTypeOverride(MON24, DayType.HOME)
+        parked = handle(
+            WED26, State(overrides=(stayed_home,)), today=TODAY
+        )
+        assert parked.outfit.shirt == "white"
+
+    def test_the_week_walk_still_resolves_earlier_office_days(
+        self,
+    ) -> None:
+        # Friday's blue pants want the beige sweater, and only Monday
+        # and Wednesday -- both already past by Friday -- can say it is
+        # taken. Resolving them is what turns the answer into the grey
+        # Fallback and the white shoes that come with it.
+        outfit = handle(FRI_SEP4, State(), today=FRI_SEP4).outfit
+        assert (outfit.sweater, outfit.shoes) == ("grey", "white")
 
 
-def _closet(
-    names_and_pants: list[tuple[str, str]], anchor: date, shirt: str
-) -> Closet:
-    # A row per pants color worn, named after it. Nothing here
-    # asserts on sweaters or shoes -- that is `test_resolution.py`'s
-    # business -- but a Closet is not valid without them.
-    return Closet(
-        shirts=tuple(
-            Shirt(name=n, pants=p) for n, p in names_and_pants
-        ),
-        pants=tuple(
-            PantsRow(p, sweater=f"{p}-sweater", shoes=f"{p}-shoes")
-            for p in dict.fromkeys(p for _, p in names_and_pants)
-        ),
-        anchor_date=anchor,
-        anchor_shirt=shirt,
-    )
+def _on(day: date) -> Response:
+    return handle(day, State(), today=TODAY)
