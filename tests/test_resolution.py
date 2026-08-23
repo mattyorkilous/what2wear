@@ -2,21 +2,22 @@
 
 The sweater and the shoes follow from the pants; the Fallback covers
 an office Week that would otherwise repeat one. Everything is driven
-through the pure `handle` seam and asserted on the resolved Outfit --
+through the pure `answer` seam and asserted on the resolved Outfit --
 never on how a Week was walked.
 """
 
+from dataclasses import replace
 from datetime import date
 
 import pytest
 
-from what2wear.core import handle
+from what2wear.core import answer
 from what2wear.model import (
     DayType,
-    DayTypeOverride,
     Outfit,
     Response,
     State,
+    default_state,
 )
 
 TODAY = date(2026, 8, 22)
@@ -116,8 +117,9 @@ class TestFourOfficeDays:
     the weekly pattern is given. One sweater has to come round twice.
     """
 
-    STATE = State(
-        overrides=(DayTypeOverride(date(2026, 8, 29), DayType.OFFICE),)
+    STATE = replace(
+        default_state(TODAY),
+        overrides={date(2026, 8, 29): DayType.OFFICE},
     )
 
     @pytest.mark.parametrize(
@@ -186,4 +188,4 @@ def _outfit(on: date, state: State | None = None) -> Outfit:
 
 
 def _response(on: date, state: State | None = None) -> Response:
-    return handle(on, state or State(), today=TODAY)
+    return answer(state or default_state(TODAY), on)

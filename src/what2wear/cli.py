@@ -1,7 +1,9 @@
-"""The imperative shell: reads the log, reads the clock, prints.
+"""The imperative shell: reads the State, reads the clock, prints.
 
-Deliberately disposable -- a thin renderer over `handle`, expected to be
-replaced by something phone-friendly later.
+Deliberately disposable -- a thin renderer over the two seams, expected
+to be replaced by something phone-friendly later. It is also where the
+past is refused: `answer` counts from an Anchor and so has no idea
+what today is.
 """
 
 import argparse
@@ -12,56 +14,47 @@ from pathlib import Path
 
 from platformdirs import user_config_path
 
-from what2wear.core import PastDateError, UnknownShirtError, handle
-from what2wear.decisions import (
-    DecisionsError,
-    append_decision,
-    load_decisions,
-)
+from what2wear.core import UnknownShirtError, answer, apply
 from what2wear.model import (
+    Command,
     DayType,
     DayTypeOverride,
-    Decision,
-    Reset,
     ResetRequest,
     Response,
     State,
 )
+from what2wear.store import StateError, read_state, write_state
 
 
-def run() -> int:
-    """Answer from the log this platform keeps for the user.
+def main() -> int:
+    """Answer from the State this platform keeps for the user.
 
     The one seam that reads the platform directory, so no invocation
     can point the tool's own file anywhere else.
     """
-    return main(state_dir=user_config_path("what2wear"))
+    return run(state_dir=user_config_path("what2wear"))
 
 
-def main(argv: Sequence[str] | None = None, *, state_dir: Path) -> int:
-    """Answer, then record what the answer decided.
+def run(argv: Sequence[str] | None = None, *, state_dir: Path) -> int:
+    """Answer, and record first if the command asked for that.
 
-    Recording comes before printing so that a log the tool cannot write
-    to is reported rather than printed over.
+    The two seams composed: `apply` says what the State becomes and
+    `answer` says what the date calls for, so a command that records
+    shows its result without either knowing about the other.
     """
     parser = _parser()
     args = parser.parse_args(argv)
     _refuse_on_with_a_command(parser, args)
-    log = state_dir / "decisions.jsonl"
-    on, record = _command(args)
+    path = state_dir / "state.yaml"
+    today = _today()
     try:
-        state = _with_decisions(load_decisions(log))
-        response = handle(on, state, today=_today(), record=record)
-        if response.decision is not None:
-            append_decision(log, response.decision)
-    except (
-        DecisionsError,
-        PastDateError,
-        UnknownShirtError,
-    ) as error:
+        on, command = _command(args, today)
+        state = _recorded(path, read_state(path, today), command, today)
+        response = answer(state, on)
+    except (StateError, PastDateError, UnknownShirtError) as error:
         print(error, file=sys.stderr)
         return 2
-    print(_render(response))
+    print(_render(response, command))
     return 0
 
 
@@ -111,7 +104,7 @@ def _overriding(
     name and what it records are declared in one place rather than
     restated in a mapping that has to be kept in step.
     """
-    command.set_defaults(record=day_type)
+    command.set_defaults(day_type=day_type)
     command.add_argument(
         "date",
         type=_date,
@@ -143,41 +136,6 @@ def _refuse_on_with_a_command(
         parser.error(f"--on cannot be combined with {args.command}")
 
 
-def _command(
-    args: argparse.Namespace,
-) -> tuple[date | None, DayType | ResetRequest | None]:
-    """Take the date being asked about, and what to record about it.
-
-    A date of `None` means today. A Reset takes a Shirt where the
-    others take a date, and so is only ever about today.
-    """
-    if "record" in args:
-        return args.date, args.record
-    if args.command == "reset":
-        return None, ResetRequest(args.shirt)
-    return args.on, None
-
-
-def _with_decisions(decisions: tuple[Decision, ...]) -> State:
-    """Read the one log into a State, each kind in its field.
-
-    The log is written in the order decided; nothing here needs that
-    order, because every decision carries the date it applies from.
-    """
-    return State(
-        overrides=tuple(
-            decision
-            for decision in decisions
-            if isinstance(decision, DayTypeOverride)
-        ),
-        resets=tuple(
-            decision
-            for decision in decisions
-            if isinstance(decision, Reset)
-        ),
-    )
-
-
 def _today() -> date:
     """Give the wearer's own today.
 
@@ -187,7 +145,56 @@ def _today() -> date:
     return datetime.now(UTC).astimezone().date()
 
 
-def _render(response: Response) -> str:
+def _command(
+    args: argparse.Namespace, today: date
+) -> tuple[date, Command | None]:
+    """Take the date being answered about, and what to record on it.
+
+    Each command is known by what it brought with it rather than by
+    its name, so the names live only on the parsers that declare them.
+    A command carries its own date, defaulting to today; a Reset is
+    only ever about today. Only the bare question can name a past
+    date, and that is the one thing refused -- correcting what a date
+    now behind us was still has to be possible.
+    """
+    if "day_type" in args:
+        on = today if args.date is None else args.date
+        return on, DayTypeOverride(on, args.day_type)
+    if "shirt" in args:
+        return today, ResetRequest(args.shirt)
+    return _answerable(args.on, today), None
+
+
+def _answerable(on: date | None, today: date) -> date:
+    """Settle which date a bare invocation is asking about.
+
+    None is today. A date behind today is refused here rather than in
+    the core, which counts from an Anchor and never reads a clock.
+    """
+    if on is not None and on < today:
+        message = (
+            f"{on} is in the past, and the past is not answerable."
+        )
+        raise PastDateError(message)
+    return today if on is None else on
+
+
+def _recorded(
+    path: Path, state: State, command: Command | None, today: date
+) -> State:
+    """Put what a command asked for into the State, and onto disk.
+
+    Writing comes before printing so that a State the tool cannot
+    write is reported rather than printed over.
+    """
+    if command is None:
+        return state
+    recorded = apply(state, command, today)
+    write_state(path, recorded)
+    return recorded
+
+
+def _render(response: Response, command: Command | None) -> str:
     return "\n".join(
         [
             f"{response.on:%a %d %b %Y} - {response.day_type} day",
@@ -196,7 +203,7 @@ def _render(response: Response) -> str:
             f"  sweater  {response.outfit.sweater}",
             f"  shoes    {response.outfit.shoes}",
             *_repeat_note(response),
-            *_recorded_note(response.decision),
+            *_recorded_note(response, command),
         ]
     )
 
@@ -214,15 +221,25 @@ def _repeat_note(response: Response) -> tuple[str, ...]:
     )
 
 
-def _recorded_note(decision: Decision | None) -> tuple[str, ...]:
-    """Say what a command that writes something wrote."""
-    if decision is None:
+def _recorded_note(
+    response: Response, command: Command | None
+) -> tuple[str, ...]:
+    """Say what a command that writes something wrote.
+
+    A Reset names no Position, because the Shirt it moved to is the
+    one printed two lines up.
+    """
+    if command is None:
         return ()
-    if isinstance(decision, DayTypeOverride):
-        return (f"  recorded {decision.on} - {decision.day_type} day",)
-    return (
-        (
-            f"  recorded {decision.on} - {decision.rotation}"
-            f" rotation {decision.offset:+d}"
-        ),
-    )
+    if isinstance(command, DayTypeOverride):
+        return (f"  recorded {command.on} - {command.day_type} day",)
+    return (f"  recorded {response.on} - shirt rotation reset",)
+
+
+class PastDateError(Exception):
+    """A date before today was asked about.
+
+    A Reset rewrites what a past Position was and no wear history is
+    kept, so the answer would be a fact about the present dressed up
+    as one about the past.
+    """

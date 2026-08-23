@@ -5,9 +5,11 @@ shape lives in `wardrobe.py`; everything here is either what the tool
 has been told or what it derived.
 """
 
-from dataclasses import dataclass
+from collections.abc import Mapping
+from dataclasses import dataclass, replace
 from datetime import date
 from enum import StrEnum
+from types import MappingProxyType
 
 from what2wear import wardrobe
 
@@ -19,48 +21,66 @@ class DayType(StrEnum):
     HOME = "home"
 
 
+_NOTHING_OVERRIDDEN: Mapping[date, DayType] = MappingProxyType({})
+
+
 @dataclass(frozen=True)
 class State:
     """Everything the tool has been told, in memory.
 
-    Nothing structural appears here: the Wardrobe is given, so a State
-    is the recorded decisions and nothing else.
+    Nothing structural appears here, and nothing is keyed by a Label:
+    an Anchor states a Position and the Overrides are keyed by date,
+    so replacing a Garment can never move a Rotation.
     """
 
-    overrides: tuple[DayTypeOverride, ...] = ()
-    resets: tuple[Reset, ...] = ()
+    office_anchor: wardrobe.Anchor
+    home_anchor: wardrobe.Anchor
+    overrides: Mapping[date, DayType] = _NOTHING_OVERRIDDEN
+
+    def anchor(self, day_type: DayType) -> wardrobe.Anchor:
+        """Give the Anchor a kind of day's Shirts are counted from."""
+        return (
+            self.office_anchor
+            if day_type is DayType.OFFICE
+            else self.home_anchor
+        )
+
+    def moved(
+        self, day_type: DayType, anchor: wardrobe.Anchor
+    ) -> State:
+        """Give back this State with one Shirt Anchor somewhere else.
+
+        The other Rotation stays exactly where it stood, which is what
+        lets a Reset be about the Closet the day drew from and nothing
+        else.
+        """
+        return (
+            replace(self, office_anchor=anchor)
+            if day_type is DayType.OFFICE
+            else replace(self, home_anchor=anchor)
+        )
+
+    def overriding(self, command: DayTypeOverride) -> State:
+        """Give back this State with one more date said to be a kind.
+
+        One record per date, so saying the opposite for a date
+        replaces what was said before rather than stacking on it.
+        """
+        return replace(
+            self,
+            overrides=MappingProxyType(
+                {**self.overrides, command.on: command.day_type}
+            ),
+        )
 
     def day_type(self, on: date) -> DayType:
         """Say what kind of day a date actually is.
 
-        A Day Type Override wins over the weekly pattern, and a later
-        record wins over an earlier one for the same date.
+        A Day Type Override wins over the weekly pattern. There is one
+        record per date, so saying the opposite replaced what was said
+        before rather than stacking on top of it.
         """
-        return next(
-            (
-                override.day_type
-                for override in reversed(self.overrides)
-                if override.on == on
-            ),
-            pattern_day_type(on),
-        )
-
-    def shirt_shift(self, day_type: DayType, on: date) -> int:
-        """Add up what the Resets in force on a date move a Closet by.
-
-        A Reset is permanent from its own date forward. Which Closet
-        it moves is the one its own date drew from, which is why the
-        record names the Shirt Rotation and not which of the two --
-        and why an Override recorded later against that same date
-        carries the Reset across to the other Closet with it.
-        """
-        return sum(
-            reset.offset
-            for reset in self.resets
-            if reset.rotation is Rotation.SHIRT
-            and reset.on <= on
-            and self.day_type(reset.on) is day_type
-        )
+        return self.overrides.get(on, pattern_day_type(on))
 
     def overridden_days(
         self, day_type: DayType, start: date, end: date
@@ -75,11 +95,22 @@ class State:
         return sum(
             (self.day_type(on) is day_type)
             - (pattern_day_type(on) is day_type)
-            for on in frozenset(
-                override.on for override in self.overrides
-            )
+            for on in self.overrides
             if start <= on < end
         )
+
+
+def default_state(today: date) -> State:
+    """Give the State a fresh installation starts from.
+
+    The given Anchors with nothing recorded. It is what a missing
+    State file reads as, and the first write is what pins it -- until
+    then the Anchors move with today.
+    """
+    return State(
+        office_anchor=wardrobe.default_anchor(today),
+        home_anchor=wardrobe.default_anchor(today),
+    )
 
 
 def closet_for(day_type: DayType) -> wardrobe.Closet:
@@ -106,7 +137,7 @@ def pattern_day_type(on: date) -> DayType:
 
 @dataclass(frozen=True)
 class DayTypeOverride:
-    """A record of what one date is, whatever the pattern says.
+    """A command saying what one date is, whatever the pattern says.
 
     An Office Day or a Home Day. Staying home on a Wednesday, going
     in on a Saturday, a public holiday and a day of leave are all this
@@ -117,35 +148,9 @@ class DayTypeOverride:
     day_type: DayType
 
 
-class Rotation(StrEnum):
-    """Which Rotation a Reset shifts.
-
-    The Closet a Shirt Reset moves is inferred from its date, so the
-    only thing a record has to name is the kind of Rotation.
-    """
-
-    SHIRT = "shirt"
-
-
-@dataclass(frozen=True)
-class Reset:
-    """A record shifting one Rotation from a date forward, for good.
-
-    Every later date moves with it, so the Rotation stays continuous
-    rather than snapping back the next day.
-    """
-
-    on: date
-    rotation: Rotation
-    offset: int
-
-
-type Decision = DayTypeOverride | Reset
-
-
 @dataclass(frozen=True)
 class ResetRequest:
-    """A command asking for a Reset, before its offset is known.
+    """A command moving the day's Shirt Rotation, always from today.
 
     Bare, it moves on to the next Shirt. Naming a Shirt jumps to that
     one instead; the Closet comes from the date, never from the Label.
@@ -154,15 +159,17 @@ class ResetRequest:
     shirt: str | None = None
 
 
+type Command = DayTypeOverride | ResetRequest
+
+
 @dataclass(frozen=True)
 class Response:
-    """What a command resolved to, ready for a shell to render."""
+    """What a date resolved to, ready for a shell to render."""
 
     on: date
     day_type: DayType
     outfit: Outfit
     unavoidable_repeat: bool = False
-    decision: Decision | None = None
 
 
 @dataclass(frozen=True)
