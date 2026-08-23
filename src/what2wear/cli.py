@@ -44,7 +44,9 @@ def main(argv: Sequence[str] | None = None, *, state_dir: Path) -> int:
     Recording comes before printing so that a log the tool cannot write
     to is reported rather than printed over.
     """
-    args = _parser().parse_args(argv)
+    parser = _parser()
+    args = parser.parse_args(argv)
+    _refuse_on_with_a_command(parser, args)
     log = state_dir / "decisions.jsonl"
     on, record = _command(args)
     try:
@@ -68,41 +70,56 @@ def _parser() -> argparse.ArgumentParser:
         prog="what2wear",
         description="What to wear today, or on any other date.",
     )
-    dates = parser.add_mutually_exclusive_group()
-    dates.add_argument(
+    parser.add_argument(
         "--on",
         type=_date,
         default=None,
         metavar="YYYY-MM-DD",
         help="the date to resolve; defaults to today",
     )
-    dates.add_argument(
-        "--stay-home",
-        type=_date,
-        nargs="?",
-        const=None,
-        default=argparse.SUPPRESS,
-        metavar="YYYY-MM-DD",
+    commands = parser.add_subparsers(dest="command")
+    stay_home = commands.add_parser(
+        "stay-home",
         help="record that a date is a home day; defaults to today",
     )
-    dates.add_argument(
-        "--go-in",
-        type=_date,
-        nargs="?",
-        const=None,
-        default=argparse.SUPPRESS,
-        metavar="YYYY-MM-DD",
+    _overriding(stay_home, DayType.HOME)
+    go_in = commands.add_parser(
+        "go-in",
         help="record that a date is an office day; defaults to today",
     )
-    dates.add_argument(
-        "--reset",
-        nargs="?",
-        const=None,
-        default=argparse.SUPPRESS,
-        metavar="SHIRT",
+    _overriding(go_in, DayType.OFFICE)
+    reset = commands.add_parser(
+        "reset",
         help="move today on to the next shirt, or to a named one",
     )
+    reset.add_argument(
+        "shirt",
+        nargs="?",
+        default=None,
+        metavar="SHIRT",
+        help="the shirt to move to; defaults to the next one",
+    )
     return parser
+
+
+def _overriding(
+    command: argparse.ArgumentParser, day_type: DayType
+) -> None:
+    """Set up a command that records a Day Type Override.
+
+    The Day Type rides on the parser that names it, so a command's
+    name and what it records are declared in one place rather than
+    restated in a mapping that has to be kept in step.
+    """
+    command.set_defaults(record=day_type)
+    command.add_argument(
+        "date",
+        type=_date,
+        nargs="?",
+        default=None,
+        metavar="YYYY-MM-DD",
+        help="the date to record against; defaults to today",
+    )
 
 
 def _date(text: str) -> date:
@@ -113,22 +130,31 @@ def _date(text: str) -> date:
         raise argparse.ArgumentTypeError(message) from None
 
 
+def _refuse_on_with_a_command(
+    parser: argparse.ArgumentParser, args: argparse.Namespace
+) -> None:
+    """Refuse an `--on` given alongside a command.
+
+    `--on` is the date a bare invocation asks about. Every command
+    either carries the date it is about or is only ever about today,
+    so an `--on` beside one would have to be ignored or guessed at.
+    """
+    if args.on is not None and args.command is not None:
+        parser.error(f"--on cannot be combined with {args.command}")
+
+
 def _command(
     args: argparse.Namespace,
 ) -> tuple[date | None, DayType | ResetRequest | None]:
     """Take the date being asked about, and what to record about it.
 
-    A date of `None` means today, so the recording flags are suppressed
-    when absent rather than defaulted -- absence is the missing
-    attribute. A Reset takes a Shirt where the others take a date, and
-    so is only ever about today.
+    A date of `None` means today. A Reset takes a Shirt where the
+    others take a date, and so is only ever about today.
     """
-    if "stay_home" in args:
-        return args.stay_home, DayType.HOME
-    if "go_in" in args:
-        return args.go_in, DayType.OFFICE
-    if "reset" in args:
-        return None, ResetRequest(args.reset)
+    if "record" in args:
+        return args.date, args.record
+    if args.command == "reset":
+        return None, ResetRequest(args.shirt)
     return args.on, None
 
 

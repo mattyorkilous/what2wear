@@ -4,7 +4,7 @@ Tells you what to wear today, and what you'll wear on any future day.
 
 It walks a fixed list of shirts — one closet for the office, one for home — advancing each rotation only on days of its own kind. Pants come welded to the shirt; shoes and sweaters follow from the pants. At the office it guarantees no sweater and no pair of shoes repeats within a Monday-start week. At home, when it's cold, it alternates jacket and sweater so the same kind of outerwear never comes twice running.
 
-> **Status: the given wardrobe.** There is nothing to install and nothing to configure — the wardrobe lives in source, so a fresh checkout answers straight away. `what2wear` and `what2wear --on <future date>` give you the shirt, its pants, its sweater, its shoes and whether it's an office day; a date in the past is refused, because a reset rewrites where a rotation stood and nothing here records what was actually worn. `--stay-home` and `--go-in` switch a date's side, and `--reset` moves the shirt rotation on for good. Subcommands, one state file, replace and swap, outerwear and weather are still ahead.
+> **Status: the given wardrobe.** There is nothing to install and nothing to configure — the wardrobe lives in source, so a fresh checkout answers straight away. `what2wear` and `what2wear --on <future date>` give you the shirt, its pants, its sweater, its shoes and whether it's an office day; a date in the past is refused, because a reset rewrites where a rotation stood and nothing here records what was actually worn. `stay-home` and `go-in` switch a date's side, and `reset` moves the shirt rotation on for good. One state file, replace and swap, outerwear and weather are still ahead.
 
 ## How it works
 
@@ -29,12 +29,12 @@ A deliberately disposable CLI, to be replaced later by something usable from a p
 ```
 what2wear                      # today's outfit
 what2wear --on 2026-08-24      # any future date
-what2wear --stay-home [date]   # this office day is now a home day
-what2wear --go-in [date]       # this home day is now an office day
-what2wear --reset [shirt]      # move on to the next shirt, or jump to a named one
+what2wear stay-home [date]     # this office day is now a home day
+what2wear go-in [date]         # this home day is now an office day
+what2wear reset [shirt]        # move on to the next shirt, or jump to a named one
 ```
 
-Holidays and leave aren't separate concepts — they're just `--stay-home` on the relevant date.
+Holidays and leave aren't separate concepts — they're just `stay-home` on the relevant date.
 
 ## The wardrobe is given
 
