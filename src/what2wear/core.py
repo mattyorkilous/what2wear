@@ -35,17 +35,17 @@ def answer(state: State, on: date) -> Response:
     )
 
 
-def apply(state: State, command: Command, today: date) -> State:
+def apply(state: State, command: Command, on: date) -> State:
     """Put what a command asks for into the State, and render nothing.
 
     State in, State out, so what a command actually changed is a single
-    value comparison. An Override lands on the date it names; a Reset
-    is only ever about today.
+    value comparison. Both kinds of command are about one date, which
+    defaults to today but is the wearer's to name.
     """
     return (
         state.overriding(command)
         if isinstance(command, DayTypeOverride)
-        else _reset(state, command, today)
+        else _reset(state, command, on)
     )
 
 
@@ -189,17 +189,19 @@ def _days_of_type_between(
     )
 
 
-def _reset(state: State, request: ResetRequest, today: date) -> State:
-    """Move the day's Shirt Rotation, by moving its Anchor to today.
+def _reset(state: State, request: ResetRequest, on: date) -> State:
+    """Move a Shirt Rotation, by moving its Anchor to a date.
 
-    The whole Rotation comes with it, so every later date follows
-    rather than snapping back. Which Rotation moves is the one today
-    draws from; the other is left exactly where it stood.
+    The whole Rotation comes with it, so every other date follows
+    rather than snapping back -- which is why a Reset dated ahead of
+    today moves today as well. Which Rotation moves is the one the
+    date draws from, never the Label; the other is left where it
+    stood.
     """
-    day_type = state.day_type(today)
+    day_type = state.day_type(on)
     closet = closet_for(day_type)
-    position = _reset_position(state, request, closet, day_type, today)
-    return state.moved(day_type, wardrobe.Anchor(today, position))
+    position = _reset_position(state, request, closet, day_type, on)
+    return state.moved(day_type, wardrobe.Anchor(on, position))
 
 
 def _reset_position(
@@ -207,9 +209,9 @@ def _reset_position(
     request: ResetRequest,
     closet: wardrobe.Closet,
     day_type: DayType,
-    today: date,
+    on: date,
 ) -> int:
-    """Say which Position today is being moved to.
+    """Say which Position the date is being moved to.
 
     One Shirt on for a bare Reset; straight to a named one otherwise,
     in the Closet the date draws from. A Shirt that Closet does not
@@ -217,7 +219,7 @@ def _reset_position(
     the other Closet, or in neither.
     """
     if request.shirt is None:
-        return (_position(state, closet, day_type, today) + 1) % len(
+        return (_position(state, closet, day_type, on) + 1) % len(
             closet.shirts
         )
     return _index_of(closet, day_type, request.shirt)

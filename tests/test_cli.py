@@ -1,13 +1,13 @@
 """The shell.
 
-It reads the State, reads the clock, refuses the past and prints -- so
-that is all this covers. The Wardrobe is given, so there is nothing to
-set up and no fixture closet here: which Shirt a date calls for is the
-core's business, and these assert on what gets rendered and what gets
+It reads the State, reads the clock and prints -- so that is all this
+covers. The Wardrobe is given, so there is nothing to set up and no
+fixture closet here: which Shirt a date calls for is the core's
+business, and these assert on what gets rendered and what gets
 recorded.
 
 Dates are taken relative to the real today, because the shell reads
-the real clock and the past is not answerable.
+the real clock and `--on` is measured against it.
 """
 
 from datetime import UTC, date, datetime, timedelta
@@ -52,21 +52,25 @@ def test_a_future_date_prints_that_date(
     assert f"{day:%a %d %b %Y}" in capsys.readouterr().out
 
 
-def test_a_past_date_is_refused_with_a_reason(
+def test_a_past_date_answers_and_says_what_the_answer_is(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
+    # Derivable and offered, but a Reset rewrites where a Rotation
+    # stood, so the note is what stops it reading as wear history.
     day = _today() - timedelta(days=1)
-    assert run(["--on", day.isoformat()], state_dir=tmp_path) == 2
-    err = capsys.readouterr().err
-    assert day.isoformat() in err
-    assert "past is not answerable" in err
+    assert run(["--on", day.isoformat()], state_dir=tmp_path) == 0
+    out = capsys.readouterr().out
+    assert f"{day:%a %d %b %Y}" in out
+    assert "not what was worn" in out
 
 
 def test_today_itself_is_not_the_past(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     assert run(["--on", _today().isoformat()], state_dir=tmp_path) == 0
-    assert f"{_today():%a %d %b %Y}" in capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert f"{_today():%a %d %b %Y}" in out
+    assert "not what was worn" not in out
 
 
 def test_an_unavoidable_repeat_is_called_out(
@@ -161,34 +165,24 @@ class TestRecordingADayTypeOverride:
     def test_a_past_date_can_still_be_recorded_against(
         self, tmp_path: Path
     ) -> None:
-        # Only the question is refused. Correcting what last Monday
-        # was is what parks the rotation into this week.
+        # Correcting what last Monday was is what parks the
+        # rotation into this week.
         monday = _next(MON) - timedelta(days=7)
         assert _run("stay-home", monday, tmp_path) == 0
         assert monday.isoformat() in _state(tmp_path).read_text()
 
-    def test_asking_and_recording_are_not_combined(
-        self, tmp_path: Path
+    def test_either_side_of_the_command_names_the_same_date(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        # `--on` is the date a bare invocation asks about, so it
-        # cannot be given alongside a command.
-        with pytest.raises(SystemExit):
-            run(
-                ["--on", _next(MON).isoformat(), "stay-home"],
-                state_dir=tmp_path,
-            )
-
-    def test_neither_order_of_the_two_is_accepted(
-        self, tmp_path: Path
-    ) -> None:
-        # Refused by the shell one way round and by argparse the
-        # other, so the pairing has no spelling that works.
-        with pytest.raises(SystemExit):
-            run(
-                ["stay-home", "--on", _next(MON).isoformat()],
-                state_dir=tmp_path,
-            )
-        assert not _state(tmp_path).exists()
+        # The subcommand's own default must not overwrite an `--on`
+        # given ahead of it, which would silently record today.
+        saturday = _next(SAT)
+        for argv in (
+            ["--on", saturday.isoformat(), "go-in"],
+            ["go-in", "--on", saturday.isoformat()],
+        ):
+            assert run(argv, state_dir=tmp_path) == 0
+            assert f"recorded {saturday}" in capsys.readouterr().out
 
 
 class TestRecordingAReset:
@@ -224,20 +218,41 @@ class TestRecordingAReset:
         assert run([], state_dir=tmp_path) == 0
         assert _shirt(capsys.readouterr().out) == moved
 
-    def test_asking_and_resetting_are_not_combined(
-        self, tmp_path: Path
+    def test_a_reset_can_name_the_date_it_moves(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        with pytest.raises(SystemExit):
-            run(
-                ["--on", _next(MON).isoformat(), "reset"],
-                state_dir=tmp_path,
-            )
+        # A bare Reset moves the named date on by one, and the
+        # Rotation comes with it rather than snapping back.
+        monday = _next(MON) + timedelta(days=7)
+        assert _ask(monday, tmp_path) == 0
+        before = _shirt(capsys.readouterr().out)
+        assert _reset(None, monday, tmp_path) == 0
+        capsys.readouterr()
+        assert _ask(monday, tmp_path) == 0
+        assert _shirt(capsys.readouterr().out) != before
+
+    def test_the_closet_comes_from_the_date_it_acts_on(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        # `striped` is an office Shirt and the home Closet has no
+        # such Label, so the date alone decides which is searched.
+        assert _reset("striped", _next(MON), tmp_path) == 0
+        capsys.readouterr()
+        assert _reset("striped", _next(SAT), tmp_path) == 2
+        assert "no home shirt" in capsys.readouterr().err
 
 
 def _run(command: str, on: date | None, state_dir: Path) -> int:
     return run(
-        [command, *([] if on is None else [on.isoformat()])],
+        [command, *([] if on is None else ["--on", on.isoformat()])],
         state_dir=state_dir,
+    )
+
+
+def _reset(shirt: str | None, on: date, state_dir: Path) -> int:
+    named = [] if shirt is None else [shirt]
+    return run(
+        ["reset", *named, "--on", on.isoformat()], state_dir=state_dir
     )
 
 

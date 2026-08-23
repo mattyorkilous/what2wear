@@ -1,10 +1,10 @@
 # what2wear
 
-Tells you what to wear today, and what you'll wear on any future day.
+Tells you what to wear today, and what you'll wear on any other day.
 
 It walks a fixed list of shirts — one closet for the office, one for home — advancing each rotation only on days of its own kind. Pants come welded to the shirt; shoes and sweaters follow from the pants. At the office it guarantees no sweater and no pair of shoes repeats within a Monday-start week. At home, when it's cold, it alternates jacket and sweater so the same kind of outerwear never comes twice running.
 
-> **Status: the given wardrobe.** There is nothing to install and nothing to configure — the wardrobe lives in source, so a fresh checkout answers straight away. `what2wear` and `what2wear --on <future date>` give you the shirt, its pants, its sweater, its shoes and whether it's an office day; a date in the past is refused, because a reset rewrites where a rotation stood and nothing here records what was actually worn. `stay-home` and `go-in` switch a date's side, and `reset` moves the shirt rotation on for good. Everything it's been told lives in one state file it owns. Replace and swap, outerwear and weather are still ahead.
+> **Status: the given wardrobe.** There is nothing to install and nothing to configure — the wardrobe lives in source, so a fresh checkout answers straight away. `what2wear` and `what2wear --on <date>` give you the shirt, its pants, its sweater, its shoes and whether it's an office day; a past date answers too, with a note that it says where the rotation stands now rather than what was worn. `stay-home` and `go-in` switch a date's side, and `reset` moves the shirt rotation on for good. Every command acts on one date, which is today unless `--on` says otherwise. Everything it's been told lives in one state file it owns. Replace and swap, outerwear and weather are still ahead.
 
 ## How it works
 
@@ -27,11 +27,12 @@ Home outerwear alternates on the calendar too. Every home day is a jacket day or
 A deliberately disposable CLI, to be replaced later by something usable from a phone.
 
 ```
-what2wear                      # today's outfit
-what2wear --on 2026-08-24      # any future date
-what2wear stay-home [date]     # this office day is now a home day
-what2wear go-in [date]         # this home day is now an office day
-what2wear reset [shirt]        # move on to the next shirt, or jump to a named one
+what2wear                            # today's outfit
+what2wear --on 2026-08-24            # any other date, past or future
+what2wear stay-home                  # this office day is now a home day
+what2wear go-in                      # this home day is now an office day
+what2wear reset [shirt]              # move on to the next shirt, or jump to a named one
+what2wear reset lblue --on 2026-09-07  # every command takes --on, defaulting to today
 ```
 
 Holidays and leave aren't separate concepts — they're just `stay-home` on the relevant date.
@@ -72,7 +73,7 @@ answer(state, on) -> Response      # never changes anything
 apply(state, command, today) -> State   # never renders anything
 ```
 
-The shell composes them, so a command that records shows its result for free. It only reads and writes the state file, reads the clock, fetches the forecast, refuses the past and prints. Those two seams are the whole test surface — no mocks, no files touched, no clock reads outside the shell's own tests. The wardrobe under test is the given one, so there is no fixture that can drift from what ships.
+The shell composes them, so a command that records shows its result for free. It only reads and writes the state file, reads the clock, fetches the forecast and prints. Those two seams are the whole test surface — no mocks, no files touched, no clock reads outside the shell's own tests. The wardrobe under test is the given one, so there is no fixture that can drift from what ships.
 
 Read [`CONTEXT.md`](CONTEXT.md) before touching anything, then the ADRs for the area you're working in.
 
