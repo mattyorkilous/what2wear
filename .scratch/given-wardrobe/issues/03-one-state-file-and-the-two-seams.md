@@ -43,7 +43,7 @@ in a test.
 - [ ] Reading and writing the State file are the only impure functions added, alongside reading the clock and printing
 - [ ] `answer` renders nothing and changes nothing; `apply` returns a State and renders nothing
 - [ ] A Reset moves its Rotation's Anchor to today and the Position named; every later date follows and the Rotation stays continuous
-- [ ] The Position derivation has no offset term and no Anchor cutoff
+- [ ] The Position derivation has no offset term (the Anchor cutoff was already deleted in 01)
 - [ ] Nothing in the State references a Garment by Label — Anchors store Positions and Overrides are keyed by date
 - [ ] Day Type Overrides are keyed by date, so recording the opposite for a date replaces rather than stacks, and the "a later record wins" scan is gone
 - [ ] The decisions module, its log, the `Decision` union, the `Reset` record, the Rotation enum and the Reset-offset accumulator are all deleted
@@ -51,3 +51,5 @@ in a test.
 - [ ] A Reset naming a Label absent from the day's Closet is an error rather than a guess
 - [ ] A mid-Week Reset changing what the Week's walk believes an earlier day spent, and therefore that Week's Fallback, is asserted directly — ADR-0001 accepts this knowingly and the test is what stops it being "fixed"
 - [ ] A State written and read back is the same State
+- [ ] The first write pins the default Anchor, so a Rotation stops moving with today — carried over from 01, where the Anchor became today at Position 0 with nowhere to record it
+- [ ] Look-ahead to a date matches what that date returns when it arrives, absent intervening commands — false while the Anchor moves, and restored by pinning it

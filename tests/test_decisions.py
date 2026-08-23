@@ -105,8 +105,10 @@ class TestABadLog:
     def test_a_log_that_cannot_be_written_fails_the_same_way(
         self, tmp_path: Path
     ) -> None:
-        # A missing parent directory, rather than a permission bit, so
-        # the test behaves the same when run as root.
+        # A parent that is a file rather than a directory, so the test
+        # behaves the same when run as root -- a merely absent parent
+        # is created now that nothing else makes the directory.
+        (tmp_path / "nowhere").write_text("")
         path = tmp_path / "nowhere" / "decisions.jsonl"
         with pytest.raises(DecisionsError, match=str(path)):
             append_decision(path, STAY_HOME)

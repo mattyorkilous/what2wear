@@ -9,7 +9,6 @@ authors = [
 requires-python = ">=3.14"
 dependencies = [
     "platformdirs>=4.11.3",
-    "pydantic>=2.13.4",
     "pyyaml>=6.0.3",
 ]
 
@@ -21,7 +20,7 @@ testpaths = ["tests"]
 # Import the package from the source tree rather than the installed
 # copy, so the suite runs the same whether or not the project has
 # been installed.
-pythonpath = ["src", "tests"]
+pythonpath = ["src"]
 
 [tool.ruff]
 line-length = 72
@@ -37,8 +36,8 @@ ignore = [
     # (D211, D212) is the style this repo writes.
     "D203",
     "D213",
-    # Moving imports under TYPE_CHECKING would break pydantic, which
-    # resolves annotations at runtime.
+    # A stdlib type used only in annotations still reads better at
+    # the top of the file than inside a TYPE_CHECKING block.
     "TC003",
     # Not a distributed work -- no per-file copyright headers.
     "CPY001",

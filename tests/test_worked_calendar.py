@@ -1,70 +1,75 @@
-"""The agreed Aug 15-24 2026 sequence, against the example Wardrobe.
+"""The Aug 29 - Sep 7 2026 sequence, against the given Wardrobe.
 
-The whole Outfit now -- Shirt, pants, sweater and shoes -- including
-the Friday Aug 21 Fallback, where slate pants want ink but Monday
-already took it, and the shoes move from ebony to bone alongside it.
-Outerwear arrives with the weather.
+The whole Outfit -- Shirt, pants, sweater and shoes -- including the
+Friday Sep 4 Fallback, where blue pants want beige but Monday already
+took it, and the shoes move from brown to white alongside it. It also
+carries the home wrap from Sat Sep 5 round to Sun Sep 6, and the Week
+resetting cleanly on Mon Sep 7.
+
+One `today` for the whole range: with nothing recorded the Anchor is
+today, so moving `today` would move every Position with it.
 """
 
 from datetime import date
 
 import pytest
-from conftest import WARDROBE
 
 from what2wear.core import handle
-from what2wear.model import DayType, Outfit
+from what2wear.model import DayType, Outfit, State
+
+TODAY = date(2026, 8, 22)
 
 SEQUENCE = [
     (
-        date(2026, 8, 15),
+        date(2026, 8, 29),
         DayType.HOME,
-        Outfit("pique", "slate", "indigo", "ebony"),
-    ),  # Sat -- the home anchor
+        Outfit("purple", "black", "beige", "white"),
+    ),  # Sat
     (
-        date(2026, 8, 16),
+        date(2026, 8, 30),
         DayType.HOME,
-        Outfit("poplin", "sand", "mustard", "ebony"),
+        Outfit("dblue", "tan", "blue", "black"),
+    ),  # Sun
+    (
+        date(2026, 8, 31),
+        DayType.OFFICE,
+        Outfit("striped", "blue", "beige", "brown"),
+    ),  # Mon -- takes beige, which Friday then wants
+    (
+        date(2026, 9, 1),
+        DayType.HOME,
+        Outfit("beige", "blue", "yellow", "black"),
+    ),
+    (
+        date(2026, 9, 2),
+        DayType.OFFICE,
+        Outfit("dblue", "tan", "black", "black"),
+    ),
+    (
+        date(2026, 9, 3),
+        DayType.HOME,
+        Outfit("lblue", "black", "beige", "white"),
+    ),
+    (
+        date(2026, 9, 4),
+        DayType.OFFICE,
+        Outfit("white", "blue", "grey", "white"),
+    ),  # Fri -- shares blue with Monday, so the fallback and its shoes
+    (
+        date(2026, 9, 5),
+        DayType.HOME,
+        Outfit("lgreen", "tan", "blue", "black"),
+    ),  # Sat -- the end of the home closet
+    (
+        date(2026, 9, 6),
+        DayType.HOME,
+        Outfit("white", "blue", "yellow", "black"),
     ),  # Sun -- wraps back to the start
     (
-        date(2026, 8, 17),
+        date(2026, 9, 7),
         DayType.OFFICE,
-        Outfit("sateen", "slate", "ink", "ebony"),
-    ),  # Mon -- the office anchor
-    (
-        date(2026, 8, 18),
-        DayType.HOME,
-        Outfit("henley", "moss", "oatmeal", "bone"),
-    ),
-    (
-        date(2026, 8, 19),
-        DayType.OFFICE,
-        Outfit("poplin", "sand", "cream", "walnut"),
-    ),
-    (
-        date(2026, 8, 20),
-        DayType.HOME,
-        Outfit("jersey", "slate", "indigo", "ebony"),
-    ),
-    (
-        date(2026, 8, 21),
-        DayType.OFFICE,
-        Outfit("twill", "slate", "ash", "bone"),
-    ),  # Fri -- shares tan with Monday, so the fallback and its shoes
-    (
-        date(2026, 8, 22),
-        DayType.HOME,
-        Outfit("twill", "sand", "mustard", "ebony"),
-    ),
-    (
-        date(2026, 8, 23),
-        DayType.HOME,
-        Outfit("waffle", "moss", "oatmeal", "bone"),
-    ),
-    (
-        date(2026, 8, 24),
-        DayType.OFFICE,
-        Outfit("flannel", "moss", "ash", "bone"),
-    ),  # Mon -- a fresh week, so flannel takes ash cleanly
+        Outfit("black", "tan", "black", "black"),
+    ),  # Mon -- a fresh week, so tan takes black cleanly
 ]
 
 
@@ -72,5 +77,5 @@ SEQUENCE = [
 def test_the_worked_calendar(
     on: date, day_type: DayType, outfit: Outfit
 ) -> None:
-    response = handle(on, WARDROBE, today=date(2026, 8, 15))
+    response = handle(on, State(), today=TODAY)
     assert (response.day_type, response.outfit) == (day_type, outfit)

@@ -1,20 +1,32 @@
 """The domain vocabulary, as data.
 
-See CONTEXT.md -- these names are authoritative.
+See CONTEXT.md -- these names are authoritative. The Wardrobe's own
+shape lives in `wardrobe.py`; everything here is either what the tool
+has been told or what it derived.
 """
 
 from dataclasses import dataclass
 from datetime import date
 from enum import StrEnum
 
+from what2wear import wardrobe
+
+
+class DayType(StrEnum):
+    """Every date is exactly one of these."""
+
+    OFFICE = "office"
+    HOME = "home"
+
 
 @dataclass(frozen=True)
 class State:
-    """Everything the core needs to answer a question, in memory."""
+    """Everything the tool has been told, in memory.
 
-    office: Closet
-    home: Closet
-    office_weekdays: frozenset[int]
+    Nothing structural appears here: the Wardrobe is given, so a State
+    is the recorded decisions and nothing else.
+    """
+
     overrides: tuple[DayTypeOverride, ...] = ()
     resets: tuple[Reset, ...] = ()
 
@@ -30,24 +42,8 @@ class State:
                 for override in reversed(self.overrides)
                 if override.on == on
             ),
-            self.pattern_day_type(on),
+            pattern_day_type(on),
         )
-
-    def pattern_day_type(self, on: date) -> DayType:
-        """Say what the weekly pattern alone makes a date.
-
-        Before any Override. Office Days follow the configured
-        weekdays; every other date is a Home Day.
-        """
-        return (
-            DayType.OFFICE
-            if on.weekday() in self.office_weekdays
-            else DayType.HOME
-        )
-
-    def closet(self, day_type: DayType) -> Closet:
-        """Give the Closet a kind of day draws from."""
-        return self.office if day_type is DayType.OFFICE else self.home
 
     def shirt_shift(self, day_type: DayType, on: date) -> int:
         """Add up what the Resets in force on a date move a Closet by.
@@ -57,19 +53,12 @@ class State:
         record names the Shirt Rotation and not which of the two --
         and why an Override recorded later against that same date
         carries the Reset across to the other Closet with it.
-
-        Re-authoring an Anchor Date is the last word: a Reset older
-        than the Closet's anchor no longer counts, so an anchor
-        written by hand says where the Rotation stands rather than
-        having the Resets before it quietly stacked back on top. Each
-        Closet is cut off at its own anchor.
         """
-        anchor = self.closet(day_type).anchor_date
         return sum(
             reset.offset
             for reset in self.resets
             if reset.rotation is Rotation.SHIRT
-            and anchor <= reset.on <= on
+            and reset.on <= on
             and self.day_type(reset.on) is day_type
         )
 
@@ -85,7 +74,7 @@ class State:
         """
         return sum(
             (self.day_type(on) is day_type)
-            - (self.pattern_day_type(on) is day_type)
+            - (pattern_day_type(on) is day_type)
             for on in frozenset(
                 override.on for override in self.overrides
             )
@@ -93,74 +82,26 @@ class State:
         )
 
 
-@dataclass(frozen=True)
-class Closet:
-    """One setting's Shirts, its Pants Rows and its Anchor Date.
+def closet_for(day_type: DayType) -> wardrobe.Closet:
+    """Give the Closet a kind of day draws from."""
+    return (
+        wardrobe.DEFAULT_OFFICE
+        if day_type is DayType.OFFICE
+        else wardrobe.DEFAULT_HOME
+    )
 
-    The anchor is authored the way it is spoken -- a date and the
-    Shirt worn on that date -- rather than as a Position.
 
-    The lookups below assume a Closet that came through the config
-    boundary, which is what makes every one of them total.
+def pattern_day_type(on: date) -> DayType:
+    """Say what the given weekly pattern alone makes a date.
+
+    Before any Override. Office Days follow the given weekdays; every
+    other date, weekends included, is a Home Day.
     """
-
-    shirts: tuple[Shirt, ...]
-    pants: tuple[PantsRow, ...]
-    anchor_date: date
-    anchor_shirt: str
-
-    def index_of(self, name: str) -> int:
-        """Give the Position a named Shirt sits at."""
-        return next(
-            index
-            for index, shirt in enumerate(self.shirts)
-            if shirt.name == name
-        )
-
-    def row_for(self, pants: str) -> PantsRow:
-        """Give the row that dresses a color of pants."""
-        return next(row for row in self.pants if row.pants == pants)
-
-    def row_wearing(self, sweater: str) -> PantsRow:
-        """Trace a sweater back to the row it belongs to.
-
-        Office sweaters pair one-to-one with rows -- the config
-        boundary refuses a Closet where they don't -- so a Fallback
-        can be traced back to the row whose shoes it borrows.
-        """
-        return next(row for row in self.pants if row.sweater == sweater)
-
-
-@dataclass(frozen=True)
-class Shirt:
-    """The authored unit of a Closet, carrying its pants."""
-
-    name: str
-    pants: str
-
-
-@dataclass(frozen=True)
-class PantsRow:
-    """What one Closet pairs with one pants color.
-
-    Sweaters, jackets and shoes are keyed by pants rather than by
-    Shirt, so a Closet has three of these however many Shirts it
-    holds. The Office Closet fills in `fallback` and never `jacket`;
-    the Home Closet the other way round.
-    """
-
-    pants: str
-    sweater: str
-    shoes: str
-    jacket: str | None = None
-    fallback: str | None = None
-
-
-class DayType(StrEnum):
-    """Every date is exactly one of these."""
-
-    OFFICE = "office"
-    HOME = "home"
+    return (
+        DayType.OFFICE
+        if on.weekday() in wardrobe.DEFAULT_OFFICE_WEEKDAYS
+        else DayType.HOME
+    )
 
 
 @dataclass(frozen=True)
@@ -207,7 +148,7 @@ class ResetRequest:
     """A command asking for a Reset, before its offset is known.
 
     Bare, it moves on to the next Shirt. Naming a Shirt jumps to that
-    one instead; the Closet comes from the date, never from the name.
+    one instead; the Closet comes from the date, never from the Label.
     """
 
     shirt: str | None = None
