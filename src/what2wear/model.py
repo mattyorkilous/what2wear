@@ -150,7 +150,7 @@ class DayTypeOverride:
 
 @dataclass(frozen=True)
 class ResetRequest:
-    """A command moving the day's Shirt Rotation, always from today.
+    """A command moving a Shirt Rotation, from the date it acts on.
 
     Bare, it moves on to the next Shirt. Naming a Shirt jumps to that
     one instead; the Closet comes from the date, never from the Label.

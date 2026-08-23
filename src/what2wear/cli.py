@@ -1,9 +1,8 @@
 """The imperative shell: reads the State, reads the clock, prints.
 
 Deliberately disposable -- a thin renderer over the two seams, expected
-to be replaced by something phone-friendly later. It is also where the
-past is refused: `answer` counts from an Anchor and so has no idea
-what today is.
+to be replaced by something phone-friendly later. Every invocation is
+about exactly one date, which is today unless `--on` says otherwise.
 """
 
 import argparse
@@ -40,50 +39,46 @@ def run(argv: Sequence[str] | None = None, *, state_dir: Path) -> int:
 
     The two seams composed: `apply` says what the State becomes and
     `answer` says what the date calls for, so a command that records
-    shows its result without either knowing about the other.
+    shows its result without either knowing about the other. Both are
+    handed the one date the invocation is about.
     """
-    parser = _parser()
-    args = parser.parse_args(argv)
-    _refuse_on_with_a_command(parser, args)
+    args = _parser().parse_args(argv)
     path = state_dir / "state.yaml"
     today = _today()
+    on = getattr(args, "on", today)
     try:
-        on, command = _command(args, today)
-        state = _recorded(path, read_state(path, today), command, today)
+        command = _command(args, on)
+        state = _recorded(path, read_state(path, today), command, on)
         response = answer(state, on)
-    except (StateError, PastDateError, UnknownShirtError) as error:
+    except (StateError, UnknownShirtError) as error:
         print(error, file=sys.stderr)
         return 2
-    print(_render(response, command))
+    print(_render(response, command, today))
     return 0
 
 
 def _parser() -> argparse.ArgumentParser:
+    dated = _dated()
     parser = argparse.ArgumentParser(
         prog="what2wear",
         description="What to wear today, or on any other date.",
-    )
-    parser.add_argument(
-        "--on",
-        type=_date,
-        default=None,
-        metavar="YYYY-MM-DD",
-        help="the date to resolve; defaults to today",
+        parents=[dated],
     )
     commands = parser.add_subparsers(dest="command")
-    stay_home = commands.add_parser(
+    commands.add_parser(
         "stay-home",
-        help="record that a date is a home day; defaults to today",
-    )
-    _overriding(stay_home, DayType.HOME)
-    go_in = commands.add_parser(
+        parents=[dated],
+        help="record that a date is a home day",
+    ).set_defaults(day_type=DayType.HOME)
+    commands.add_parser(
         "go-in",
-        help="record that a date is an office day; defaults to today",
-    )
-    _overriding(go_in, DayType.OFFICE)
+        parents=[dated],
+        help="record that a date is an office day",
+    ).set_defaults(day_type=DayType.OFFICE)
     reset = commands.add_parser(
         "reset",
-        help="move today on to the next shirt, or to a named one",
+        parents=[dated],
+        help="move a date on to the next shirt, or to a named one",
     )
     reset.add_argument(
         "shirt",
@@ -95,24 +90,23 @@ def _parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _overriding(
-    command: argparse.ArgumentParser, day_type: DayType
-) -> None:
-    """Set up a command that records a Day Type Override.
+def _dated() -> argparse.ArgumentParser:
+    """Declare the `--on` that every invocation shares.
 
-    The Day Type rides on the parser that names it, so a command's
-    name and what it records are declared in one place rather than
-    restated in a mapping that has to be kept in step.
+    One parent parser rather than a flag per command, so the date
+    arrives the same way whatever is being asked. Suppressed rather
+    than defaulted because a subcommand's own default would otherwise
+    silently overwrite an `--on` given ahead of it, and record today.
     """
-    command.set_defaults(day_type=day_type)
-    command.add_argument(
-        "date",
+    dated = argparse.ArgumentParser(add_help=False)
+    dated.add_argument(
+        "--on",
         type=_date,
-        nargs="?",
-        default=None,
+        default=argparse.SUPPRESS,
         metavar="YYYY-MM-DD",
-        help="the date to record against; defaults to today",
+        help="the date to act on; defaults to today",
     )
+    return dated
 
 
 def _date(text: str) -> date:
@@ -121,19 +115,6 @@ def _date(text: str) -> date:
     except ValueError:
         message = f"{text!r} is not a date of the form YYYY-MM-DD"
         raise argparse.ArgumentTypeError(message) from None
-
-
-def _refuse_on_with_a_command(
-    parser: argparse.ArgumentParser, args: argparse.Namespace
-) -> None:
-    """Refuse an `--on` given alongside a command.
-
-    `--on` is the date a bare invocation asks about. Every command
-    either carries the date it is about or is only ever about today,
-    so an `--on` beside one would have to be ignored or guessed at.
-    """
-    if args.on is not None and args.command is not None:
-        parser.error(f"--on cannot be combined with {args.command}")
 
 
 def _today() -> date:
@@ -145,42 +126,21 @@ def _today() -> date:
     return datetime.now(UTC).astimezone().date()
 
 
-def _command(
-    args: argparse.Namespace, today: date
-) -> tuple[date, Command | None]:
-    """Take the date being answered about, and what to record on it.
+def _command(args: argparse.Namespace, on: date) -> Command | None:
+    """Say what the invocation asks to be recorded, if anything.
 
     Each command is known by what it brought with it rather than by
     its name, so the names live only on the parsers that declare them.
-    A command carries its own date, defaulting to today; a Reset is
-    only ever about today. Only the bare question can name a past
-    date, and that is the one thing refused -- correcting what a date
-    now behind us was still has to be possible.
     """
     if "day_type" in args:
-        on = today if args.date is None else args.date
-        return on, DayTypeOverride(on, args.day_type)
+        return DayTypeOverride(on, args.day_type)
     if "shirt" in args:
-        return today, ResetRequest(args.shirt)
-    return _answerable(args.on, today), None
-
-
-def _answerable(on: date | None, today: date) -> date:
-    """Settle which date a bare invocation is asking about.
-
-    None is today. A date behind today is refused here rather than in
-    the core, which counts from an Anchor and never reads a clock.
-    """
-    if on is not None and on < today:
-        message = (
-            f"{on} is in the past, and the past is not answerable."
-        )
-        raise PastDateError(message)
-    return today if on is None else on
+        return ResetRequest(args.shirt)
+    return None
 
 
 def _recorded(
-    path: Path, state: State, command: Command | None, today: date
+    path: Path, state: State, command: Command | None, on: date
 ) -> State:
     """Put what a command asked for into the State, and onto disk.
 
@@ -189,12 +149,14 @@ def _recorded(
     """
     if command is None:
         return state
-    recorded = apply(state, command, today)
+    recorded = apply(state, command, on)
     write_state(path, recorded)
     return recorded
 
 
-def _render(response: Response, command: Command | None) -> str:
+def _render(
+    response: Response, command: Command | None, today: date
+) -> str:
     return "\n".join(
         [
             f"{response.on:%a %d %b %Y} - {response.day_type} day",
@@ -203,6 +165,7 @@ def _render(response: Response, command: Command | None) -> str:
             f"  sweater  {response.outfit.sweater}",
             f"  shoes    {response.outfit.shoes}",
             *_repeat_note(response),
+            *_past_note(response, today),
             *_recorded_note(response, command),
         ]
     )
@@ -221,25 +184,32 @@ def _repeat_note(response: Response) -> tuple[str, ...]:
     )
 
 
+def _past_note(response: Response, today: date) -> tuple[str, ...]:
+    """Say that a past date answers from where things stand now.
+
+    A Reset moves an Anchor and no wear history is kept, so a Position
+    behind us is derived from the present rather than remembered. The
+    date is answerable; what it is not is a record of what was worn.
+    """
+    if response.on >= today:
+        return ()
+    note = (
+        "  note     a past date -- where the rotation stands now, "
+        "not what was worn"
+    )
+    return (note,)
+
+
 def _recorded_note(
     response: Response, command: Command | None
 ) -> tuple[str, ...]:
     """Say what a command that writes something wrote.
 
     A Reset names no Position, because the Shirt it moved to is the
-    one printed two lines up.
+    one printed above.
     """
     if command is None:
         return ()
     if isinstance(command, DayTypeOverride):
         return (f"  recorded {command.on} - {command.day_type} day",)
     return (f"  recorded {response.on} - shirt rotation reset",)
-
-
-class PastDateError(Exception):
-    """A date before today was asked about.
-
-    A Reset rewrites what a past Position was and no wear history is
-    kept, so the answer would be a fact about the present dressed up
-    as one about the past.
-    """

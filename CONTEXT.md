@@ -122,10 +122,9 @@ _Avoid_: parity, cursor, flip, toggle
 **Position**:
 Where a Rotation stands on a given date — counted forward from its
 Anchor over days of its own kind. A Position is derived, never stored
-and never consumed, so asking about a future date uses the same
-derivation as asking about today. Dates before today have a Position
-too, but it is not offered: a Reset rewrites it, so it would answer a
-question about the past with a fact about the present.
+and never consumed, so every date is the same derivation: past, today
+and years out alike. A past Position is a fact about the present, not
+a record of what was worn, because a Reset rewrites it.
 _Avoid_: cursor, pointer, index
 
 **Resolution**:
@@ -179,11 +178,12 @@ turn wearing nothing.
 _Avoid_: temperature threshold, cutoff, limit, tolerance
 
 **Reset**:
-The act of moving a Rotation's Anchor to today and a Position you name.
-Used when the Shirt you were given isn't the one you want, or when the
-Home Outerwear Rotation has fallen out of step with what you actually wore.
-It is the only way a Rotation is corrected, and it takes the whole
-Rotation with it rather than skipping a day.
+The act of moving a Rotation's Anchor to a date and a Position you name.
+The date is today unless you say otherwise. Used when the Shirt you were
+given isn't the one you want, or when the Home Outerwear Rotation has
+fallen out of step with what you actually wore. It is the only way a
+Rotation is corrected, and it takes the whole Rotation with it rather
+than skipping a day — so a Reset dated ahead of today moves today too.
 _Avoid_: skip, reroll, shuffle, override, re-anchor
 
 **Replace**:

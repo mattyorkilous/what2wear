@@ -1,10 +1,10 @@
 # Rotation Positions are derived from the calendar, not stored
 
-> Amended by [ADR-0005](./0005-what2wear-dresses-one-person-from-a-given-wardrobe.md)
-> and [ADR-0006](./0006-the-wardrobe-is-source-the-state-is-one-file-the-tool-owns.md).
-> The decision below is unchanged and the formula got shorter; the
-> consequences were rewritten. What the amendments removed is noted
-> against each.
+> Amended by [ADR-0005](./0005-what2wear-dresses-one-person-from-a-given-wardrobe.md),
+> [ADR-0006](./0006-the-wardrobe-is-source-the-state-is-one-file-the-tool-owns.md)
+> and [ADR-0008](./0008-every-command-acts-on-one-date.md). The decision
+> below is unchanged and the formula got shorter; the consequences were
+> rewritten. What the amendments removed is noted against each.
 
 A Position is computed on demand as a function of `(Anchor, weekly
 pattern, Day Type Overrides, date)`:
@@ -32,12 +32,12 @@ or not you were watching.
   not a recorded offset that applies from its own date forward; there
   is no offset term in the formula at all. Look-ahead is therefore
   valid until the next Reset, which matches how the feature is used.
-- **The past is derivable and deliberately not offered.** Because a
+- **The past is derivable, and is offered with a caveat.** Because a
   Reset re-Anchors, asking what you wore last March answers with a
   Position implied by today's Anchor rather than the one that was
   current then. No wear history is kept, so there is nothing that could
-  make the old answer available. Rather than serve a confident wrong
-  one, dates before today are refused.
+  make the old answer available. ADR-0008 replaces the original refusal
+  with a note saying so; the derivation it describes is unchanged.
 - **A mid-Week Reset can change that Week's Fallback.** Friday's office
   sweater is resolved by walking Monday and Wednesday to see what they
   spent, and a Wednesday Reset moves Monday's derived Shirt, so Friday
