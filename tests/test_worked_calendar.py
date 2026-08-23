@@ -6,16 +6,17 @@ took it, and the shoes move from brown to white alongside it. It also
 carries the home wrap from Sat Sep 5 round to Sun Sep 6, and the Week
 resetting cleanly on Mon Sep 7.
 
-One `today` for the whole range: with nothing recorded the Anchor is
-today, so moving `today` would move every Position with it.
+One State for the whole range, anchored at `TODAY`: nothing is
+recorded across it, so every date is the same call with a different
+argument.
 """
 
 from datetime import date
 
 import pytest
 
-from what2wear.core import handle
-from what2wear.model import DayType, Outfit, State
+from what2wear.core import answer
+from what2wear.model import DayType, Outfit, default_state
 
 TODAY = date(2026, 8, 22)
 
@@ -77,5 +78,5 @@ SEQUENCE = [
 def test_the_worked_calendar(
     on: date, day_type: DayType, outfit: Outfit
 ) -> None:
-    response = handle(on, State(), today=TODAY)
+    response = answer(default_state(TODAY), on)
     assert (response.day_type, response.outfit) == (day_type, outfit)

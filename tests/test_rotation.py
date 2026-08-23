@@ -1,24 +1,23 @@
-"""Rotation for any date, driven through the pure `handle` seam.
+"""Rotation for any date, driven through the pure `answer` seam.
 
 The Wardrobe is given, so every test drives the real one, passes an
-explicit date and asserts on the returned Response. Nothing here reads
-a file, a clock or the network, and nothing reaches into how a
-Position was derived.
+in-memory State and an explicit date, and asserts on the returned
+Response. Nothing here reads a file, a clock or the network, and
+nothing reaches into how a Position was derived.
 
-With nothing recorded the Anchor is today at Position 0, so `today` is
-held fixed at `TODAY` wherever a Position is being asserted.
+The given State anchors both Rotations at `TODAY`, Position 0.
 """
 
+from dataclasses import replace
 from datetime import date
 
 import pytest
 
-from what2wear.core import PastDateError, handle
+from what2wear.core import answer
 from what2wear.model import (
     DayType,
-    DayTypeOverride,
     Response,
-    State,
+    default_state,
 )
 
 TODAY = date(2026, 8, 22)
@@ -55,12 +54,9 @@ class TestDayType:
         )
 
 
-class TestBareInvocation:
-    def test_no_date_resolves_today(self) -> None:
-        assert handle(None, State(), today=TODAY) == _on(TODAY)
-
-    def test_the_response_carries_the_date_it_resolved(self) -> None:
-        assert handle(None, State(), today=TODAY).on == TODAY
+class TestTheResponse:
+    def test_it_carries_the_date_it_resolved(self) -> None:
+        assert _on(TODAY).on == TODAY
 
 
 class TestRotation:
@@ -109,38 +105,22 @@ class TestRotation:
         assert _on(day).outfit.shirt == shirt
 
 
-class TestThePast:
-    def test_a_date_before_today_is_refused(self) -> None:
-        with pytest.raises(PastDateError):
-            handle(MON24, State(), today=WED26)
+class TestDatesBehindTheOneAsked:
+    """Refusing the past is the shell's job -- `test_cli.py` has it.
 
-    def test_the_refusal_names_the_date_and_says_why(self) -> None:
-        with pytest.raises(PastDateError, match="2026-08-24"):
-            handle(MON24, State(), today=WED26)
-        with pytest.raises(PastDateError, match="past is not"):
-            handle(MON24, State(), today=WED26)
-
-    def test_today_itself_is_not_the_past(self) -> None:
-        assert _on(TODAY).outfit.shirt == "white"
-
-    def test_recording_against_a_past_date_is_not_refused(self) -> None:
-        # Only the question has no answer. Correcting what a date now
-        # behind us was still has to be possible.
-        response = handle(
-            MON24, State(), today=WED26, record=DayType.HOME
-        )
-        assert response.decision == DayTypeOverride(MON24, DayType.HOME)
+    Counting backwards over dates already gone is still the core's,
+    and these are what would fail if it were removed as dead.
+    """
 
     def test_an_override_behind_a_date_still_parks_its_rotation(
         self,
     ) -> None:
         # Monday spent at home, so the office rotation is parked and
         # Wednesday wears the white Monday would have.
-        stayed_home = DayTypeOverride(MON24, DayType.HOME)
-        parked = handle(
-            WED26, State(overrides=(stayed_home,)), today=TODAY
+        state = replace(
+            default_state(TODAY), overrides={MON24: DayType.HOME}
         )
-        assert parked.outfit.shirt == "white"
+        assert answer(state, WED26).outfit.shirt == "white"
 
     def test_the_week_walk_still_resolves_earlier_office_days(
         self,
@@ -149,9 +129,9 @@ class TestThePast:
         # and Wednesday -- both already past by Friday -- can say it is
         # taken. Resolving them is what turns the answer into the grey
         # Fallback and the white shoes that come with it.
-        outfit = handle(FRI_SEP4, State(), today=FRI_SEP4).outfit
+        outfit = _on(FRI_SEP4).outfit
         assert (outfit.sweater, outfit.shoes) == ("grey", "white")
 
 
 def _on(day: date) -> Response:
-    return handle(day, State(), today=TODAY)
+    return answer(default_state(TODAY), day)

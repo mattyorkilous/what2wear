@@ -1,15 +1,21 @@
-"""Day Type Overrides, driven through the pure `handle` seam.
+"""Day Type Overrides, across both pure seams.
 
-Recorded decisions are passed in as part of the in-memory State --
-nothing here reads the log off disk. The Wardrobe is the given one and
-`today` is held at `TODAY`, which is also the Anchor with nothing
-recorded, so the dates below line up with the worked calendar.
+`apply` takes a State and the command and gives back the State it
+becomes; `answer` says what that State makes of a date. Nothing here
+reads a file. The Wardrobe is the given one and both Anchors sit at
+`TODAY`, so the dates below line up with the worked calendar.
 """
 
+from dataclasses import replace
 from datetime import date
 
-from what2wear.core import handle
-from what2wear.model import DayType, DayTypeOverride, State
+from what2wear.core import answer, apply
+from what2wear.model import (
+    DayType,
+    DayTypeOverride,
+    State,
+    default_state,
+)
 
 TODAY = date(2026, 8, 22)
 SAT22, SUN23 = date(2026, 8, 22), date(2026, 8, 23)
@@ -25,18 +31,18 @@ THU27, FRI28, SAT29 = (
 )
 MON31 = date(2026, 8, 31)
 
+GIVEN = default_state(TODAY)
+
 
 class TestWhichClosetTheDayDrawsFrom:
     def test_staying_home_draws_from_the_home_closet(self) -> None:
-        s = _with(DayTypeOverride(WED26, DayType.HOME))
-        response = handle(WED26, s, today=TODAY)
+        response = answer(_with(WED26, DayType.HOME), WED26)
         assert response.day_type is DayType.HOME
         # Wed is now the fourth home day since the anchor.
         assert response.outfit.shirt == "black"
 
     def test_going_in_draws_from_the_office_closet(self) -> None:
-        s = _with(DayTypeOverride(TUE25, DayType.OFFICE))
-        response = handle(TUE25, s, today=TODAY)
+        response = answer(_with(TUE25, DayType.OFFICE), TUE25)
         assert response.day_type is DayType.OFFICE
         assert response.outfit.shirt == "black"
 
@@ -44,10 +50,9 @@ class TestWhichClosetTheDayDrawsFrom:
         self,
     ) -> None:
         # Recording a Wednesday you were going in on anyway.
-        s = _with(DayTypeOverride(WED26, DayType.OFFICE))
+        state = _with(WED26, DayType.OFFICE)
         assert all(
-            handle(day, s, today=TODAY)
-            == handle(day, State(), today=TODAY)
+            answer(state, day) == answer(GIVEN, day)
             for day in (MON24, WED26, FRI28, MON31)
         )
 
@@ -56,19 +61,10 @@ class TestWhichClosetTheDayDrawsFrom:
         # office and white was not worn at home, so it is deferred to
         # the Sunday rather than lost -- the same parking rule as any
         # other date, applied to the date every Position counts from.
-        s = _with(DayTypeOverride(SAT22, DayType.OFFICE))
-        assert handle(SAT22, s, today=TODAY).day_type is DayType.OFFICE
-        assert handle(SUN23, State(), today=TODAY).outfit.shirt == (
-            "brown"
-        )
-        assert handle(SUN23, s, today=TODAY).outfit.shirt == "white"
-
-    def test_the_most_recently_recorded_override_wins(self) -> None:
-        s = _with(
-            DayTypeOverride(WED26, DayType.HOME),
-            DayTypeOverride(WED26, DayType.OFFICE),
-        )
-        assert handle(WED26, s, today=TODAY).day_type is DayType.OFFICE
+        state = _with(SAT22, DayType.OFFICE)
+        assert answer(state, SAT22).day_type is DayType.OFFICE
+        assert answer(GIVEN, SUN23).outfit.shirt == "brown"
+        assert answer(state, SUN23).outfit.shirt == "white"
 
 
 class TestTheOtherRotation:
@@ -78,9 +74,9 @@ class TestTheOtherRotation:
         # Wednesday's black would have been lost; instead it is
         # simply deferred to Friday, and Friday's lblue to the Monday
         # after.
-        s = _with(DayTypeOverride(WED26, DayType.HOME))
+        state = _with(WED26, DayType.HOME)
         worn = [
-            handle(day, s, today=TODAY).outfit.shirt
+            answer(state, day).outfit.shirt
             for day in (MON24, FRI28, MON31)
         ]
         assert worn == ["white", "black", "lblue"]
@@ -88,9 +84,9 @@ class TestTheOtherRotation:
     def test_going_in_advances_the_office_rotation_that_day(
         self,
     ) -> None:
-        s = _with(DayTypeOverride(TUE25, DayType.OFFICE))
+        state = _with(TUE25, DayType.OFFICE)
         worn = [
-            handle(day, s, today=TODAY).outfit.shirt
+            answer(state, day).outfit.shirt
             for day in (MON24, TUE25, WED26)
         ]
         assert worn == ["white", "black", "lblue"]
@@ -98,9 +94,9 @@ class TestTheOtherRotation:
     def test_staying_home_advances_the_home_rotation_that_day(
         self,
     ) -> None:
-        s = _with(DayTypeOverride(WED26, DayType.HOME))
+        state = _with(WED26, DayType.HOME)
         worn = [
-            handle(day, s, today=TODAY).outfit.shirt
+            answer(state, day).outfit.shirt
             for day in (TUE25, WED26, THU27)
         ]
         assert worn == ["dgreen", "black", "purple"]
@@ -110,52 +106,54 @@ class TestTheOtherRotation:
     ) -> None:
         # A public holiday on the Monday is a Day Type Override and
         # nothing else, so Monday's white reappears on the Wednesday.
-        s = _with(DayTypeOverride(MON24, DayType.HOME))
-        assert handle(MON24, s, today=TODAY).day_type is DayType.HOME
-        assert handle(WED26, s, today=TODAY).outfit.shirt == "white"
+        state = _with(MON24, DayType.HOME)
+        assert answer(state, MON24).day_type is DayType.HOME
+        assert answer(state, WED26).outfit.shirt == "white"
 
 
 class TestLookAhead:
     def test_a_future_override_changes_look_ahead_from_then_on(
         self,
     ) -> None:
-        s = _with(DayTypeOverride(WED26, DayType.HOME))
-        assert handle(MON31, State(), today=TODAY).outfit.shirt == (
-            "striped"
-        )
-        assert handle(MON31, s, today=TODAY).outfit.shirt == "lblue"
+        state = _with(WED26, DayType.HOME)
+        assert answer(GIVEN, MON31).outfit.shirt == "striped"
+        assert answer(state, MON31).outfit.shirt == "lblue"
 
     def test_dates_before_the_override_are_untouched(self) -> None:
-        s = _with(DayTypeOverride(WED26, DayType.HOME))
-        assert handle(MON24, s, today=TODAY) == handle(
-            MON24, State(), today=TODAY
+        state = _with(WED26, DayType.HOME)
+        assert answer(state, MON24) == answer(GIVEN, MON24)
+
+
+class TestRecordingOne:
+    def test_it_lands_in_the_state_under_its_own_date(self) -> None:
+        assert _applied(WED26, DayType.HOME) == _with(
+            WED26, DayType.HOME
         )
 
-
-class TestRecordingADecision:
-    def test_the_response_carries_the_decision_to_append(self) -> None:
-        response = handle(
-            WED26, State(), today=TODAY, record=DayType.HOME
+    def test_it_moves_no_anchor(self) -> None:
+        state = _applied(WED26, DayType.HOME)
+        assert (state.office_anchor, state.home_anchor) == (
+            GIVEN.office_anchor,
+            GIVEN.home_anchor,
         )
-        assert response.decision == DayTypeOverride(WED26, DayType.HOME)
 
-    def test_the_response_already_reflects_what_it_records(
+    def test_recording_the_opposite_replaces_rather_than_stacks(
         self,
     ) -> None:
-        response = handle(
-            WED26, State(), today=TODAY, record=DayType.HOME
+        home = apply(GIVEN, DayTypeOverride(WED26, DayType.HOME), TODAY)
+        both = apply(
+            home, DayTypeOverride(WED26, DayType.OFFICE), TODAY
         )
-        assert response.day_type is DayType.HOME
-        assert response.outfit.shirt == "black"
+        assert both == _with(WED26, DayType.OFFICE)
+        assert answer(both, WED26).day_type is DayType.OFFICE
 
-    def test_recording_defaults_to_today(self) -> None:
-        response = handle(
-            None, State(), today=WED26, record=DayType.HOME
-        )
-        assert response.decision == DayTypeOverride(WED26, DayType.HOME)
-
-    def test_asking_without_recording_appends_nothing(self) -> None:
-        assert handle(WED26, State(), today=TODAY).decision is None
+    def test_a_past_date_records_like_any_other(self) -> None:
+        # Only the question has no answer. Correcting what a date now
+        # behind us was still has to be possible.
+        past = date(2026, 8, 17)
+        assert apply(
+            GIVEN, DayTypeOverride(past, DayType.OFFICE), TODAY
+        ) == _with(past, DayType.OFFICE)
 
 
 class TestAFourthOfficeDay:
@@ -165,11 +163,14 @@ class TestAFourthOfficeDay:
         # What the fourth Office Day does to the sweaters is
         # `test_resolution.py`'s business; that it answers at all is
         # this one's.
-        s = _with(DayTypeOverride(SAT29, DayType.OFFICE))
-        response = handle(SAT29, s, today=TODAY)
+        response = answer(_with(SAT29, DayType.OFFICE), SAT29)
         assert response.day_type is DayType.OFFICE
         assert response.outfit.shirt == "striped"
 
 
-def _with(*overrides: DayTypeOverride) -> State:
-    return State(overrides=overrides)
+def _with(on: date, day_type: DayType) -> State:
+    return replace(GIVEN, overrides={on: day_type})
+
+
+def _applied(on: date, day_type: DayType) -> State:
+    return apply(GIVEN, DayTypeOverride(on, day_type), TODAY)

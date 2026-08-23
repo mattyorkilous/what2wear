@@ -13,7 +13,7 @@ dependencies = [
 ]
 
 [project.scripts]
-what2wear = "what2wear.cli:run"
+what2wear = "what2wear.cli:main"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
