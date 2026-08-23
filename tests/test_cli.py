@@ -67,7 +67,7 @@ def test_an_unavoidable_repeat_is_called_out(
 ) -> None:
     # A fourth Office Day in the Week, which the three office sweaters
     # and their Fallbacks cannot cover however the Week is walked.
-    assert _run("--go-in", _next(SAT), tmp_path) == 0
+    assert _run("go-in", _next(SAT), tmp_path) == 0
     assert "already worn this week" in capsys.readouterr().out
 
 
@@ -81,7 +81,7 @@ class TestRecordingADayTypeOverride:
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
         monday = _next(MON)
-        assert _run("--stay-home", monday, tmp_path) == 0
+        assert _run("stay-home", monday, tmp_path) == 0
         out = capsys.readouterr().out
         assert f"{monday:%a %d %b %Y} - home day" in out
 
@@ -89,53 +89,53 @@ class TestRecordingADayTypeOverride:
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
         saturday = _next(SAT)
-        assert _run("--go-in", saturday, tmp_path) == 0
+        assert _run("go-in", saturday, tmp_path) == 0
         out = capsys.readouterr().out
         assert f"{saturday:%a %d %b %Y} - office day" in out
 
     def test_the_date_defaults_to_today(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        assert _run("--stay-home", None, tmp_path) == 0
+        assert _run("stay-home", None, tmp_path) == 0
         assert f"{_today():%a %d %b %Y}" in capsys.readouterr().out
         assert _today().isoformat() in _log(tmp_path).read_text()
 
     def test_what_was_recorded_is_said_back(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        assert _run("--go-in", _next(SAT), tmp_path) == 0
+        assert _run("go-in", _next(SAT), tmp_path) == 0
         assert "recorded" in capsys.readouterr().out
 
     def test_a_recorded_override_changes_a_later_invocation(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
         monday = _next(MON)
-        assert _run("--on", monday, tmp_path) == 0
+        assert _ask(monday, tmp_path) == 0
         assert "office day" in capsys.readouterr().out
-        assert _run("--stay-home", monday, tmp_path) == 0
+        assert _run("stay-home", monday, tmp_path) == 0
         capsys.readouterr()
-        assert _run("--on", monday, tmp_path) == 0
+        assert _ask(monday, tmp_path) == 0
         assert "home day" in capsys.readouterr().out
 
     def test_the_log_is_appended_to_rather_than_rewritten(
         self, tmp_path: Path
     ) -> None:
-        _run("--stay-home", _next(MON), tmp_path)
-        _run("--go-in", _next(SAT), tmp_path)
+        _run("stay-home", _next(MON), tmp_path)
+        _run("go-in", _next(SAT), tmp_path)
         assert len(_log(tmp_path).read_text().splitlines()) == 2
 
     def test_the_directory_arrives_with_the_first_record(
         self, tmp_path: Path
     ) -> None:
         absent = tmp_path / "absent"
-        assert _run("--stay-home", None, absent) == 0
+        assert _run("stay-home", None, absent) == 0
         assert _log(absent).exists()
 
     def test_an_unreadable_log_fails_with_a_clear_message(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
         _log(tmp_path).write_text("not a decision log\n")
-        assert _run("--on", _next(MON), tmp_path) == 2
+        assert _ask(_next(MON), tmp_path) == 2
         assert "decision log" in capsys.readouterr().err
 
     def test_a_past_date_can_still_be_recorded_against(
@@ -144,24 +144,38 @@ class TestRecordingADayTypeOverride:
         # Only the question is refused. Correcting what last Monday
         # was is what parks the rotation into this week.
         monday = _next(MON) - timedelta(days=7)
-        assert _run("--stay-home", monday, tmp_path) == 0
+        assert _run("stay-home", monday, tmp_path) == 0
         assert monday.isoformat() in _log(tmp_path).read_text()
 
     def test_asking_and_recording_are_not_combined(
         self, tmp_path: Path
     ) -> None:
+        # `--on` is the date a bare invocation asks about, so it
+        # cannot be given alongside a command.
         with pytest.raises(SystemExit):
             main(
-                ["--on", _next(MON).isoformat(), "--stay-home"],
+                ["--on", _next(MON).isoformat(), "stay-home"],
                 state_dir=tmp_path,
             )
+
+    def test_neither_order_of_the_two_is_accepted(
+        self, tmp_path: Path
+    ) -> None:
+        # Refused by the shell one way round and by argparse the
+        # other, so the pairing has no spelling that works.
+        with pytest.raises(SystemExit):
+            main(
+                ["stay-home", "--on", _next(MON).isoformat()],
+                state_dir=tmp_path,
+            )
+        assert not _log(tmp_path).exists()
 
 
 class TestRecordingAReset:
     def test_a_bare_reset_records_a_shift_of_one(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        assert main(["--reset"], state_dir=tmp_path) == 0
+        assert main(["reset"], state_dir=tmp_path) == 0
         assert "recorded" in capsys.readouterr().out
         assert '"rotation": "shirt"' in _log(tmp_path).read_text()
         assert '"offset": 1' in _log(tmp_path).read_text()
@@ -170,7 +184,7 @@ class TestRecordingAReset:
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
         # Neither Closet holds it, so today's kind cannot matter.
-        assert main(["--reset", "nonesuch"], state_dir=tmp_path) == 2
+        assert main(["reset", "nonesuch"], state_dir=tmp_path) == 2
         assert "nonesuch" in capsys.readouterr().err
         assert not _log(tmp_path).exists()
 
@@ -179,7 +193,7 @@ class TestRecordingAReset:
     ) -> None:
         assert main([], state_dir=tmp_path) == 0
         before = _shirt(capsys.readouterr().out)
-        assert main(["--reset"], state_dir=tmp_path) == 0
+        assert main(["reset"], state_dir=tmp_path) == 0
         assert _shirt(capsys.readouterr().out) != before
 
     def test_asking_and_resetting_are_not_combined(
@@ -187,16 +201,20 @@ class TestRecordingAReset:
     ) -> None:
         with pytest.raises(SystemExit):
             main(
-                ["--on", _next(MON).isoformat(), "--reset"],
+                ["--on", _next(MON).isoformat(), "reset"],
                 state_dir=tmp_path,
             )
 
 
-def _run(flag: str, on: date | None, state_dir: Path) -> int:
+def _run(command: str, on: date | None, state_dir: Path) -> int:
     return main(
-        [flag, *([] if on is None else [on.isoformat()])],
+        [command, *([] if on is None else [on.isoformat()])],
         state_dir=state_dir,
     )
+
+
+def _ask(on: date, state_dir: Path) -> int:
+    return main(["--on", on.isoformat()], state_dir=state_dir)
 
 
 def _log(state_dir: Path) -> Path:
