@@ -16,7 +16,7 @@ from typing import Any
 import yaml
 
 from what2wear import wardrobe
-from what2wear.model import DayType, State, default_state
+from what2wear.model import DayType, State, get_default_state
 
 
 def read_state(path: Path, today: date) -> State:
@@ -30,12 +30,12 @@ def read_state(path: Path, today: date) -> State:
     try:
         text = path.read_text()
     except FileNotFoundError:
-        return default_state(today)
+        return get_default_state(today)
     except OSError as error:
         message = f"could not read {path}: {error}"
         raise StateError(message) from None
     try:
-        return _state(yaml.safe_load(text) or {}, today)
+        return _parse_state(yaml.safe_load(text) or {}, today)
     except (
         yaml.YAMLError,
         AttributeError,
@@ -55,29 +55,31 @@ def write_state(path: Path, state: State) -> None:
     the first write and never merely because something looked.
     """
     temporary = path.with_name(f"{path.name}.tmp")
-    document = yaml.safe_dump(_document(state), sort_keys=False)
+    text = yaml.safe_dump(_get_document(state), sort_keys=False)
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
-        _write_document(temporary, document)
+        _write_text(temporary, text)
         temporary.replace(path)
     except OSError as error:
         message = f"could not record to {path}: {error}"
         raise StateError(message) from None
 
 
-def _state(document: dict[str, Any], today: date) -> State:
+def _parse_state(document: dict[str, Any], today: date) -> State:
     """Read one document back as the State it was written from.
 
     Anything it does not say is what a fresh installation would have
     said, so a file from before a field existed needs no migrating.
     """
-    given = default_state(today)
+    given = get_default_state(today)
     anchors = document.get("anchors") or {}
     return State(
-        office_anchor=_anchor(
+        office_anchor=_parse_anchor(
             anchors.get("office"), given.office_anchor
         ),
-        home_anchor=_anchor(anchors.get("home"), given.home_anchor),
+        home_anchor=_parse_anchor(
+            anchors.get("home"), given.home_anchor
+        ),
         overrides=MappingProxyType(
             {
                 date.fromisoformat(on): DayType(day_type)
@@ -89,7 +91,7 @@ def _state(document: dict[str, Any], today: date) -> State:
     )
 
 
-def _anchor(
+def _parse_anchor(
     record: dict[str, Any] | None, given: wardrobe.Anchor
 ) -> wardrobe.Anchor:
     return (
@@ -101,7 +103,7 @@ def _anchor(
     )
 
 
-def _document(state: State) -> dict[str, Any]:
+def _get_document(state: State) -> dict[str, Any]:
     """Lay a State out the way a person opening the file would read it.
 
     Nobody is expected to, but nothing here is a reason they could not.
@@ -111,8 +113,8 @@ def _document(state: State) -> dict[str, Any]:
     """
     return {
         "anchors": {
-            "office": _record(state.office_anchor),
-            "home": _record(state.home_anchor),
+            "office": _get_record(state.office_anchor),
+            "home": _get_record(state.home_anchor),
         },
         "overrides": {
             on.isoformat(): day_type.value
@@ -121,15 +123,15 @@ def _document(state: State) -> dict[str, Any]:
     }
 
 
-def _record(anchor: wardrobe.Anchor) -> dict[str, Any]:
+def _get_record(anchor: wardrobe.Anchor) -> dict[str, Any]:
     return {
         "date": anchor.on.isoformat(),
         "position": anchor.position,
     }
 
 
-def _write_document(path: Path, document: str) -> None:
-    """Get a document all the way onto the disk before returning.
+def _write_text(path: Path, text: str) -> None:
+    """Get the text all the way onto the disk before returning.
 
     The move is only atomic against a crashed process; a crashed
     machine can land the rename ahead of the bytes, which would leave
@@ -137,7 +139,7 @@ def _write_document(path: Path, document: str) -> None:
     the guarantee hold either way.
     """
     with path.open("w") as file:
-        file.write(document)
+        file.write(text)
         file.flush()
         os.fsync(file.fileno())
 

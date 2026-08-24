@@ -18,7 +18,7 @@ from what2wear.model import (
     Outfit,
     ResetRequest,
     State,
-    default_state,
+    get_default_state,
 )
 from what2wear.wardrobe import Anchor
 
@@ -35,7 +35,7 @@ MON31, WED_SEP2, FRI_SEP4 = (
     date(2026, 9, 4),
 )
 
-GIVEN = default_state(TODAY)
+GIVEN = get_default_state(TODAY)
 
 
 class TestABareReset:

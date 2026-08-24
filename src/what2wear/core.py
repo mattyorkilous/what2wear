@@ -17,8 +17,8 @@ from what2wear.model import (
     ResetRequest,
     Response,
     State,
-    closet_for,
-    pattern_day_type,
+    get_closet,
+    get_pattern_day_type,
 )
 
 
@@ -29,27 +29,31 @@ def answer(state: State, on: date) -> Response:
     needs no clock: today and a date years out are the same call.
     """
     return (
-        _office_response(state, on)
-        if state.day_type(on) is DayType.OFFICE
-        else _home_response(state, on)
+        _get_office_response(state, on)
+        if state.get_day_type(on) is DayType.OFFICE
+        else _get_home_response(state, on)
     )
 
 
-def apply(state: State, command: Command, on: date) -> State:
+def apply(state: State, command: Command | None, on: date) -> State:
     """Put what a command asks for into the State, and render nothing.
 
     State in, State out, so what a command actually changed is a single
-    value comparison. Both kinds of command are about one date, which
-    defaults to today but is the wearer's to name.
+    value comparison. No command changes nothing, so a shell with
+    nothing to record makes the same call as one that has something.
+    Both kinds of command are about one date, which defaults to today
+    but is the wearer's to name.
     """
+    if command is None:
+        return state
     return (
-        state.overriding(command)
+        state.record_override(command)
         if isinstance(command, DayTypeOverride)
         else _reset(state, command, on)
     )
 
 
-def _office_response(state: State, on: date) -> Response:
+def _get_office_response(state: State, on: date) -> Response:
     """Resolve an Office Day by walking its whole Week.
 
     Which sweater a Shirt gets depends on what the Week has already
@@ -57,12 +61,14 @@ def _office_response(state: State, on: date) -> Response:
     read off the end.
     """
     resolved: tuple[Response, ...] = ()
-    for day in _office_days_of_week(state, on):
+    for day in _get_office_days_of_week(state, on):
         resolved = _resolve_office_day(state, resolved, day)
     return next(response for response in resolved if response.on == on)
 
 
-def _office_days_of_week(state: State, on: date) -> tuple[date, ...]:
+def _get_office_days_of_week(
+    state: State, on: date
+) -> tuple[date, ...]:
     """List the Office Days of the Week containing `on`.
 
     Monday-start, and in date order.
@@ -70,7 +76,7 @@ def _office_days_of_week(state: State, on: date) -> tuple[date, ...]:
     monday = on - timedelta(days=on.weekday())
     week = (monday + timedelta(days=offset) for offset in range(7))
     return tuple(
-        day for day in week if state.day_type(day) is DayType.OFFICE
+        day for day in week if state.get_day_type(day) is DayType.OFFICE
     )
 
 
@@ -84,10 +90,10 @@ def _resolve_office_day(
     row's shoes along with it and shoes inherit the no-repeat
     guarantee instead of being checked for it.
     """
-    shirt = _shirt(state, DayType.OFFICE, on)
+    shirt = _get_shirt(state, DayType.OFFICE, on)
     taken = frozenset(response.outfit.sweater for response in resolved)
-    sweater = _office_sweater(
-        wardrobe.DEFAULT_OFFICE.row_for(shirt.pants), taken
+    sweater = _choose_office_sweater(
+        wardrobe.DEFAULT_OFFICE.get_row_for_pants(shirt.pants), taken
     )
     return (
         *resolved,
@@ -98,7 +104,7 @@ def _resolve_office_day(
                 shirt=shirt.label,
                 pants=shirt.pants,
                 sweater=sweater,
-                shoes=wardrobe.DEFAULT_OFFICE.row_wearing(
+                shoes=wardrobe.DEFAULT_OFFICE.get_row_for_sweater(
                     sweater
                 ).shoes,
             ),
@@ -107,7 +113,7 @@ def _resolve_office_day(
     )
 
 
-def _office_sweater(
+def _choose_office_sweater(
     row: wardrobe.PantsRow, taken: frozenset[str]
 ) -> str:
     """Choose a sweater the Week has not already taken.
@@ -124,10 +130,10 @@ def _office_sweater(
     return row.sweater
 
 
-def _home_response(state: State, on: date) -> Response:
+def _get_home_response(state: State, on: date) -> Response:
     """Home has no no-repeat rule, so the pants say everything."""
-    shirt = _shirt(state, DayType.HOME, on)
-    row = wardrobe.DEFAULT_HOME.row_for(shirt.pants)
+    shirt = _get_shirt(state, DayType.HOME, on)
+    row = wardrobe.DEFAULT_HOME.get_row_for_pants(shirt.pants)
     return Response(
         on=on,
         day_type=DayType.HOME,
@@ -140,13 +146,15 @@ def _home_response(state: State, on: date) -> Response:
     )
 
 
-def _shirt(state: State, day_type: DayType, on: date) -> wardrobe.Shirt:
+def _get_shirt(
+    state: State, day_type: DayType, on: date
+) -> wardrobe.Shirt:
     """Take what Rotation offers on a date, before Resolution."""
-    closet = closet_for(day_type)
-    return closet.shirts[_position(state, closet, day_type, on)]
+    closet = get_closet(day_type)
+    return closet.shirts[_get_position(state, closet, day_type, on)]
 
 
-def _position(
+def _get_position(
     state: State, closet: wardrobe.Closet, day_type: DayType, on: date
 ) -> int:
     """Derive where the Rotation stands on a date.
@@ -154,12 +162,12 @@ def _position(
     From its Anchor and the calendar, and nothing else -- a Reset moved
     the Anchor, so there is no offset term to add back in.
     """
-    anchor = state.anchor(day_type)
-    steps = _days_of_type_between(state, day_type, anchor.on, on)
+    anchor = state.get_anchor(day_type)
+    steps = _count_days_of_type_between(state, day_type, anchor.on, on)
     return (anchor.position + steps) % len(closet.shirts)
 
 
-def _days_of_type_between(
+def _count_days_of_type_between(
     state: State, day_type: DayType, start: date, end: date
 ) -> int:
     """Count days of `day_type` in [start, end).
@@ -170,7 +178,7 @@ def _days_of_type_between(
     Overrides corrected for afterwards.
     """
     if end < start:
-        return -_days_of_type_between(state, day_type, end, start)
+        return -_count_days_of_type_between(state, day_type, end, start)
     whole_weeks, remaining_days = divmod((end - start).days, 7)
     office_per_week = len(wardrobe.DEFAULT_OFFICE_WEEKDAYS)
     per_week = (
@@ -182,10 +190,11 @@ def _days_of_type_between(
     return (
         whole_weeks * per_week
         + sum(
-            pattern_day_type(tail + timedelta(days=offset)) is day_type
+            get_pattern_day_type(tail + timedelta(days=offset))
+            is day_type
             for offset in range(remaining_days)
         )
-        + state.overridden_days(day_type, start, end)
+        + state.count_overridden_days(day_type, start, end)
     )
 
 
@@ -198,13 +207,13 @@ def _reset(state: State, request: ResetRequest, on: date) -> State:
     date draws from, never the Label; the other is left where it
     stood.
     """
-    day_type = state.day_type(on)
-    closet = closet_for(day_type)
-    position = _reset_position(state, request, closet, day_type, on)
-    return state.moved(day_type, wardrobe.Anchor(on, position))
+    day_type = state.get_day_type(on)
+    closet = get_closet(day_type)
+    position = _get_reset_position(state, request, closet, day_type, on)
+    return state.move_anchor(day_type, wardrobe.Anchor(on, position))
 
 
-def _reset_position(
+def _get_reset_position(
     state: State,
     request: ResetRequest,
     closet: wardrobe.Closet,
@@ -219,17 +228,17 @@ def _reset_position(
     the other Closet, or in neither.
     """
     if request.shirt is None:
-        return (_position(state, closet, day_type, on) + 1) % len(
+        return (_get_position(state, closet, day_type, on) + 1) % len(
             closet.shirts
         )
-    return _index_of(closet, day_type, request.shirt)
+    return _get_shirt_index(closet, day_type, request.shirt)
 
 
-def _index_of(
+def _get_shirt_index(
     closet: wardrobe.Closet, day_type: DayType, shirt: str
 ) -> int:
     try:
-        return closet.index_of(shirt)
+        return closet.get_position(shirt)
     except StopIteration:
         message = f"no {day_type} shirt named {shirt!r}"
         raise UnknownShirtError(message) from None

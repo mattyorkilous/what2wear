@@ -37,7 +37,7 @@ class State:
     home_anchor: wardrobe.Anchor
     overrides: Mapping[date, DayType] = _NOTHING_OVERRIDDEN
 
-    def anchor(self, day_type: DayType) -> wardrobe.Anchor:
+    def get_anchor(self, day_type: DayType) -> wardrobe.Anchor:
         """Give the Anchor a kind of day's Shirts are counted from."""
         return (
             self.office_anchor
@@ -45,7 +45,7 @@ class State:
             else self.home_anchor
         )
 
-    def moved(
+    def move_anchor(
         self, day_type: DayType, anchor: wardrobe.Anchor
     ) -> State:
         """Give back this State with one Shirt Anchor somewhere else.
@@ -60,7 +60,7 @@ class State:
             else replace(self, home_anchor=anchor)
         )
 
-    def overriding(self, command: DayTypeOverride) -> State:
+    def record_override(self, command: DayTypeOverride) -> State:
         """Give back this State with one more date said to be a kind.
 
         One record per date, so saying the opposite for a date
@@ -73,16 +73,16 @@ class State:
             ),
         )
 
-    def day_type(self, on: date) -> DayType:
+    def get_day_type(self, on: date) -> DayType:
         """Say what kind of day a date actually is.
 
         A Day Type Override wins over the weekly pattern. There is one
         record per date, so saying the opposite replaced what was said
         before rather than stacking on top of it.
         """
-        return self.overrides.get(on, pattern_day_type(on))
+        return self.overrides.get(on, get_pattern_day_type(on))
 
-    def overridden_days(
+    def count_overridden_days(
         self, day_type: DayType, start: date, end: date
     ) -> int:
         """Count what the Overrides in [start, end) add or take away.
@@ -93,14 +93,14 @@ class State:
         to the next day of that kind instead of being lost.
         """
         return sum(
-            (self.day_type(on) is day_type)
-            - (pattern_day_type(on) is day_type)
+            (self.get_day_type(on) is day_type)
+            - (get_pattern_day_type(on) is day_type)
             for on in self.overrides
             if start <= on < end
         )
 
 
-def default_state(today: date) -> State:
+def get_default_state(today: date) -> State:
     """Give the State a fresh installation starts from.
 
     The given Anchors with nothing recorded. It is what a missing
@@ -108,12 +108,12 @@ def default_state(today: date) -> State:
     then the Anchors move with today.
     """
     return State(
-        office_anchor=wardrobe.default_anchor(today),
-        home_anchor=wardrobe.default_anchor(today),
+        office_anchor=wardrobe.get_default_anchor(today),
+        home_anchor=wardrobe.get_default_anchor(today),
     )
 
 
-def closet_for(day_type: DayType) -> wardrobe.Closet:
+def get_closet(day_type: DayType) -> wardrobe.Closet:
     """Give the Closet a kind of day draws from."""
     return (
         wardrobe.DEFAULT_OFFICE
@@ -122,7 +122,7 @@ def closet_for(day_type: DayType) -> wardrobe.Closet:
     )
 
 
-def pattern_day_type(on: date) -> DayType:
+def get_pattern_day_type(on: date) -> DayType:
     """Say what the given weekly pattern alone makes a date.
 
     Before any Override. Office Days follow the given weekdays; every

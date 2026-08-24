@@ -17,7 +17,7 @@ from what2wear.model import (
     Outfit,
     Response,
     State,
-    default_state,
+    get_default_state,
 )
 
 TODAY = date(2026, 8, 22)
@@ -118,7 +118,7 @@ class TestFourOfficeDays:
     """
 
     STATE = replace(
-        default_state(TODAY),
+        get_default_state(TODAY),
         overrides={date(2026, 8, 29): DayType.OFFICE},
     )
 
@@ -188,4 +188,4 @@ def _outfit(on: date, state: State | None = None) -> Outfit:
 
 
 def _response(on: date, state: State | None = None) -> Response:
-    return answer(state or default_state(TODAY), on)
+    return answer(state or get_default_state(TODAY), on)
