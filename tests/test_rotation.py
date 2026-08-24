@@ -17,7 +17,7 @@ from what2wear.core import answer
 from what2wear.model import (
     DayType,
     Response,
-    default_state,
+    get_default_state,
 )
 
 TODAY = date(2026, 8, 22)
@@ -118,7 +118,7 @@ class TestDatesBehindTheOneAsked:
         # Monday spent at home, so the office rotation is parked and
         # Wednesday wears the white Monday would have.
         state = replace(
-            default_state(TODAY), overrides={MON24: DayType.HOME}
+            get_default_state(TODAY), overrides={MON24: DayType.HOME}
         )
         assert answer(state, WED26).outfit.shirt == "white"
 
@@ -134,4 +134,4 @@ class TestDatesBehindTheOneAsked:
 
 
 def _on(day: date) -> Response:
-    return answer(default_state(TODAY), day)
+    return answer(get_default_state(TODAY), day)

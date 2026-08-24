@@ -14,7 +14,7 @@ from what2wear.model import (
     DayType,
     DayTypeOverride,
     State,
-    default_state,
+    get_default_state,
 )
 
 TODAY = date(2026, 8, 22)
@@ -31,7 +31,7 @@ THU27, FRI28, SAT29 = (
 )
 MON31 = date(2026, 8, 31)
 
-GIVEN = default_state(TODAY)
+GIVEN = get_default_state(TODAY)
 
 
 class TestWhichClosetTheDayDrawsFrom:

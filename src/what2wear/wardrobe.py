@@ -63,7 +63,7 @@ class Closet:
     shirts: tuple[Shirt, ...]
     rows: tuple[PantsRow, ...]
 
-    def index_of(self, label: str) -> int:
+    def get_position(self, label: str) -> int:
         """Give the Position a Shirt with this Label sits at."""
         return next(
             index
@@ -71,11 +71,11 @@ class Closet:
             if shirt.label == label
         )
 
-    def row_for(self, pants: str) -> PantsRow:
+    def get_row_for_pants(self, pants: str) -> PantsRow:
         """Give the row that dresses a pair of Pants."""
         return next(row for row in self.rows if row.pants == pants)
 
-    def row_wearing(self, sweater: str) -> PantsRow:
+    def get_row_for_sweater(self, sweater: str) -> PantsRow:
         """Trace a sweater back to the row it belongs to.
 
         Office sweaters are one-to-one with office rows, so a Fallback
@@ -84,7 +84,7 @@ class Closet:
         return next(row for row in self.rows if row.sweater == sweater)
 
 
-def default_anchor(today: date) -> Anchor:
+def get_default_anchor(today: date) -> Anchor:
     """Say where every Rotation stands with nothing recorded.
 
     Today, at the top of its Closet, so that a fresh installation

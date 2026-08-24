@@ -16,7 +16,7 @@ from datetime import date
 import pytest
 
 from what2wear.core import answer
-from what2wear.model import DayType, Outfit, default_state
+from what2wear.model import DayType, Outfit, get_default_state
 
 TODAY = date(2026, 8, 22)
 
@@ -78,5 +78,5 @@ SEQUENCE = [
 def test_the_worked_calendar(
     on: date, day_type: DayType, outfit: Outfit
 ) -> None:
-    response = answer(default_state(TODAY), on)
+    response = answer(get_default_state(TODAY), on)
     assert (response.day_type, response.outfit) == (day_type, outfit)

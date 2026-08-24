@@ -20,7 +20,6 @@ from what2wear.model import (
     DayTypeOverride,
     ResetRequest,
     Response,
-    State,
 )
 from what2wear.store import StateError, read_state, write_state
 
@@ -42,14 +41,17 @@ def run(argv: Sequence[str] | None = None, *, state_dir: Path) -> int:
     shows its result without either knowing about the other. Both are
     handed the one date the invocation is about.
     """
-    args = _parser().parse_args(argv)
+    args = _build_parser().parse_args(argv)
     path = state_dir / "state.yaml"
-    today = _today()
+    today = datetime.now(UTC).astimezone().date()
     on = getattr(args, "on", today)
     try:
-        command = _command(args, on)
-        state = _recorded(path, read_state(path, today), command, on)
-        response = answer(state, on)
+        command = _get_command(args, on)
+        state = read_state(path, today)
+        state_updated = apply(state, command, on)
+        if state_updated != state:
+            write_state(path, state_updated)
+        response = answer(state_updated, on)
     except (StateError, UnknownShirtError) as error:
         print(error, file=sys.stderr)
         return 2
@@ -57,27 +59,27 @@ def run(argv: Sequence[str] | None = None, *, state_dir: Path) -> int:
     return 0
 
 
-def _parser() -> argparse.ArgumentParser:
-    dated = _dated()
+def _build_parser() -> argparse.ArgumentParser:
+    date_parser = _build_date_parser()
     parser = argparse.ArgumentParser(
         prog="what2wear",
         description="What to wear today, or on any other date.",
-        parents=[dated],
+        parents=[date_parser],
     )
-    commands = parser.add_subparsers(dest="command")
-    commands.add_parser(
+    subparsers = parser.add_subparsers()
+    subparsers.add_parser(
         "stay-home",
-        parents=[dated],
+        parents=[date_parser],
         help="record that a date is a home day",
     ).set_defaults(day_type=DayType.HOME)
-    commands.add_parser(
+    subparsers.add_parser(
         "go-in",
-        parents=[dated],
+        parents=[date_parser],
         help="record that a date is an office day",
     ).set_defaults(day_type=DayType.OFFICE)
-    reset = commands.add_parser(
+    reset = subparsers.add_parser(
         "reset",
-        parents=[dated],
+        parents=[date_parser],
         help="move a date on to the next shirt, or to a named one",
     )
     reset.add_argument(
@@ -90,7 +92,7 @@ def _parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _dated() -> argparse.ArgumentParser:
+def _build_date_parser() -> argparse.ArgumentParser:
     """Declare the `--on` that every invocation shares.
 
     One parent parser rather than a flag per command, so the date
@@ -98,18 +100,18 @@ def _dated() -> argparse.ArgumentParser:
     than defaulted because a subcommand's own default would otherwise
     silently overwrite an `--on` given ahead of it, and record today.
     """
-    dated = argparse.ArgumentParser(add_help=False)
-    dated.add_argument(
+    date_parser = argparse.ArgumentParser(add_help=False)
+    date_parser.add_argument(
         "--on",
-        type=_date,
+        type=_parse_date,
         default=argparse.SUPPRESS,
         metavar="YYYY-MM-DD",
         help="the date to act on; defaults to today",
     )
-    return dated
+    return date_parser
 
 
-def _date(text: str) -> date:
+def _parse_date(text: str) -> date:
     try:
         return date.fromisoformat(text)
     except ValueError:
@@ -117,16 +119,7 @@ def _date(text: str) -> date:
         raise argparse.ArgumentTypeError(message) from None
 
 
-def _today() -> date:
-    """Give the wearer's own today.
-
-    Local rather than UTC: the calendar this walks is the one on the
-    wall, and a date is only ever a date here.
-    """
-    return datetime.now(UTC).astimezone().date()
-
-
-def _command(args: argparse.Namespace, on: date) -> Command | None:
+def _get_command(args: argparse.Namespace, on: date) -> Command | None:
     """Say what the invocation asks to be recorded, if anything.
 
     Each command is known by what it brought with it rather than by
@@ -139,21 +132,6 @@ def _command(args: argparse.Namespace, on: date) -> Command | None:
     return None
 
 
-def _recorded(
-    path: Path, state: State, command: Command | None, on: date
-) -> State:
-    """Put what a command asked for into the State, and onto disk.
-
-    Writing comes before printing so that a State the tool cannot
-    write is reported rather than printed over.
-    """
-    if command is None:
-        return state
-    recorded = apply(state, command, on)
-    write_state(path, recorded)
-    return recorded
-
-
 def _render(
     response: Response, command: Command | None, today: date
 ) -> str:
@@ -164,14 +142,14 @@ def _render(
             f"  pants    {response.outfit.pants}",
             f"  sweater  {response.outfit.sweater}",
             f"  shoes    {response.outfit.shoes}",
-            *_repeat_note(response),
-            *_past_note(response, today),
-            *_recorded_note(response, command),
+            *_note_repeat(response),
+            *_note_past(response, today),
+            *_note_recorded(response, command),
         ]
     )
 
 
-def _repeat_note(response: Response) -> tuple[str, ...]:
+def _note_repeat(response: Response) -> tuple[str, ...]:
     """Call out a Week with no sweater left to offer.
 
     Said rather than left to be noticed, so a repeat never looks like
@@ -184,7 +162,7 @@ def _repeat_note(response: Response) -> tuple[str, ...]:
     )
 
 
-def _past_note(response: Response, today: date) -> tuple[str, ...]:
+def _note_past(response: Response, today: date) -> tuple[str, ...]:
     """Say that a past date answers from where things stand now.
 
     A Reset moves an Anchor and no wear history is kept, so a Position
@@ -200,7 +178,7 @@ def _past_note(response: Response, today: date) -> tuple[str, ...]:
     return (note,)
 
 
-def _recorded_note(
+def _note_recorded(
     response: Response, command: Command | None
 ) -> tuple[str, ...]:
     """Say what a command that writes something wrote.

@@ -20,11 +20,12 @@ CLOSETS = [
 
 class TestTheDefaultAnchor:
     def test_it_stands_at_the_top_of_the_rotation(self) -> None:
-        assert wardrobe.default_anchor(date(2026, 8, 22)).position == 0
+        anchor = wardrobe.get_default_anchor(date(2026, 8, 22))
+        assert anchor.position == 0
 
     def test_it_sits_on_the_day_it_is_asked_about(self) -> None:
         today = date(2026, 8, 22)
-        assert wardrobe.default_anchor(today).on == today
+        assert wardrobe.get_default_anchor(today).on == today
 
     @pytest.mark.parametrize("closet", CLOSETS)
     def test_the_top_of_every_closet_is_white(
@@ -33,8 +34,8 @@ class TestTheDefaultAnchor:
         # What makes Position 0 the same promise in both Closets: a
         # fresh installation opens on white whichever kind of day it
         # is.
-        position = wardrobe.default_anchor(date(2026, 8, 22)).position
-        assert closet.shirts[position].label == "white"
+        anchor = wardrobe.get_default_anchor(date(2026, 8, 22))
+        assert closet.shirts[anchor.position].label == "white"
 
 
 @pytest.mark.parametrize("closet", CLOSETS)

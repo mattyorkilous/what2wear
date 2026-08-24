@@ -25,7 +25,10 @@ than merely documented.
   `answer(state, on) -> Response` never changes anything and
   `apply(state, command, today) -> State` never renders anything; the
   shell composes them, so a command that records shows you its result
-  for free. This retires `handle`'s "resolve as though the decision
+  for free. `apply` takes no command as well as one, and hands the
+  State straight back when given none, so the shell makes the same
+  call whether or not anything was typed and writes only when the
+  State it gets back differs. This retires `handle`'s "resolve as though the decision
   were already in force" special case, and makes every edit a State-in
   State-out function that is trivially table-tested.
 - **`read_state` and `write_state` are the only impure functions in the
