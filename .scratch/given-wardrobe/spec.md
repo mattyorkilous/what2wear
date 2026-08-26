@@ -274,7 +274,10 @@ rather than an edit.
   Anchors, the Office Weekdays and the Cold Threshold. It stays
   `wardrobe.py`, because nearly everything in it and nearly every
   reference to it is the Wardrobe; its docstring is what says it holds
-  the starting values too.
+  the starting values too. "Structure" here means those *values*, not
+  the types that describe them: `Closet`, `Shirt`, `PantsRow` and
+  `Anchor` are declared in `model.py` with every other type, and
+  `wardrobe.py` imports them to state its values.
 - **`show-closet` gets no core seam.** The listing is a walk over the
   Wardrobe and the Labels, so it renders in the shell like every other
   output.

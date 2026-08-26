@@ -15,8 +15,8 @@ from typing import Any
 
 import yaml
 
-from what2wear import wardrobe
-from what2wear.model import DayType, State, get_default_state
+from what2wear.model import Anchor, DayType, State
+from what2wear.wardrobe import get_default_state
 
 
 def read_state(path: Path, today: date) -> State:
@@ -92,12 +92,12 @@ def _parse_state(document: dict[str, Any], today: date) -> State:
 
 
 def _parse_anchor(
-    record: dict[str, Any] | None, given: wardrobe.Anchor
-) -> wardrobe.Anchor:
+    record: dict[str, Any] | None, given: Anchor
+) -> Anchor:
     return (
         given
         if record is None
-        else wardrobe.Anchor(
+        else Anchor(
             date.fromisoformat(record["date"]), record["position"]
         )
     )
@@ -123,7 +123,7 @@ def _get_document(state: State) -> dict[str, Any]:
     }
 
 
-def _get_record(anchor: wardrobe.Anchor) -> dict[str, Any]:
+def _get_record(anchor: Anchor) -> dict[str, Any]:
     return {
         "date": anchor.on.isoformat(),
         "position": anchor.position,

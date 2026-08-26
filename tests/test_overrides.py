@@ -14,8 +14,8 @@ from what2wear.model import (
     DayType,
     DayTypeOverride,
     State,
-    get_default_state,
 )
+from what2wear.wardrobe import get_default_state
 
 TODAY = date(2026, 8, 22)
 SAT22, SUN23 = date(2026, 8, 22), date(2026, 8, 23)

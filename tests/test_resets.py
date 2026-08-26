@@ -13,14 +13,14 @@ import pytest
 
 from what2wear.core import UnknownShirtError, answer, apply
 from what2wear.model import (
+    Anchor,
     DayType,
     DayTypeOverride,
     Outfit,
     ResetRequest,
     State,
-    get_default_state,
 )
-from what2wear.wardrobe import Anchor
+from what2wear.wardrobe import get_default_state
 
 TODAY = date(2026, 8, 22)
 TUE25, WED26 = date(2026, 8, 25), date(2026, 8, 26)
