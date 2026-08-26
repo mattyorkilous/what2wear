@@ -16,7 +16,8 @@ from datetime import date
 import pytest
 
 from what2wear.core import answer
-from what2wear.model import DayType, Outfit, get_default_state
+from what2wear.model import DayType, Outfit
+from what2wear.wardrobe import get_default_state
 
 TODAY = date(2026, 8, 22)
 

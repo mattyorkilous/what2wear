@@ -1,17 +1,17 @@
-"""The domain vocabulary, as data.
+"""The domain vocabulary, as types.
 
-See CONTEXT.md -- these names are authoritative. The Wardrobe's own
-shape lives in `wardrobe.py`; everything here is either what the tool
-has been told or what it derived.
+See CONTEXT.md -- these names are authoritative. Nothing here decides
+anything: the values a fresh installation starts from live in
+`wardrobe.py`, and every rule that reads either lives in `core.py`.
+This module imports nothing else from the tool, which is what lets the
+other two import it.
 """
 
 from collections.abc import Mapping
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from datetime import date
 from enum import StrEnum
 from types import MappingProxyType
-
-from what2wear import wardrobe
 
 
 class DayType(StrEnum):
@@ -21,7 +21,49 @@ class DayType(StrEnum):
     HOME = "home"
 
 
-_NOTHING_OVERRIDDEN: Mapping[date, DayType] = MappingProxyType({})
+@dataclass(frozen=True)
+class Anchor:
+    """A date and the Position one Rotation stood at on it.
+
+    A Position rather than a Label, so that renaming a Garment can
+    never move a Rotation.
+    """
+
+    on: date
+    position: int
+
+
+@dataclass(frozen=True)
+class Shirt:
+    """One position in a Closet, carrying the Pants welded to it."""
+
+    label: str
+    pants: str
+
+
+@dataclass(frozen=True)
+class PantsRow:
+    """What one Closet pairs with one pair of Pants.
+
+    Sweaters, jackets and shoes follow from the Pants rather than from
+    the Shirt, so a Closet has three of these however many Shirts it
+    holds. The Office Closet fills in `fallback` and never `jacket`;
+    the Home Closet the other way round.
+    """
+
+    pants: str
+    sweater: str
+    shoes: str
+    jacket: str | None = None
+    fallback: str | None = None
+
+
+@dataclass(frozen=True)
+class Closet:
+    """One setting's Shirts and its Pants Rows."""
+
+    shirts: tuple[Shirt, ...]
+    rows: tuple[PantsRow, ...]
 
 
 @dataclass(frozen=True)
@@ -33,106 +75,9 @@ class State:
     so replacing a Garment can never move a Rotation.
     """
 
-    office_anchor: wardrobe.Anchor
-    home_anchor: wardrobe.Anchor
-    overrides: Mapping[date, DayType] = _NOTHING_OVERRIDDEN
-
-    def get_anchor(self, day_type: DayType) -> wardrobe.Anchor:
-        """Give the Anchor a kind of day's Shirts are counted from."""
-        return (
-            self.office_anchor
-            if day_type is DayType.OFFICE
-            else self.home_anchor
-        )
-
-    def move_anchor(
-        self, day_type: DayType, anchor: wardrobe.Anchor
-    ) -> State:
-        """Give back this State with one Shirt Anchor somewhere else.
-
-        The other Rotation stays exactly where it stood, which is what
-        lets a Reset be about the Closet the day drew from and nothing
-        else.
-        """
-        return (
-            replace(self, office_anchor=anchor)
-            if day_type is DayType.OFFICE
-            else replace(self, home_anchor=anchor)
-        )
-
-    def record_override(self, command: DayTypeOverride) -> State:
-        """Give back this State with one more date said to be a kind.
-
-        One record per date, so saying the opposite for a date
-        replaces what was said before rather than stacking on it.
-        """
-        return replace(
-            self,
-            overrides=MappingProxyType(
-                {**self.overrides, command.on: command.day_type}
-            ),
-        )
-
-    def get_day_type(self, on: date) -> DayType:
-        """Say what kind of day a date actually is.
-
-        A Day Type Override wins over the weekly pattern. There is one
-        record per date, so saying the opposite replaced what was said
-        before rather than stacking on top of it.
-        """
-        return self.overrides.get(on, get_pattern_day_type(on))
-
-    def count_overridden_days(
-        self, day_type: DayType, start: date, end: date
-    ) -> int:
-        """Count what the Overrides in [start, end) add or take away.
-
-        Days of `day_type`, against the weekly pattern. This is what
-        parks a Rotation: a day overridden away from its
-        own kind stops counting, so the Shirt it would have worn falls
-        to the next day of that kind instead of being lost.
-        """
-        return sum(
-            (self.get_day_type(on) is day_type)
-            - (get_pattern_day_type(on) is day_type)
-            for on in self.overrides
-            if start <= on < end
-        )
-
-
-def get_default_state(today: date) -> State:
-    """Give the State a fresh installation starts from.
-
-    The given Anchors with nothing recorded. It is what a missing
-    State file reads as, and the first write is what pins it -- until
-    then the Anchors move with today.
-    """
-    return State(
-        office_anchor=wardrobe.get_default_anchor(today),
-        home_anchor=wardrobe.get_default_anchor(today),
-    )
-
-
-def get_closet(day_type: DayType) -> wardrobe.Closet:
-    """Give the Closet a kind of day draws from."""
-    return (
-        wardrobe.DEFAULT_OFFICE
-        if day_type is DayType.OFFICE
-        else wardrobe.DEFAULT_HOME
-    )
-
-
-def get_pattern_day_type(on: date) -> DayType:
-    """Say what the given weekly pattern alone makes a date.
-
-    Before any Override. Office Days follow the given weekdays; every
-    other date, weekends included, is a Home Day.
-    """
-    return (
-        DayType.OFFICE
-        if on.weekday() in wardrobe.DEFAULT_OFFICE_WEEKDAYS
-        else DayType.HOME
-    )
+    office_anchor: Anchor
+    home_anchor: Anchor
+    overrides: Mapping[date, DayType] = MappingProxyType({})
 
 
 @dataclass(frozen=True)

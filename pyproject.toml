@@ -36,8 +36,10 @@ ignore = [
     # (D211, D212) is the style this repo writes.
     "D203",
     "D213",
-    # A stdlib type used only in annotations still reads better at
-    # the top of the file than inside a TYPE_CHECKING block.
+    # A type used only in annotations still reads better at the top
+    # of the file than inside a TYPE_CHECKING block, whether it comes
+    # from the stdlib or from `model.py`.
+    "TC001",
     "TC003",
     # Not a distributed work -- no per-file copyright headers.
     "CPY001",

@@ -11,6 +11,7 @@ from datetime import date
 import pytest
 
 from what2wear import wardrobe
+from what2wear.model import Closet
 
 CLOSETS = [
     pytest.param(wardrobe.DEFAULT_OFFICE, id="office"),
@@ -29,7 +30,7 @@ class TestTheDefaultAnchor:
 
     @pytest.mark.parametrize("closet", CLOSETS)
     def test_the_top_of_every_closet_is_white(
-        self, closet: wardrobe.Closet
+        self, closet: Closet
     ) -> None:
         # What makes Position 0 the same promise in both Closets: a
         # fresh installation opens on white whichever kind of day it
@@ -40,21 +41,19 @@ class TestTheDefaultAnchor:
 
 @pytest.mark.parametrize("closet", CLOSETS)
 class TestEveryCloset:
-    def test_no_label_names_two_shirts(
-        self, closet: wardrobe.Closet
-    ) -> None:
+    def test_no_label_names_two_shirts(self, closet: Closet) -> None:
         labels = [shirt.label for shirt in closet.shirts]
         assert len(set(labels)) == len(labels)
 
     def test_every_shirt_has_a_row_for_its_pants(
-        self, closet: wardrobe.Closet
+        self, closet: Closet
     ) -> None:
         assert {shirt.pants for shirt in closet.shirts} <= {
             row.pants for row in closet.rows
         }
 
     def test_no_pair_of_pants_has_two_rows(
-        self, closet: wardrobe.Closet
+        self, closet: Closet
     ) -> None:
         worn = [row.pants for row in closet.rows]
         assert len(set(worn)) == len(worn)
