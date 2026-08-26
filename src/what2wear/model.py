@@ -14,11 +14,18 @@ from enum import StrEnum
 from types import MappingProxyType
 
 
-class DayType(StrEnum):
-    """Every date is exactly one of these."""
+@dataclass(frozen=True)
+class State:
+    """Everything the tool has been told, in memory.
 
-    OFFICE = "office"
-    HOME = "home"
+    Nothing structural appears here, and nothing is keyed by a Label:
+    an Anchor states a Position and the Overrides are keyed by date,
+    so replacing a Garment can never move a Rotation.
+    """
+
+    office_anchor: Anchor
+    home_anchor: Anchor
+    overrides: Mapping[date, DayType] = MappingProxyType({})
 
 
 @dataclass(frozen=True)
@@ -31,6 +38,64 @@ class Anchor:
 
     on: date
     position: int
+
+
+@dataclass(frozen=True)
+class Response:
+    """What a date resolved to, ready for a shell to render."""
+
+    on: date
+    day_type: DayType
+    outfit: Outfit
+    unavoidable_repeat: bool = False
+
+
+@dataclass(frozen=True)
+class Outfit:
+    """The resolved garments for one date.
+
+    Always derived, never authored.
+    """
+
+    shirt: str
+    pants: str
+    sweater: str
+    shoes: str
+
+
+type Command = DayTypeOverride | ResetRequest
+
+
+@dataclass(frozen=True)
+class DayTypeOverride:
+    """A command saying what one date is, whatever the pattern says.
+
+    An Office Day or a Home Day. Staying home on a Wednesday, going
+    in on a Saturday, a public holiday and a day of leave are all this
+    one thing.
+    """
+
+    on: date
+    day_type: DayType
+
+
+@dataclass(frozen=True)
+class ResetRequest:
+    """A command moving a Shirt Rotation, from the date it acts on.
+
+    Bare, it moves on to the next Shirt. Naming a Shirt jumps to that
+    one instead; the Closet comes from the date, never from the Label.
+    """
+
+    shirt: str | None = None
+
+
+@dataclass(frozen=True)
+class Closet:
+    """One setting's Shirts and its Pants Rows."""
+
+    shirts: tuple[Shirt, ...]
+    rows: tuple[PantsRow, ...]
 
 
 @dataclass(frozen=True)
@@ -58,73 +123,8 @@ class PantsRow:
     fallback: str | None = None
 
 
-@dataclass(frozen=True)
-class Closet:
-    """One setting's Shirts and its Pants Rows."""
+class DayType(StrEnum):
+    """Every date is exactly one of these."""
 
-    shirts: tuple[Shirt, ...]
-    rows: tuple[PantsRow, ...]
-
-
-@dataclass(frozen=True)
-class State:
-    """Everything the tool has been told, in memory.
-
-    Nothing structural appears here, and nothing is keyed by a Label:
-    an Anchor states a Position and the Overrides are keyed by date,
-    so replacing a Garment can never move a Rotation.
-    """
-
-    office_anchor: Anchor
-    home_anchor: Anchor
-    overrides: Mapping[date, DayType] = MappingProxyType({})
-
-
-@dataclass(frozen=True)
-class DayTypeOverride:
-    """A command saying what one date is, whatever the pattern says.
-
-    An Office Day or a Home Day. Staying home on a Wednesday, going
-    in on a Saturday, a public holiday and a day of leave are all this
-    one thing.
-    """
-
-    on: date
-    day_type: DayType
-
-
-@dataclass(frozen=True)
-class ResetRequest:
-    """A command moving a Shirt Rotation, from the date it acts on.
-
-    Bare, it moves on to the next Shirt. Naming a Shirt jumps to that
-    one instead; the Closet comes from the date, never from the Label.
-    """
-
-    shirt: str | None = None
-
-
-type Command = DayTypeOverride | ResetRequest
-
-
-@dataclass(frozen=True)
-class Response:
-    """What a date resolved to, ready for a shell to render."""
-
-    on: date
-    day_type: DayType
-    outfit: Outfit
-    unavoidable_repeat: bool = False
-
-
-@dataclass(frozen=True)
-class Outfit:
-    """The resolved garments for one date.
-
-    Always derived, never authored.
-    """
-
-    shirt: str
-    pants: str
-    sweater: str
-    shoes: str
+    OFFICE = "office"
+    HOME = "home"
