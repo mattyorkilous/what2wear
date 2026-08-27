@@ -19,12 +19,12 @@ class State:
     """Everything the tool has been told, in memory.
 
     Nothing structural appears here, and nothing is keyed by a Label:
-    an Anchor states a Position and the Overrides are keyed by date,
-    so replacing a Garment can never move a Rotation.
+    an Anchor states a Position, the Anchors are keyed by the kind of
+    day their Rotation dresses and the Overrides are keyed by date, so
+    replacing a Garment can never move a Rotation.
     """
 
-    office_anchor: Anchor
-    home_anchor: Anchor
+    anchors: Mapping[DayType, Anchor]
     overrides: Mapping[date, DayType] = MappingProxyType({})
 
 
@@ -110,16 +110,15 @@ class Shirt:
 class PantsRow:
     """What one Closet pairs with one pair of Pants.
 
-    Sweaters, jackets and shoes follow from the Pants rather than from
-    the Shirt, so a Closet has three of these however many Shirts it
-    holds. The Office Closet fills in `fallback` and never `jacket`;
-    the Home Closet the other way round.
+    Sweaters and shoes follow from the Pants rather than from the
+    Shirt, so a Closet has three of these however many Shirts it
+    holds. Only the Office Closet fills in `fallback`, because only an
+    Office Week has a sweater it may not repeat.
     """
 
     pants: str
     sweater: str
     shoes: str
-    jacket: str | None = None
     fallback: str | None = None
 
 

@@ -158,7 +158,7 @@ class TestRecordingADayTypeOverride:
     def test_an_unreadable_state_fails_with_a_clear_message(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        _state(tmp_path).write_text("overrides:\n  2026-08-26: gala\n")
+        _state(tmp_path).write_text('{"overrides": {"x": "gala"}}')
         assert _ask(_next(MON), tmp_path) == 2
         assert "state file" in capsys.readouterr().err
 
@@ -261,7 +261,7 @@ def _ask(on: date, state_dir: Path) -> int:
 
 
 def _state(state_dir: Path) -> Path:
-    return state_dir / "state.yaml"
+    return state_dir / "state.json"
 
 
 def _shirt(out: str) -> str:

@@ -14,7 +14,7 @@ from pathlib import Path
 from platformdirs import user_config_path
 
 from what2wear.core import answer, apply
-from what2wear.errors import StateError, UnknownShirtError
+from what2wear.errors import What2wearError
 from what2wear.model import (
     Command,
     DayType,
@@ -43,7 +43,7 @@ def run(argv: Sequence[str] | None = None, *, state_dir: Path) -> int:
     handed the one date the invocation is about.
     """
     args = _build_parser().parse_args(argv)
-    path = state_dir / "state.yaml"
+    path = state_dir / "state.json"
     today = datetime.now(UTC).astimezone().date()
     on = getattr(args, "on", today)
     try:
@@ -53,7 +53,7 @@ def run(argv: Sequence[str] | None = None, *, state_dir: Path) -> int:
         if state_updated != state:
             write_state(path, state_updated)
         response = answer(state_updated, on)
-    except (StateError, UnknownShirtError) as error:
+    except What2wearError as error:
         print(error, file=sys.stderr)
         return 2
     print(_render(response, command, today))
@@ -143,52 +143,39 @@ def _render(
             f"  pants    {response.outfit.pants}",
             f"  sweater  {response.outfit.sweater}",
             f"  shoes    {response.outfit.shoes}",
-            *_note_repeat(response),
-            *_note_past(response, today),
-            *_note_recorded(response, command),
+            *_get_notes(response, command, today),
         ]
     )
 
 
-def _note_repeat(response: Response) -> tuple[str, ...]:
-    """Call out a Week with no sweater left to offer.
+def _get_notes(
+    response: Response, command: Command | None, today: date
+) -> tuple[str, ...]:
+    """Say what the lines above do not say on their face.
 
-    Said rather than left to be noticed, so a repeat never looks like
-    the tool having simply lost track.
+    A Week with no sweater left to offer is called out rather than
+    left to be noticed, so a repeat never looks like the tool having
+    simply lost track. A past date says it answers from where the
+    Rotation stands now: a Reset moves an Anchor and no wear history
+    is kept, so the date is answerable but is not a record of what was
+    worn. A command that wrote something says what -- a Reset naming
+    no Position, because the Shirt it moved to is printed above.
     """
-    return (
+    repeat = (
         ("  note     already worn this week -- no free sweater left",)
         if response.unavoidable_repeat
         else ()
     )
-
-
-def _note_past(response: Response, today: date) -> tuple[str, ...]:
-    """Say that a past date answers from where things stand now.
-
-    A Reset moves an Anchor and no wear history is kept, so a Position
-    behind us is derived from the present rather than remembered. The
-    date is answerable; what it is not is a record of what was worn.
-    """
-    if response.on >= today:
-        return ()
-    note = (
+    past = (
         "  note     a past date -- where the rotation stands now, "
         "not what was worn"
     )
-    return (note,)
-
-
-def _note_recorded(
-    response: Response, command: Command | None
-) -> tuple[str, ...]:
-    """Say what a command that writes something wrote.
-
-    A Reset names no Position, because the Shirt it moved to is the
-    one printed above.
-    """
-    if command is None:
-        return ()
-    if isinstance(command, DayTypeOverride):
-        return (f"  recorded {command.on} - {command.day_type} day",)
-    return (f"  recorded {response.on} - shirt rotation reset",)
+    behind = (past,) if response.on < today else ()
+    recorded = (
+        (f"  recorded {command.on} - {command.day_type} day",)
+        if isinstance(command, DayTypeOverride)
+        else ()
+        if command is None
+        else (f"  recorded {response.on} - shirt rotation reset",)
+    )
+    return (*repeat, *behind, *recorded)

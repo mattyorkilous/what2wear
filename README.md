@@ -49,7 +49,7 @@ A pants row's `fallback` is the sweater to take when the row's own is already wo
 
 ## The state is one file the tool owns
 
-Everything it's been told — the two anchors and the day type overrides — lives in `state.yaml` in your platform's user config directory (`~/Library/Application Support/what2wear` on macOS, `~/.config/what2wear` on Linux). Nobody authors it and there is nothing in it to edit; it is readable if you open it, but you are not expected to. There is no flag, environment variable or working-directory fallback to point it elsewhere: where it lives is a property of the installation, not of an invocation. The directory arrives with the first record; until then an installation has no files at all.
+Everything it's been told — the two anchors and the day type overrides — lives in `state.json` in your platform's user config directory (`~/Library/Application Support/what2wear` on macOS, `~/.config/what2wear` on Linux). Nobody authors it and there is nothing in it to edit; it is readable if you open it, but you are not expected to. There is no flag, environment variable or working-directory fallback to point it elsewhere: where it lives is a property of the installation, not of an invocation. The directory arrives with the first record; until then an installation has no files at all.
 
 It is rewritten whole rather than appended to, so it is written to a temporary file beside it and moved into place atomically — a recording that fails partway leaves the previous state intact. See [ADR-0006](docs/adr/0006-the-wardrobe-is-source-the-state-is-one-file-the-tool-owns.md).
 

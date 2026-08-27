@@ -13,7 +13,7 @@ import pytest
 
 from what2wear import store
 from what2wear.core import answer
-from what2wear.errors import StateError
+from what2wear.errors import What2wearError
 from what2wear.model import Anchor, DayType, State
 from what2wear.store import read_state, write_state
 from what2wear.wardrobe import get_default_state
@@ -23,10 +23,22 @@ TOMORROW = date(2026, 8, 23)
 WED26 = date(2026, 8, 26)
 
 TOLD = State(
-    office_anchor=Anchor(TODAY, 3),
-    home_anchor=Anchor(WED26, 7),
+    anchors={
+        DayType.OFFICE: Anchor(TODAY, 3),
+        DayType.HOME: Anchor(WED26, 7),
+    },
     overrides={WED26: DayType.HOME, TOMORROW: DayType.OFFICE},
 )
+
+
+def _document(overrides: str) -> str:
+    """Wrap Overrides in Anchors that read back, so only they fail."""
+    return (
+        '{"anchors": {'
+        '"office": {"date": "2026-08-22", "position": 0}, '
+        '"home": {"date": "2026-08-22", "position": 0}}, '
+        f'"overrides": {overrides}}}'
+    )
 
 
 class TestRoundTrip:
@@ -49,12 +61,11 @@ class TestRoundTrip:
         self, tmp_path: Path
     ) -> None:
         # Nobody is expected to, but nothing stops them: dates as
-        # dates, Positions as numbers, and no back-references.
+        # dates, Positions as numbers, one fact per line.
         write_state(_path(tmp_path), TOLD)
         text = _path(tmp_path).read_text()
-        assert "position: 3" in text
+        assert '"position": 3' in text
         assert "2026-08-26" in text
-        assert "*id" not in text
 
 
 class TestAMissingFile:
@@ -67,15 +78,15 @@ class TestAMissingFile:
 
     def test_reading_creates_nothing(self, tmp_path: Path) -> None:
         absent = tmp_path / "absent"
-        read_state(absent / "state.yaml", TODAY)
+        read_state(absent / "state.json", TODAY)
         assert not absent.exists()
 
     def test_the_directory_arrives_with_the_first_write(
         self, tmp_path: Path
     ) -> None:
         absent = tmp_path / "absent"
-        write_state(absent / "state.yaml", get_default_state(TODAY))
-        assert (absent / "state.yaml").exists()
+        write_state(absent / "state.json", get_default_state(TODAY))
+        assert (absent / "state.json").exists()
 
 
 class TestTheFirstWritePinsTheAnchors:
@@ -101,44 +112,24 @@ class TestTheFirstWritePinsTheAnchors:
         assert looked == arrived
 
 
-class TestAFileFromAnEarlierVersion:
-    @pytest.mark.parametrize(
-        "document",
-        [
-            "",
-            "overrides: {}\n",
-            (
-                "anchors:\n  office:\n"
-                "    date: '2026-08-22'\n    position: 0\n"
-            ),
-        ],
-    )
-    def test_what_it_does_not_say_reads_as_given(
-        self, tmp_path: Path, document: str
-    ) -> None:
-        _path(tmp_path).write_text(document)
-        assert read_state(_path(tmp_path), TODAY) == get_default_state(
-            TODAY
-        )
-
-
 class TestAFileThatDoesNotReadBack:
     @pytest.mark.parametrize(
         "document",
         [
-            "anchors: [not, a, mapping]\n",
-            "anchors:\n  office:\n    position: 0\n",
-            "overrides:\n  2026-08-26: brunch\n",
-            "overrides:\n  not-a-date: home\n",
-            "overrides:\n  20260826: home\n",
-            "]not yaml at all[\n",
+            "",
+            "{}",
+            '{"anchors": [], "overrides": {}}',
+            '{"anchors": {"office": {"position": 0}}, "overrides": {}}',
+            _document('{"2026-08-26": "brunch"}'),
+            _document('{"not-a-date": "home"}'),
+            "]not json at all[",
         ],
     )
     def test_it_is_an_error_naming_the_file(
         self, tmp_path: Path, document: str
     ) -> None:
         _path(tmp_path).write_text(document)
-        with pytest.raises(StateError, match=r"state\.yaml"):
+        with pytest.raises(What2wearError, match=r"state\.json"):
             read_state(_path(tmp_path), TODAY)
 
 
@@ -146,11 +137,12 @@ class TestAWriteThatFailsPartway:
     def test_it_leaves_the_previous_state_intact(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        # The whole point of the temporary file: a crash between
-        # opening the new State and finishing it must not be
-        # observable, which is what the old append-only log gave free.
+        # The whole point of the temporary file: a machine that goes
+        # away between opening the new State and getting it onto the
+        # disk must not be observable, which is what the old
+        # append-only log gave free.
         write_state(_path(tmp_path), TOLD)
-        monkeypatch.setattr(store, "_write_text", _half_written)
+        monkeypatch.setattr(store.os, "fsync", _went_away)
         with pytest.raises(RuntimeError):
             write_state(_path(tmp_path), replace(TOLD, overrides={}))
         assert read_state(_path(tmp_path), TODAY) == TOLD
@@ -167,11 +159,11 @@ class TestAWriteThatFailsPartway:
 
 
 def _path(state_dir: Path) -> Path:
-    return state_dir / "state.yaml"
+    return state_dir / "state.json"
 
 
-def _half_written(path: Path, document: str) -> None:
-    """Stand in for a machine that gave up halfway through a write."""
-    path.write_text(document[: len(document) // 2])
+def _went_away(descriptor: int) -> None:
+    """Stand in for a machine that gave up before the bytes landed."""
+    del descriptor
     message = "the machine went away"
     raise RuntimeError(message)

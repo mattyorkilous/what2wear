@@ -12,7 +12,7 @@ from datetime import date
 import pytest
 
 from what2wear.core import answer, apply
-from what2wear.errors import UnknownShirtError
+from what2wear.errors import What2wearError
 from what2wear.model import (
     Anchor,
     DayType,
@@ -47,7 +47,7 @@ class TestABareReset:
     def test_it_moves_the_anchor_to_today_at_that_position(
         self,
     ) -> None:
-        assert _reset(WED26).office_anchor == Anchor(WED26, 2)
+        assert _reset(WED26).anchors[DayType.OFFICE] == Anchor(WED26, 2)
 
     def test_it_moves_a_home_day_on_too(self) -> None:
         # Tuesday is dgreen; the next home shirt is black.
@@ -64,7 +64,9 @@ class TestANamedReset:
 
     def test_it_anchors_today_at_that_shirts_position(self) -> None:
         # dblue sits at 4, whatever the day stood at before.
-        assert _reset(WED26, "dblue").office_anchor == Anchor(WED26, 4)
+        assert _reset(WED26, "dblue").anchors[DayType.OFFICE] == Anchor(
+            WED26, 4
+        )
 
     def test_a_shirt_already_behind_is_simply_landed_on(self) -> None:
         # Monday's white is behind Wednesday's black, and naming it
@@ -75,7 +77,7 @@ class TestANamedReset:
         # The Anchor moves and the Rotation does not, which is what
         # "the Anchor states a Position" has to mean.
         state = _reset(WED26, "black")
-        assert state.office_anchor == Anchor(WED26, 1)
+        assert state.anchors[DayType.OFFICE] == Anchor(WED26, 1)
         assert all(
             answer(state, day) == answer(GIVEN, day)
             for day in (WED26, FRI28, MON31, FRI_SEP4)
@@ -93,7 +95,7 @@ class TestTheClosetIsInferredFromTheDay:
     def test_a_shirt_the_days_closet_lacks_is_an_error(
         self, today: date, shirt: str
     ) -> None:
-        with pytest.raises(UnknownShirtError, match=shirt):
+        with pytest.raises(What2wearError, match=shirt):
             _reset(today, shirt)
 
     def test_an_override_decides_which_closet_is_meant(self) -> None:
@@ -104,13 +106,22 @@ class TestTheClosetIsInferredFromTheDay:
         )
         state = apply(stayed_home, ResetRequest("beige"), WED26)
         assert _shirt(state, WED26) == "beige"
-        assert state.office_anchor == GIVEN.office_anchor
+        assert (
+            state.anchors[DayType.OFFICE]
+            == GIVEN.anchors[DayType.OFFICE]
+        )
 
     def test_the_other_closet_is_left_exactly_where_it_stood(
         self,
     ) -> None:
-        assert _reset(WED26).home_anchor == GIVEN.home_anchor
-        assert _reset(TUE25).office_anchor == GIVEN.office_anchor
+        assert (
+            _reset(WED26).anchors[DayType.HOME]
+            == GIVEN.anchors[DayType.HOME]
+        )
+        assert (
+            _reset(TUE25).anchors[DayType.OFFICE]
+            == GIVEN.anchors[DayType.OFFICE]
+        )
 
 
 class TestEveryLaterDateFollows:

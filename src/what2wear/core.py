@@ -10,14 +10,13 @@ starting values, and neither of them decides anything, so this is the
 only file to read to learn what the tool does.
 """
 
-from collections.abc import Callable, Mapping
+from collections.abc import Mapping
 from dataclasses import replace
 from datetime import date, timedelta
-from operator import attrgetter
 from types import MappingProxyType
 
 from what2wear import wardrobe
-from what2wear.errors import UnknownShirtError
+from what2wear.errors import What2wearError
 from what2wear.model import (
     Anchor,
     Closet,
@@ -36,13 +35,6 @@ _CLOSETS: Mapping[DayType, Closet] = MappingProxyType(
     {
         DayType.OFFICE: wardrobe.DEFAULT_OFFICE,
         DayType.HOME: wardrobe.DEFAULT_HOME,
-    }
-)
-
-_ANCHOR_FIELDS: Mapping[DayType, str] = MappingProxyType(
-    {
-        DayType.OFFICE: "office_anchor",
-        DayType.HOME: "home_anchor",
     }
 )
 
@@ -113,7 +105,10 @@ def _reset(state: State, request: ResetRequest, on: date) -> State:
     day_type = _get_day_type(state, on)
     position = _get_reset_position(state, request, day_type, on)
     return replace(
-        state, **{_ANCHOR_FIELDS[day_type]: Anchor(on, position)}
+        state,
+        anchors=MappingProxyType(
+            {**state.anchors, day_type: Anchor(on, position)}
+        ),
     )
 
 
@@ -163,7 +158,7 @@ def _get_position(state: State, day_type: DayType, on: date) -> int:
     From its Anchor and the calendar, and nothing else -- a Reset moved
     the Anchor, so there is no offset term to add back in.
     """
-    anchor: Anchor = getattr(state, _ANCHOR_FIELDS[day_type])
+    anchor = state.anchors[day_type]
     steps = _count_days_of_type_between(state, day_type, anchor.on, on)
     return (anchor.position + steps) % len(_CLOSETS[day_type].shirts)
 
@@ -182,7 +177,7 @@ def _get_shirt_position(day_type: DayType, label: str) -> int:
         )
     except StopIteration:
         message = f"no {day_type} shirt named {label!r}"
-        raise UnknownShirtError(message) from None
+        raise What2wearError(message) from None
 
 
 def _get_office_response(state: State, on: date) -> Response:
@@ -254,21 +249,7 @@ def _get_shirt(state: State, day_type: DayType, on: date) -> Shirt:
 
 def _get_row_for_pants(closet: Closet, pants: str) -> PantsRow:
     """Give the row that dresses a pair of Pants."""
-    return _get_row(closet, attrgetter("pants"), pants)
-
-
-def _get_row(
-    closet: Closet,
-    get_label: Callable[[PantsRow], str | None],
-    label: str,
-) -> PantsRow:
-    """Give the one row a Garment's Label picks out.
-
-    Which Label is read is the caller's to say, because a row is
-    reached by its Pants during Resolution and by its sweater when a
-    Fallback is traced back.
-    """
-    return next(row for row in closet.rows if get_label(row) == label)
+    return next(row for row in closet.rows if row.pants == pants)
 
 
 def _choose_office_sweater(row: PantsRow, taken: frozenset[str]) -> str:
@@ -292,7 +273,7 @@ def _get_row_for_sweater(closet: Closet, sweater: str) -> PantsRow:
     Office sweaters are one-to-one with office rows, so a Fallback
     can be traced back to the row whose shoes it borrows.
     """
-    return _get_row(closet, attrgetter("sweater"), sweater)
+    return next(row for row in closet.rows if row.sweater == sweater)
 
 
 def _get_home_response(state: State, on: date) -> Response:

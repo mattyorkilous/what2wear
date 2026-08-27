@@ -11,7 +11,7 @@ from datetime import date
 import pytest
 
 from what2wear import wardrobe
-from what2wear.model import Closet
+from what2wear.model import Closet, DayType
 
 CLOSETS = [
     pytest.param(wardrobe.DEFAULT_OFFICE, id="office"),
@@ -19,24 +19,13 @@ CLOSETS = [
 ]
 
 
-class TestTheDefaultAnchor:
-    def test_it_stands_at_the_top_of_the_rotation(self) -> None:
-        anchor = wardrobe.get_default_anchor(date(2026, 8, 22))
-        assert anchor.position == 0
-
-    def test_it_sits_on_the_day_it_is_asked_about(self) -> None:
-        today = date(2026, 8, 22)
-        assert wardrobe.get_default_anchor(today).on == today
-
-    @pytest.mark.parametrize("closet", CLOSETS)
-    def test_the_top_of_every_closet_is_white(
-        self, closet: Closet
-    ) -> None:
-        # What makes Position 0 the same promise in both Closets: a
-        # fresh installation opens on white whichever kind of day it
-        # is.
-        anchor = wardrobe.get_default_anchor(date(2026, 8, 22))
-        assert closet.shirts[anchor.position].label == "white"
+@pytest.mark.parametrize("closet", CLOSETS)
+def test_the_top_of_every_closet_is_white(closet: Closet) -> None:
+    # What makes Position 0 the same promise in both Closets: a fresh
+    # installation opens on white whichever kind of day it is.
+    given = wardrobe.get_default_state(date(2026, 8, 22))
+    position = given.anchors[DayType.OFFICE].position
+    assert closet.shirts[position].label == "white"
 
 
 @pytest.mark.parametrize("closet", CLOSETS)
@@ -103,18 +92,8 @@ class TestTheOfficeCloset:
             if worn[row.pants] > 1
         )
 
-    def test_no_row_carries_a_jacket(self) -> None:
-        assert all(
-            row.jacket is None for row in wardrobe.DEFAULT_OFFICE.rows
-        )
-
 
 class TestTheHomeCloset:
-    def test_every_row_carries_a_jacket(self) -> None:
-        assert all(
-            row.jacket is not None for row in wardrobe.DEFAULT_HOME.rows
-        )
-
     def test_no_row_carries_a_fallback(self) -> None:
         # Home has no no-repeat rule, so there is nothing to fall back
         # from.
