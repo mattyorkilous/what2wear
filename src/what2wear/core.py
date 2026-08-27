@@ -112,7 +112,9 @@ def _reset(state: State, request: ResetRequest, on: date) -> State:
     """
     day_type = _get_day_type(state, on)
     position = _get_reset_position(state, request, day_type, on)
-    return _move_anchor(state, day_type, Anchor(on, position))
+    return replace(
+        state, **{_ANCHOR_FIELDS[day_type]: Anchor(on, position)}
+    )
 
 
 def _get_day_type(state: State, on: date) -> DayType:
@@ -161,7 +163,7 @@ def _get_position(state: State, day_type: DayType, on: date) -> int:
     From its Anchor and the calendar, and nothing else -- a Reset moved
     the Anchor, so there is no offset term to add back in.
     """
-    anchor = _get_anchor(state, day_type)
+    anchor: Anchor = getattr(state, _ANCHOR_FIELDS[day_type])
     steps = _count_days_of_type_between(state, day_type, anchor.on, on)
     return (anchor.position + steps) % len(_CLOSETS[day_type].shirts)
 
@@ -181,18 +183,6 @@ def _get_shirt_position(day_type: DayType, label: str) -> int:
     except StopIteration:
         message = f"no {day_type} shirt named {label!r}"
         raise UnknownShirtError(message) from None
-
-
-def _move_anchor(
-    state: State, day_type: DayType, anchor: Anchor
-) -> State:
-    """Give back the State with one Shirt Anchor somewhere else.
-
-    The other Rotation stays exactly where it stood, which is what
-    lets a Reset be about the Closet the day drew from and nothing
-    else.
-    """
-    return replace(state, **{_ANCHOR_FIELDS[day_type]: anchor})
 
 
 def _get_office_response(state: State, on: date) -> Response:
@@ -319,12 +309,6 @@ def _get_home_response(state: State, on: date) -> Response:
             shoes=row.shoes,
         ),
     )
-
-
-def _get_anchor(state: State, day_type: DayType) -> Anchor:
-    """Give the Anchor a kind of day's Shirts are counted from."""
-    anchor: Anchor = getattr(state, _ANCHOR_FIELDS[day_type])
-    return anchor
 
 
 def _count_days_of_type_between(
