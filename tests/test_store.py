@@ -13,8 +13,9 @@ import pytest
 
 from what2wear import store
 from what2wear.core import answer
+from what2wear.errors import StateError
 from what2wear.model import Anchor, DayType, State
-from what2wear.store import StateError, read_state, write_state
+from what2wear.store import read_state, write_state
 from what2wear.wardrobe import get_default_state
 
 TODAY = date(2026, 8, 22)

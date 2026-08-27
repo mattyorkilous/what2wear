@@ -17,6 +17,7 @@ from operator import attrgetter
 from types import MappingProxyType
 
 from what2wear import wardrobe
+from what2wear.errors import UnknownShirtError
 from what2wear.model import (
     Anchor,
     Closet,
@@ -364,7 +365,3 @@ def _count_overridden_days(
         for on in state.overrides
         if start <= on < end
     )
-
-
-class UnknownShirtError(Exception):
-    """A Reset named a Shirt the day's Closet does not hold."""

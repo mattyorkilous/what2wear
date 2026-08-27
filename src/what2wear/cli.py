@@ -13,7 +13,8 @@ from pathlib import Path
 
 from platformdirs import user_config_path
 
-from what2wear.core import UnknownShirtError, answer, apply
+from what2wear.core import answer, apply
+from what2wear.errors import StateError, UnknownShirtError
 from what2wear.model import (
     Command,
     DayType,
@@ -21,7 +22,7 @@ from what2wear.model import (
     ResetRequest,
     Response,
 )
-from what2wear.store import StateError, read_state, write_state
+from what2wear.store import read_state, write_state
 
 
 def main() -> int:

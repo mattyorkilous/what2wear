@@ -11,7 +11,8 @@ from datetime import date
 
 import pytest
 
-from what2wear.core import UnknownShirtError, answer, apply
+from what2wear.core import answer, apply
+from what2wear.errors import UnknownShirtError
 from what2wear.model import (
     Anchor,
     DayType,

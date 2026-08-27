@@ -15,6 +15,7 @@ from typing import Any
 
 import yaml
 
+from what2wear.errors import StateError
 from what2wear.model import Anchor, DayType, State
 from what2wear.wardrobe import get_default_state
 
@@ -142,7 +143,3 @@ def _write_text(path: Path, text: str) -> None:
         file.write(text)
         file.flush()
         os.fsync(file.fileno())
-
-
-class StateError(Exception):
-    """The State file cannot be read or written, or is not one."""
