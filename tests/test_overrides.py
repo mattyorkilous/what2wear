@@ -137,23 +137,30 @@ class TestRecordingOne:
             GIVEN.home_anchor,
         )
 
-    def test_recording_the_opposite_replaces_rather_than_stacks(
-        self,
-    ) -> None:
+    def test_taking_one_back_leaves_the_state_as_it_was(self) -> None:
+        # Wed is an Office Day already, so going back to going in is
+        # not a third thing to record -- it is the record removed.
         home = apply(GIVEN, DayTypeOverride(WED26, DayType.HOME), TODAY)
         both = apply(
             home, DayTypeOverride(WED26, DayType.OFFICE), TODAY
         )
-        assert both == _with(WED26, DayType.OFFICE)
+        assert both == GIVEN
         assert answer(both, WED26).day_type is DayType.OFFICE
+
+    def test_agreeing_with_the_pattern_records_nothing(self) -> None:
+        # Going in on a Wednesday was never news.
+        assert (
+            apply(GIVEN, DayTypeOverride(WED26, DayType.OFFICE), TODAY)
+            == GIVEN
+        )
 
     def test_a_past_date_records_like_any_other(self) -> None:
         # Only the question has no answer. Correcting what a date now
         # behind us was still has to be possible.
         past = date(2026, 8, 17)
         assert apply(
-            GIVEN, DayTypeOverride(past, DayType.OFFICE), TODAY
-        ) == _with(past, DayType.OFFICE)
+            GIVEN, DayTypeOverride(past, DayType.HOME), TODAY
+        ) == _with(past, DayType.HOME)
 
 
 class TestAFourthOfficeDay:

@@ -81,13 +81,22 @@ def answer(state: State, on: date) -> Response:
 def _record_override(state: State, command: DayTypeOverride) -> State:
     """Give back the State with one more date said to be a kind.
 
-    One record per date, so saying the opposite for a date
-    replaces what was said before rather than stacking on it.
+    Only a date the weekly pattern does not already make that kind
+    is worth a record, so saying what the pattern says leaves no
+    record behind -- whether it is taking back an earlier Override or
+    agreeing with the pattern to begin with. One record per date, so
+    saying the opposite never stacks, and no record ever agrees with
+    the pattern it was there to override.
     """
+    recorded = {**state.overrides, command.on: command.day_type}
     return replace(
         state,
         overrides=MappingProxyType(
-            {**state.overrides, command.on: command.day_type}
+            {
+                on: day_type
+                for on, day_type in recorded.items()
+                if day_type is not _get_pattern_day_type(on)
+            }
         ),
     )
 
@@ -109,9 +118,9 @@ def _reset(state: State, request: ResetRequest, on: date) -> State:
 def _get_day_type(state: State, on: date) -> DayType:
     """Say what kind of day a date actually is.
 
-    A Day Type Override wins over the weekly pattern. There is one
-    record per date, so saying the opposite replaced what was said
-    before rather than stacking on top of it.
+    A Day Type Override wins over the weekly pattern -- though a
+    record that agrees with the pattern, which only an older version
+    wrote, says the same thing the pattern already said.
     """
     return state.overrides.get(on, _get_pattern_day_type(on))
 
