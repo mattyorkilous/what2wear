@@ -1,16 +1,3 @@
-"""The Aug 29 - Sep 7 2026 sequence, against the given Wardrobe.
-
-The whole Outfit -- Shirt, pants, sweater and shoes -- including the
-Friday Sep 4 Fallback, where blue pants want beige but Monday already
-took it, and the shoes move from brown to white alongside it. It also
-carries the home wrap from Sat Sep 5 round to Sun Sep 6, and the Week
-resetting cleanly on Mon Sep 7.
-
-One State for the whole range, anchored at `TODAY`: nothing is
-recorded across it, so every date is the same call with a different
-argument.
-"""
-
 from datetime import date
 
 import pytest

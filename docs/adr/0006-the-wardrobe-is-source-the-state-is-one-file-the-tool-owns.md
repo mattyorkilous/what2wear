@@ -1,5 +1,9 @@
 # The Wardrobe is source, the State is one file the tool owns
 
+> Amended by [ADR-0009](./0009-the-recording-seam-is-four-functions-not-a-command-union.md).
+> The two seams stand; the recording one is four functions rather than
+> one `apply` over a `Command` union.
+
 Everything given lives in source; everything the tool is told lives in
 one YAML file the tool reads and writes and no human authors. The State
 holds the Labels, the three Anchors and the Day Type Overrides, and
@@ -22,15 +26,16 @@ than merely documented.
   command, printed in an answer.
 - **Two seams, not one.** The spec's single `handle` existed because
   every command was a question that might also record something. Now
-  `answer(state, on) -> Response` never changes anything and
-  `apply(state, command, today) -> State` never renders anything; the
-  shell composes them, so a command that records shows you its result
-  for free. `apply` takes no command as well as one, and hands the
-  State straight back when given none, so the shell makes the same
-  call whether or not anything was typed and writes only when the
-  State it gets back differs. This retires `handle`'s "resolve as though the decision
-  were already in force" special case, and makes every edit a State-in
-  State-out function that is trivially table-tested.
+  `answer(state, on) -> Response` never changes anything and the
+  recording seam never renders anything; the shell composes them, so a
+  command that records shows you its result for free. The shell writes
+  only when the State it gets back differs from the State it had, so
+  it makes the same call whether or not anything was typed. This
+  retires `handle`'s "resolve as though the decision were already in
+  force" special case, and makes every edit a State-in State-out
+  function that is trivially table-tested. **ADR-0009 replaced the
+  single `apply(state, command, today)` with the four functions it
+  dispatched to.**
 - **`read_state` and `write_state` are the only impure functions in the
   tool**, beside reading the clock, fetching the forecast and printing.
 - **A whole-file rewrite can truncate; an append could not.** The

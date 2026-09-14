@@ -40,8 +40,16 @@ that was actually there.
   refused it, and the check that refused `--on` beside a command all
   go, because one date idiom leaves nothing to arbitrate. The rule
   count goes down rather than moving.
-- **`--on` is declared once, on a shared parent parser, and
-  suppressed.** Declared per-subcommand instead, a subcommand's own
-  default silently overwrites an `--on` given ahead of it, so
-  `what2wear --on <date> go-in` would record today. `SUPPRESS` is what
-  makes both orders mean the same thing, and a test pins it.
+- **`--on` is declared once, on a shared parent parser, and defaults
+  to today.** The top-level parser and every dated subcommand take it,
+  so both `what2wear --on <date>` and `go-in --on <date>` work.
+  `replace`, `swap` and `show-closet` do not: a Label is not dated, so
+  a date they would ignore is better refused than accepted. The two
+  positions are not interchangeable: a subcommand's own default
+  overwrites an `--on` given ahead of it, so `what2wear --on <date>
+  go-in` records today. Accepted, because the flag belongs after the
+  command it modifies, and the confirmation line names the date it
+  recorded either way. An earlier version suppressed the subcommands'
+  copy so that both orders meant the same thing. It cost a second
+  parser, a parameter carrying either a date or a sentinel, and a
+  paragraph explaining the asymmetry, to support a form nobody types.

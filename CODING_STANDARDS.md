@@ -6,16 +6,17 @@ A function is **private** when no other module reaches for it — nothing outsid
 
 ## Naming
 
-- **A function is named for the action it performs** — a verb, not a noun. `_dated`, `_recorded` and `_repeat_note` read as accessors for something the module is already holding; `_build_date_parser`, `_record` and `_note_repeat` say what happens when you call them.
+- **A function is named for the action it performs** — a verb, not a noun. `_dated`, `_recorded` and `_repeat_note` read as accessors for something the module is already holding; `_get_date_parser`, `_record` and `_note_repeat` say what happens when you call them.
 - **The verb says what comes back** — `_declare_date_flag` sounds like a function kept for its effect, when what it does is hand you a parser. Pick the verb so the return value is expected before the signature confirms it.
-- **`build_` constructs, `get_` derives** — `build_` makes something out of nothing and needs no arguments to do it: `_build_parser`, `_build_date_parser`. When the result comes *from* what the function was handed, it is `get_`: `_get_command(args, on)`.
+- **`build_` constructs, `get_` derives** — `build_` makes something out of nothing and needs no arguments to do it: `build_default_labels`. When the result comes *from* what the function was handed, it is `get_`: `_get_parser(today)`, `_get_date_parser(default)`.
+- **A participle carries the noun it modifies** — `addressed`, `taken` and `resolved` name a quality and leave the reader to guess what has it. `slots_by_address`, `worn_sweaters` and `resolved_days` say it. If the noun makes the name read badly, the name was hiding that it was never clear: find what the thing is before naming what happened to it.
 - **One word means one thing per file** — argparse's `dest="command"` sat twenty lines from the domain's `Command`, and the reader had to hold both. Where the colliding name is dead, delete it rather than rename it.
 
 ## Rules
 
 - **Private functions are prefixed with `_`** — the prefix is the only signal that a function can be changed or deleted without looking outside the file. When a function loses its last outside caller, rename it to match.
 - **Public functions come first, private ones after** — a reader arriving at a module meets its interface before its machinery, and can stop at the first `_`.
-- **A function is defined below the one that calls it** — read top to bottom and every name is explained after you have seen it used. This is what orders the private block.
+- **A function is defined below the one that calls it** — read top to bottom and every name is explained after you have seen it used. This is what orders the private block. A function several others call goes below the *first* of them, so a helper the whole file leans on sits with the work that first needs it. This is the opposite of the rule for types below, deliberately: a type is named and costs nothing to hold, where a helper sunk beneath its last caller ends up furthest from everything it serves.
 - **A type is defined below every type that names it** — the same rule for classes, with naming in place of calling: a field's type appears after the class holding it, so a reader meets a whole before its parts, and the roots come in the order the seams use them. A type several others name goes below the last of them.
 - **Siblings are defined in call order** — where the rules above leave a choice, the functions a parent calls appear in the order the parent calls them, so the file reads in the order the work happens.
 - **No loops** — reach for a comprehension, `functools`, or `itertools`. A loop is a place where a name changes meaning halfway down the body; the alternatives don't have one. The one exception is below.
