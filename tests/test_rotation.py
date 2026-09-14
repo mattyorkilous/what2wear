@@ -1,13 +1,3 @@
-"""Rotation for any date, driven through the pure `answer` seam.
-
-The Wardrobe is given, so every test drives the real one, passes an
-in-memory State and an explicit date, and asserts on the returned
-Response. Nothing here reads a file, a clock or the network, and
-nothing reaches into how a Position was derived.
-
-The given State anchors both Rotations at `TODAY`, Position 0.
-"""
-
 from dataclasses import replace
 from datetime import date
 
@@ -106,12 +96,6 @@ class TestRotation:
 
 
 class TestDatesBehindTheOneAsked:
-    """Refusing the past is the shell's job -- `test_cli.py` has it.
-
-    Counting backwards over dates already gone is still the core's,
-    and these are what would fail if it were removed as dead.
-    """
-
     def test_an_override_behind_a_date_still_parks_its_rotation(
         self,
     ) -> None:

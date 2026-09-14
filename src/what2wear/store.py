@@ -1,11 +1,4 @@
-"""Where the State is kept: one JSON file the tool owns.
-
-No human authors it, so there is no schema and nothing to validate --
-a file that does not read back is a broken file rather than a wrong
-one. A whole-file rewrite can truncate where the old append-only log
-could not, so it is written beside the target and moved onto it, and a
-write that fails partway leaves the previous State intact.
-"""
+"""Reading and writing the state file."""
 
 import json
 import os
@@ -16,15 +9,26 @@ from typing import Any
 
 from what2wear.errors import What2wearError
 from what2wear.model import Anchor, DayType, State
-from what2wear.wardrobe import get_default_state
+from what2wear.wardrobe import (
+    KEYS,
+    build_default_labels,
+    get_default_state,
+)
 
 
 def read_state(path: Path, today: date) -> State:
-    """Read everything the tool has been told.
+    """Read the recorded state.
 
-    A file that is not there is not an error and not a first run: it
-    reads as the given Anchors with no Overrides. Nothing here creates
-    a directory -- looking has no side effects.
+    Args:
+        path: The state file to read.
+        today: The date a default state is anchored to when there is
+            no file at `path`.
+
+    Returns:
+        The state at `path`, or a default state if there is no file.
+
+    Raises:
+        What2wearError: If the file is unreadable or malformed.
     """
     try:
         text = path.read_text()
@@ -41,14 +45,14 @@ def read_state(path: Path, today: date) -> State:
 
 
 def write_state(path: Path, state: State) -> None:
-    """Put everything the tool now knows back, all of it at once.
+    """Record the state, replacing any file already there.
 
-    Through a temporary file in the same directory and an atomic move,
-    so a partial write is never observable. The move is only atomic
-    against a crashed process; a crashed machine can land the rename
-    ahead of the bytes, which is what the fsync rules out. The
-    directory arrives with the first write and never merely because
-    something looked.
+    Args:
+        path: The state file to write.
+        state: The state to record.
+
+    Raises:
+        What2wearError: If the file cannot be written.
     """
     temporary = path.with_name(f"{path.name}.tmp")
     text = json.dumps(_get_document(state), indent=2)
@@ -65,16 +69,23 @@ def write_state(path: Path, state: State) -> None:
 
 
 def _parse_state(document: dict[str, Any]) -> State:
-    """Read one document back as the State it was written from.
-
-    Every kind of day is looked up by name, so a document missing one
-    is a broken file rather than a State with a Rotation absent.
-    """
     return State(
         anchors=MappingProxyType(
             {
                 day_type: _parse_anchor(document["anchors"][day_type])
                 for day_type in DayType
+            }
+        ),
+        labels=MappingProxyType(
+            dict(build_default_labels())
+            | {
+                # ponytail: carries keys spelled with the garment's
+                # given label, from before they counted places. Drop
+                # once no state file predates it.
+                KEYS.get(recorded, recorded): label
+                for recorded, label in document.get(
+                    "labels", {}
+                ).items()
             }
         ),
         overrides=MappingProxyType(
@@ -93,10 +104,7 @@ def _parse_anchor(record: dict[str, Any]) -> Anchor:
 
 
 def _get_document(state: State) -> dict[str, Any]:
-    """Lay a State out the way a person opening the file would read it.
-
-    Nobody is expected to, but nothing here is a reason they could not.
-    """
+    given_labels = build_default_labels()
     return {
         "anchors": {
             day_type.value: {
@@ -104,6 +112,11 @@ def _get_document(state: State) -> dict[str, Any]:
                 "position": anchor.position,
             }
             for day_type, anchor in sorted(state.anchors.items())
+        },
+        "labels": {
+            key: label
+            for key, label in sorted(state.labels.items())
+            if label != given_labels.get(key)
         },
         "overrides": {
             on.isoformat(): day_type.value

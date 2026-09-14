@@ -1,1 +1,1 @@
-"""what2wear: what to wear today, and on any other date."""
+"""What to wear today, or on any other date."""

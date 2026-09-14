@@ -1,10 +1,3 @@
-"""The State file: the tool's own, and the only thing it writes.
-
-The shell's half of everything the tool is told. What a recorded
-command does to a Rotation is `test_overrides.py` and
-`test_resets.py`; that it survives being written down is this one's.
-"""
-
 from dataclasses import replace
 from datetime import date
 from pathlib import Path
@@ -12,17 +5,18 @@ from pathlib import Path
 import pytest
 
 from what2wear import store
-from what2wear.core import answer
+from what2wear.core import answer, replace_
 from what2wear.errors import What2wearError
 from what2wear.model import Anchor, DayType, State
 from what2wear.store import read_state, write_state
-from what2wear.wardrobe import get_default_state
+from what2wear.wardrobe import build_default_labels, get_default_state
 
 TODAY = date(2026, 8, 22)
 TOMORROW = date(2026, 8, 23)
 WED26 = date(2026, 8, 26)
 
 TOLD = State(
+    labels=build_default_labels(),
     anchors={
         DayType.OFFICE: Anchor(TODAY, 3),
         DayType.HOME: Anchor(WED26, 7),
@@ -32,7 +26,6 @@ TOLD = State(
 
 
 def _document(overrides: str) -> str:
-    """Wrap Overrides in Anchors that read back, so only they fail."""
     return (
         '{"anchors": {'
         '"office": {"date": "2026-08-22", "position": 0}, '
@@ -66,6 +59,58 @@ class TestRoundTrip:
         text = _path(tmp_path).read_text()
         assert '"position": 3' in text
         assert "2026-08-26" in text
+
+
+class TestTheLabels:
+    def test_what_a_garment_was_replaced_with_outlives_the_file(
+        self, tmp_path: Path
+    ) -> None:
+        told = replace_(
+            get_default_state(TODAY), "office.shirt.white", "cream"
+        )
+        write_state(_path(tmp_path), told)
+        assert read_state(_path(tmp_path), TODAY) == told
+
+    def test_only_what_was_replaced_is_written_down(
+        self, tmp_path: Path
+    ) -> None:
+        # The given Labels go back underneath on the way in, so
+        # writing them out again would only be the file repeating
+        # itself.
+        told = replace_(get_default_state(TODAY), "pants.blue", "navy")
+        write_state(_path(tmp_path), told)
+        text = _path(tmp_path).read_text()
+        assert '"pants.0": "navy"' in text
+        assert '"pants.1"' not in text
+
+    def test_a_file_keyed_by_the_given_label_still_reads(
+        self, tmp_path: Path
+    ) -> None:
+        # Files written before keys counted places spell the key
+        # with the Label the garment shipped with.
+        _path(tmp_path).write_text(
+            _document("{}").replace(
+                '"overrides": {}',
+                '"overrides": {}, "labels": {"pants.blue": "navy"}',
+            )
+        )
+        assert (
+            answer(
+                read_state(_path(tmp_path), TODAY), TODAY
+            ).outfit.pants
+            == "navy"
+        )
+
+    def test_a_garment_a_file_says_nothing_about_reads_as_given(
+        self, tmp_path: Path
+    ) -> None:
+        # Which is what lets a file written before a Garment existed
+        # go on reading.
+        _path(tmp_path).write_text(_document("{}"))
+        assert (
+            read_state(_path(tmp_path), TODAY).labels
+            == build_default_labels()
+        )
 
 
 class TestAMissingFile:
@@ -163,7 +208,6 @@ def _path(state_dir: Path) -> Path:
 
 
 def _went_away(descriptor: int) -> None:
-    """Stand in for a machine that gave up before the bytes landed."""
     del descriptor
     message = "the machine went away"
     raise RuntimeError(message)

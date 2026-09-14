@@ -31,10 +31,6 @@ select = ["ALL"]
 ignore = [
     # Formatter conflicts -- ruff format owns this.
     "COM812",
-    # Each is half of a pair ALL cannot hold at once; the other half
-    # (D211, D212) is the style this repo writes.
-    "D203",
-    "D213",
     # A type used only in annotations still reads better at the top
     # of the file than inside a TYPE_CHECKING block, whether it comes
     # from the stdlib or from `model.py`.
@@ -43,6 +39,9 @@ ignore = [
     # Not a distributed work -- no per-file copyright headers.
     "CPY001",
 ]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
 
 [tool.ruff.lint.per-file-ignores]
 # The CLI is the one place that prints.
@@ -56,6 +55,7 @@ ignore = [
     "PLR0913",
     "PLR0917",
     "PLR2004",
+    "D100",
     "D101",
     "D102",
     "D103",

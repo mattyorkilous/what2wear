@@ -1,21 +1,10 @@
-"""The shell.
-
-It reads the State, reads the clock and prints -- so that is all this
-covers. The Wardrobe is given, so there is nothing to set up and no
-fixture closet here: which Shirt a date calls for is the core's
-business, and these assert on what gets rendered and what gets
-recorded.
-
-Dates are taken relative to the real today, because the shell reads
-the real clock and `--on` is measured against it.
-"""
-
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
 import pytest
 
 from what2wear.cli import run
+from what2wear.wardrobe import DEFAULT_OFFICE_WEEKDAYS
 
 MON, SAT = 0, 5
 LINES = ("shirt", "pants", "sweater", "shoes")
@@ -107,7 +96,7 @@ class TestRecordingADayTypeOverride:
     def test_the_date_defaults_to_today(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        assert _run("stay-home", None, tmp_path) == 0
+        assert _run(_contrary(), None, tmp_path) == 0
         assert f"{_today():%a %d %b %Y}" in capsys.readouterr().out
         assert _today().isoformat() in _state(tmp_path).read_text()
 
@@ -152,7 +141,7 @@ class TestRecordingADayTypeOverride:
         self, tmp_path: Path
     ) -> None:
         absent = tmp_path / "absent"
-        assert _run("stay-home", None, absent) == 0
+        assert _run(_contrary(), None, absent) == 0
         assert _state(absent).exists()
 
     def test_an_unreadable_state_fails_with_a_clear_message(
@@ -171,28 +160,22 @@ class TestRecordingADayTypeOverride:
         assert _run("stay-home", monday, tmp_path) == 0
         assert monday.isoformat() in _state(tmp_path).read_text()
 
-    def test_either_side_of_the_command_names_the_same_date(
-        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
-    ) -> None:
-        # The subcommand's own default must not overwrite an `--on`
-        # given ahead of it, which would silently record today.
-        saturday = _next(SAT)
-        for argv in (
-            ["--on", saturday.isoformat(), "go-in"],
-            ["go-in", "--on", saturday.isoformat()],
-        ):
-            assert run(argv, state_dir=tmp_path) == 0
-            assert f"recorded {saturday}" in capsys.readouterr().out
-
 
 class TestRecordingAReset:
-    def test_a_bare_reset_says_what_it_did(
+    def test_it_says_what_it_did(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        assert run(["reset"], state_dir=tmp_path) == 0
+        assert run(["reset", "lblue"], state_dir=tmp_path) == 0
         out = capsys.readouterr().out
         assert "recorded" in out
-        assert "shirt rotation reset" in out
+        assert "shirt rotation reset to lblue" in out
+
+    def test_naming_no_shirt_is_refused(self, tmp_path: Path) -> None:
+        # Both closets hold an `lblue`, so the day never decides
+        # whether the label is one; leaving it out is the only way
+        # `reset` can be typed without one.
+        with pytest.raises(SystemExit):
+            run(["reset"], state_dir=tmp_path)
 
     def test_a_shirt_the_day_does_not_have_is_refused(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
@@ -207,13 +190,13 @@ class TestRecordingAReset:
     ) -> None:
         assert run([], state_dir=tmp_path) == 0
         before = _shirt(capsys.readouterr().out)
-        assert run(["reset"], state_dir=tmp_path) == 0
+        assert run(["reset", "lblue"], state_dir=tmp_path) == 0
         assert _shirt(capsys.readouterr().out) != before
 
     def test_a_reset_outlives_the_invocation_that_made_it(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        assert run(["reset"], state_dir=tmp_path) == 0
+        assert run(["reset", "lblue"], state_dir=tmp_path) == 0
         moved = _shirt(capsys.readouterr().out)
         assert run([], state_dir=tmp_path) == 0
         assert _shirt(capsys.readouterr().out) == moved
@@ -221,15 +204,12 @@ class TestRecordingAReset:
     def test_a_reset_can_name_the_date_it_moves(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        # A bare Reset moves the named date on by one, and the
-        # Rotation comes with it rather than snapping back.
+        # The Shirt lands on the date named rather than on today.
         monday = _next(MON) + timedelta(days=7)
-        assert _ask(monday, tmp_path) == 0
-        before = _shirt(capsys.readouterr().out)
-        assert _reset(None, monday, tmp_path) == 0
+        assert _reset("lblue", monday, tmp_path) == 0
         capsys.readouterr()
         assert _ask(monday, tmp_path) == 0
-        assert _shirt(capsys.readouterr().out) != before
+        assert _shirt(capsys.readouterr().out) == "lblue"
 
     def test_the_closet_comes_from_the_date_it_acts_on(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
@@ -242,6 +222,179 @@ class TestRecordingAReset:
         assert "no home shirt" in capsys.readouterr().err
 
 
+class TestShowingTheCloset:
+    def test_it_lists_both_closets_shirts_in_rotation_order(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        assert run(["show-closet"], state_dir=tmp_path) == 0
+        out = capsys.readouterr().out
+        assert _shirts(out, "office") == [
+            "white",
+            "black",
+            "lblue",
+            "striped",
+            "dblue",
+        ]
+        assert _shirts(out, "home")[:3] == [
+            "white",
+            "brown",
+            "dgreen",
+        ]
+
+    def test_it_shows_each_shirts_pants_in_its_own_column(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        # Which is what makes a legal Swap something to scan for:
+        # `white` and `striped` both wear blue.
+        assert run(["show-closet"], state_dir=tmp_path) == 0
+        out = capsys.readouterr().out
+        assert _get_columns(out, "white")[2] == "blue"
+        assert _get_columns(out, "striped")[2] == "blue"
+        assert _get_columns(out, "black")[2] == "tan"
+
+    def test_it_prints_a_garment_that_can_be_replaced_by(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        # Copied rather than guessed at: whatever it printed is what
+        # `replace` takes.
+        assert run(["show-closet"], state_dir=tmp_path) == 0
+        garment = _get_columns(capsys.readouterr().out, "striped")[3]
+        assert (
+            run(["replace", garment, "check"], state_dir=tmp_path) == 0
+        )
+        capsys.readouterr()
+        assert run(["show-closet"], state_dir=tmp_path) == 0
+        assert "check" in _shirts(capsys.readouterr().out, "office")
+
+    def test_it_marks_the_shirt_each_closet_is_due_to_give(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        # Today's closet marks today's shirt; the other marks the
+        # one waiting on its next day, so a Reset can be typed
+        # against either without working the date out.
+        assert run([], state_dir=tmp_path) == 0
+        due = _shirt(capsys.readouterr().out)
+        assert run(["show-closet"], state_dir=tmp_path) == 0
+        out = capsys.readouterr().out
+        assert _marked(out, _todays_closet()) == [due]
+        assert len(_marked(out, "office")) == 1
+        assert len(_marked(out, "home")) == 1
+
+    def test_the_mark_moves_with_the_rotation(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        # `dblue` hangs in both closets, so today's kind cannot
+        # decide whether this passes.
+        assert run(["show-closet"], state_dir=tmp_path) == 0
+        before = _marked(capsys.readouterr().out, _todays_closet())
+        assert run(["reset", "dblue"], state_dir=tmp_path) == 0
+        capsys.readouterr()
+        assert run(["show-closet"], state_dir=tmp_path) == 0
+        marked = _marked(capsys.readouterr().out, _todays_closet())
+        assert marked == ["dblue"]
+        assert before != marked
+
+    def test_it_lists_the_pants_both_closets_share_once(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        assert run(["show-closet"], state_dir=tmp_path) == 0
+        out = capsys.readouterr().out
+        assert out.count("pants.blue") == 1
+
+
+class TestReplacingAGarment:
+    def test_the_new_label_is_what_later_invocations_print(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        assert (
+            run(["replace", "pants.blue", "navy"], state_dir=tmp_path)
+            == 0
+        )
+        assert "navy" in capsys.readouterr().out
+        assert run(["show-closet"], state_dir=tmp_path) == 0
+        assert "pants.navy" in capsys.readouterr().out
+
+    def test_what_was_recorded_is_said_back(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        assert (
+            run(
+                ["replace", "home.shoes.black", "oxblood"],
+                state_dir=tmp_path,
+            )
+            == 0
+        )
+        assert "recorded" in capsys.readouterr().out
+
+    def test_restating_the_label_a_garment_has_records_nothing(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        # A no-op rather than a refusal, so it is not an error -- but
+        # nothing was written, so nothing says it was.
+        assert (
+            run(["replace", "pants.blue", "blue"], state_dir=tmp_path)
+            == 0
+        )
+        assert "recorded" not in capsys.readouterr().out
+        assert not _state(tmp_path).exists()
+
+    def test_a_refused_replace_records_nothing(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        assert (
+            run(
+                ["replace", "office.shoes.brown", "black"],
+                state_dir=tmp_path,
+            )
+            == 2
+        )
+        assert "black" in capsys.readouterr().err
+        assert not _state(tmp_path).exists()
+
+
+class TestSwappingTwoShirts:
+    def test_the_labels_change_hands(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        assert run(["show-closet"], state_dir=tmp_path) == 0
+        columns = _get_columns(capsys.readouterr().out, "white")
+        assert columns[2] == "blue"
+        assert (
+            run(
+                ["swap", "office", "white", "striped"],
+                state_dir=tmp_path,
+            )
+            == 0
+        )
+        capsys.readouterr()
+        assert run(["show-closet"], state_dir=tmp_path) == 0
+        assert _shirts(capsys.readouterr().out, "office")[:1] == [
+            "striped"
+        ]
+
+    def test_shirts_that_do_not_share_pants_are_refused(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        assert (
+            run(
+                ["swap", "office", "white", "black"],
+                state_dir=tmp_path,
+            )
+            == 2
+        )
+        assert "pants" in capsys.readouterr().err
+        assert not _state(tmp_path).exists()
+
+    def test_a_closet_that_is_not_one_is_refused(
+        self, tmp_path: Path
+    ) -> None:
+        with pytest.raises(SystemExit):
+            run(
+                ["swap", "attic", "white", "striped"],
+                state_dir=tmp_path,
+            )
+
+
 def _run(command: str, on: date | None, state_dir: Path) -> int:
     return run(
         [command, *([] if on is None else ["--on", on.isoformat()])],
@@ -249,10 +402,9 @@ def _run(command: str, on: date | None, state_dir: Path) -> int:
     )
 
 
-def _reset(shirt: str | None, on: date, state_dir: Path) -> int:
-    named = [] if shirt is None else [shirt]
+def _reset(shirt: str, on: date, state_dir: Path) -> int:
     return run(
-        ["reset", *named, "--on", on.isoformat()], state_dir=state_dir
+        ["reset", shirt, "--on", on.isoformat()], state_dir=state_dir
     )
 
 
@@ -264,6 +416,41 @@ def _state(state_dir: Path) -> Path:
     return state_dir / "state.json"
 
 
+def _listed(out: str, closet: str) -> list[list[str]]:
+    block = out.split(f"{closet}\n", maxsplit=1)[1]
+    listed = block.split("\n\n", maxsplit=1)[0]
+    return [
+        line.removeprefix("> ").split() for line in listed.splitlines()
+    ]
+
+
+def _marked(out: str, closet: str) -> list[str]:
+    block = out.split(f"{closet}\n", maxsplit=1)[1]
+    listed = block.split("\n\n", maxsplit=1)[0]
+    return [
+        line.removeprefix("> ").split()[1]
+        for line in listed.splitlines()
+        if line.startswith("> ")
+    ]
+
+
+def _shirts(out: str, closet: str) -> list[str]:
+    return [
+        columns[1]
+        for columns in _listed(out, closet)
+        if columns[0] == "shirt"
+    ]
+
+
+def _get_columns(out: str, label: str) -> list[str]:
+    return next(
+        columns
+        for closet in ("office", "home")
+        for columns in _listed(out, closet)
+        if columns[1] == label
+    )
+
+
 def _shirt(out: str) -> str:
     return next(
         line.split()[1]
@@ -272,12 +459,22 @@ def _shirt(out: str) -> str:
     )
 
 
+def _contrary() -> str:
+    return "stay-home" if _todays_closet() == "office" else "go-in"
+
+
+def _todays_closet() -> str:
+    return (
+        "office"
+        if _today().weekday() in DEFAULT_OFFICE_WEEKDAYS
+        else "home"
+    )
+
+
 def _next(weekday: int) -> date:
-    """Give the next date of that weekday, today included."""
     today = _today()
     return today + timedelta(days=(weekday - today.weekday()) % 7)
 
 
 def _today() -> date:
-    """Read the wearer's own today, the way the shell does."""
     return datetime.now(UTC).astimezone().date()

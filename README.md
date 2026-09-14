@@ -4,7 +4,7 @@ Tells you what to wear today, and what you'll wear on any other day.
 
 It walks a fixed list of shirts — one closet for the office, one for home — advancing each rotation only on days of its own kind. Pants come welded to the shirt; shoes and sweaters follow from the pants. At the office it guarantees no sweater and no pair of shoes repeats within a Monday-start week. At home, when it's cold, it alternates jacket and sweater so the same kind of outerwear never comes twice running.
 
-> **Status: the given wardrobe.** There is nothing to install and nothing to configure — the wardrobe lives in source, so a fresh checkout answers straight away. `what2wear` and `what2wear --on <date>` give you the shirt, its pants, its sweater, its shoes and whether it's an office day; a past date answers too, with a note that it says where the rotation stands now rather than what was worn. `stay-home` and `go-in` switch a date's side, and `reset` moves the shirt rotation on for good. Every command acts on one date, which is today unless `--on` says otherwise. Everything it's been told lives in one state file it owns. Replace and swap, outerwear and weather are still ahead.
+> **Status: the given wardrobe.** There is nothing to install and nothing to configure — the wardrobe lives in source, so a fresh checkout answers straight away. `what2wear` and `what2wear --on <date>` give you the shirt, its pants, its sweater, its shoes and whether it's an office day; a past date answers too, with a note that it says where the rotation stands now rather than what was worn. `stay-home` and `go-in` switch a date's side, and `reset` moves the shirt rotation to a shirt you name. `replace` gives a garment a new label, `swap` reorders two shirts that share pants, and `show-closet` lists everything with the name to copy into either. Every command that acts on a date takes today unless `--on` says otherwise. Everything it's been told lives in one state file it owns. Outerwear and weather are still ahead.
 
 ## How it works
 
@@ -31,15 +31,22 @@ what2wear                            # today's outfit
 what2wear --on 2026-08-24            # any other date, past or future
 what2wear stay-home                  # this office day is now a home day
 what2wear go-in                      # this home day is now an office day
-what2wear reset [shirt]              # move on to the next shirt, or jump to a named one
-what2wear reset lblue --on 2026-09-07  # every command takes --on, defaulting to today
+what2wear reset lblue                # move the rotation to that shirt, today
+what2wear reset lblue --on 2026-09-07  # --on goes after the command, and defaults to today
+what2wear show-closet                # every garment, how to name it, and what's due
+what2wear replace office.sweater.beige oatmeal   # this one is called that now
+what2wear swap office white striped  # two shirts sharing pants trade labels
 ```
 
 Holidays and leave aren't separate concepts — they're just `stay-home` on the relevant date.
 
+A garment is named by a dotted string — `office.shirt.white`, `home.shoes.black`, `pants.blue` — because a label alone is unique only within a closet and a kind. Pants are named without a closet: there is one set of trousers and both closets wear it, so replacing them changes both. `show-closet` prints those names so one can be copied rather than guessed at, and shows each shirt's pants in its own column so the legal swaps are the ones sharing that column. It marks with `>` the shirt each rotation is due to give you — today's in the closet today draws from, and in the other the one waiting on its next day — so the label to type into `reset` is read off rather than counted out.
+
+`replace` covers a worn-out garment and a mislabeled one alike — no garment's history is kept, so they are the same event. Nothing is keyed by a label, so neither a replace nor a swap can move a rotation.
+
 ## The wardrobe is given
 
-There is no configuration. Both closets, the pants they share, the office weekday pattern and the anchors a fresh install starts from all live in [`src/what2wear/wardrobe.py`](src/what2wear/wardrobe.py), because the rules only mean anything against this wardrobe's shape — office sweaters one-to-one with office shoes, a fallback that is always another row's sweater, closet sizes coprime with the office and home days in a week. A stranger's closet satisfying a schema and none of that would produce confident nonsense, and no amount of validation would catch it. See [ADR-0005](docs/adr/0005-what2wear-dresses-one-person-from-a-given-wardrobe.md).
+There is no configuration. Both closets, the pants they share, the office weekday pattern, and the labels and anchors a fresh install starts from all live in [`src/what2wear/wardrobe.py`](src/what2wear/wardrobe.py), because the rules only mean anything against this wardrobe's shape — office sweaters one-to-one with office shoes, a fallback that is always another row's sweater, closet sizes coprime with the office and home days in a week. A stranger's closet satisfying a schema and none of that would produce confident nonsense, and no amount of validation would catch it. See [ADR-0005](docs/adr/0005-what2wear-dresses-one-person-from-a-given-wardrobe.md).
 
 So there is nothing to write, nothing to copy and no first run. The properties the rules lean on — those pairings, those sizes — are asserted once by `tests/test_wardrobe.py`.
 
@@ -47,9 +54,11 @@ An anchor is a date and the position a rotation stood at on it — a position ra
 
 A pants row's `fallback` is the sweater to take when the row's own is already worn that week. It is always another row's own, which is what lets the fallback bring that row's shoes along with it.
 
+Every string in `wardrobe.py` names a garment rather than stating what it is called: it is the label that garment shipped with. The state says what each is called now, keyed by where the garment hangs — `office.shirt.0`, `pants.1` — so no key is spelled with a label and a `replace` changes a value only.
+
 ## The state is one file the tool owns
 
-Everything it's been told — the two anchors and the day type overrides — lives in `state.json` in your platform's user config directory (`~/Library/Application Support/what2wear` on macOS, `~/.config/what2wear` on Linux). Nobody authors it and there is nothing in it to edit; it is readable if you open it, but you are not expected to. There is no flag, environment variable or working-directory fallback to point it elsewhere: where it lives is a property of the installation, not of an invocation. The directory arrives with the first record; until then an installation has no files at all.
+Everything it's been told — what every garment is called, the two anchors and the day type overrides — lives in `state.json` in your platform's user config directory (`~/Library/Application Support/what2wear` on macOS, `~/.config/what2wear` on Linux). Nobody authors it and there is nothing in it to edit; it is readable if you open it, but you are not expected to. There is no flag, environment variable or working-directory fallback to point it elsewhere: where it lives is a property of the installation, not of an invocation. The directory arrives with the first record; until then an installation has no files at all.
 
 It is rewritten whole rather than appended to, so it is written to a temporary file beside it and moved into place atomically — a recording that fails partway leaves the previous state intact. See [ADR-0006](docs/adr/0006-the-wardrobe-is-source-the-state-is-one-file-the-tool-owns.md).
 
@@ -66,14 +75,25 @@ src/what2wear/wardrobe.py   the given wardrobe
 
 ## Design
 
-The architecture is a functional core with an imperative shell, and the core has two pure seams:
+The architecture is a functional core with an imperative shell, and the core has two pure seams. One answers and never changes anything — `answer` for a whole outfit, `get_due_shirt` for where one rotation stands:
 
 ```
-answer(state, on) -> Response      # never changes anything
-apply(state, command, today) -> State   # never renders anything
+answer(state, on)                  -> Response
+get_due_shirt(state, day_type, on) -> str
 ```
 
-The shell composes them, so a command that records shows its result for free. It only reads and writes the state file, reads the clock, fetches the forecast and prints. Those two seams are the whole test surface — no mocks, no files touched, no clock reads outside the shell's own tests. The wardrobe under test is the given one, so there is no fixture that can drift from what ships.
+The other records and never renders anything — one function per thing that can be recorded:
+
+```
+record_override(state, on, day_type) -> State
+reset(state, shirt, on)              -> State
+replace_(state, garment, label)      -> State
+swap(state, closet, first, second)   -> State
+```
+
+That is four functions rather than a single `apply` over a union of command objects, because nothing here queues, logs or replays a command — there was nothing for a command object to be. The shell picks one of them for what was typed and calls it (`_choose_update_function(args)(state)`), so trading the CLI for another interface trades the parser, the chooser and the renderers, and moves nothing in core. See [ADR-0009](docs/adr/0009-the-recording-seam-is-four-functions-not-a-command-union.md).
+
+The shell composes the two seams, so a command that records shows its result for free. It only reads and writes the state file, reads the clock, fetches the forecast and prints. Those two seams are the whole test surface — no mocks, no files touched, no clock reads outside the shell's own tests. The wardrobe under test is the given one, so there is no fixture that can drift from what ships.
 
 Read [`CONTEXT.md`](CONTEXT.md) before touching anything, then the ADRs for the area you're working in.
 

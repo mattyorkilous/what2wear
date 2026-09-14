@@ -1,20 +1,8 @@
-"""Day Type Overrides, across both pure seams.
-
-`apply` takes a State and the command and gives back the State it
-becomes; `answer` says what that State makes of a date. Nothing here
-reads a file. The Wardrobe is the given one and both Anchors sit at
-`TODAY`, so the dates below line up with the worked calendar.
-"""
-
 from dataclasses import replace
 from datetime import date
 
-from what2wear.core import answer, apply
-from what2wear.model import (
-    DayType,
-    DayTypeOverride,
-    State,
-)
+from what2wear.core import answer, record_override
+from what2wear.model import DayType, State
 from what2wear.wardrobe import get_default_state
 
 TODAY = date(2026, 8, 22)
@@ -143,27 +131,22 @@ class TestRecordingOne:
     def test_taking_one_back_leaves_the_state_as_it_was(self) -> None:
         # Wed is an Office Day already, so going back to going in is
         # not a third thing to record -- it is the record removed.
-        home = apply(GIVEN, DayTypeOverride(WED26, DayType.HOME), TODAY)
-        both = apply(
-            home, DayTypeOverride(WED26, DayType.OFFICE), TODAY
-        )
+        home = record_override(GIVEN, WED26, DayType.HOME)
+        both = record_override(home, WED26, DayType.OFFICE)
         assert both == GIVEN
         assert answer(both, WED26).day_type is DayType.OFFICE
 
     def test_agreeing_with_the_pattern_records_nothing(self) -> None:
         # Going in on a Wednesday was never news.
-        assert (
-            apply(GIVEN, DayTypeOverride(WED26, DayType.OFFICE), TODAY)
-            == GIVEN
-        )
+        assert record_override(GIVEN, WED26, DayType.OFFICE) == GIVEN
 
     def test_a_past_date_records_like_any_other(self) -> None:
         # Only the question has no answer. Correcting what a date now
         # behind us was still has to be possible.
         past = date(2026, 8, 17)
-        assert apply(
-            GIVEN, DayTypeOverride(past, DayType.HOME), TODAY
-        ) == _with(past, DayType.HOME)
+        assert record_override(GIVEN, past, DayType.HOME) == _with(
+            past, DayType.HOME
+        )
 
 
 class TestAFourthOfficeDay:
@@ -183,4 +166,4 @@ def _with(on: date, day_type: DayType) -> State:
 
 
 def _applied(on: date, day_type: DayType) -> State:
-    return apply(GIVEN, DayTypeOverride(on, day_type), TODAY)
+    return record_override(GIVEN, on, day_type)

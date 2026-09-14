@@ -1,40 +1,34 @@
-"""The domain vocabulary, as types.
+"""The types the package passes between its modules."""
 
-See CONTEXT.md -- these names are authoritative. Nothing here decides
-anything: the values a fresh installation starts from live in
-`wardrobe.py`, and every rule that reads either lives in `core.py`.
-This module imports nothing else from the tool, which is what lets the
-other two import it.
-"""
-
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import date
 from enum import StrEnum
 from types import MappingProxyType
 
+type UpdateFunction = Callable[[State], State]
+
 
 @dataclass(frozen=True)
 class State:
-    """Everything the tool has been told, in memory.
+    """The recorded state.
 
-    Nothing structural appears here, and nothing is keyed by a Label:
-    an Anchor states a Position, the Anchors are keyed by the kind of
-    day their Rotation dresses and the Overrides are keyed by date, so
-    replacing a Garment can never move a Rotation.
+    Attributes:
+        anchors: Where each rotation stood, keyed by day type.
+        labels: Each garment's place in its closet, such as
+            `office.shirt.0` or `pants.1`, mapped to the label the
+            garment there has now.
+        overrides: The day type recorded for a date, keyed by date.
     """
 
     anchors: Mapping[DayType, Anchor]
+    labels: Mapping[str, str]
     overrides: Mapping[date, DayType] = MappingProxyType({})
 
 
 @dataclass(frozen=True)
 class Anchor:
-    """A date and the Position one Rotation stood at on it.
-
-    A Position rather than a Label, so that renaming a Garment can
-    never move a Rotation.
-    """
+    """The closet position the rotation stood at on `on`."""
 
     on: date
     position: int
@@ -42,7 +36,7 @@ class Anchor:
 
 @dataclass(frozen=True)
 class Response:
-    """What a date resolved to, ready for a shell to render."""
+    """The answer for one date."""
 
     on: date
     day_type: DayType
@@ -52,10 +46,7 @@ class Response:
 
 @dataclass(frozen=True)
 class Outfit:
-    """The resolved garments for one date.
-
-    Always derived, never authored.
-    """
+    """The four garments worn on a day."""
 
     shirt: str
     pants: str
@@ -63,36 +54,9 @@ class Outfit:
     shoes: str
 
 
-type Command = DayTypeOverride | ResetRequest
-
-
-@dataclass(frozen=True)
-class DayTypeOverride:
-    """A command saying what one date is, whatever the pattern says.
-
-    An Office Day or a Home Day. Staying home on a Wednesday, going
-    in on a Saturday, a public holiday and a day of leave are all this
-    one thing.
-    """
-
-    on: date
-    day_type: DayType
-
-
-@dataclass(frozen=True)
-class ResetRequest:
-    """A command moving a Shirt Rotation, from the date it acts on.
-
-    Bare, it moves on to the next Shirt. Naming a Shirt jumps to that
-    one instead; the Closet comes from the date, never from the Label.
-    """
-
-    shirt: str | None = None
-
-
 @dataclass(frozen=True)
 class Closet:
-    """One setting's Shirts and its Pants Rows."""
+    """The shirts and pants rows available for a day type."""
 
     shirts: tuple[Shirt, ...]
     rows: tuple[PantsRow, ...]
@@ -100,20 +64,21 @@ class Closet:
 
 @dataclass(frozen=True)
 class Shirt:
-    """One position in a Closet, carrying the Pants welded to it."""
+    """A shirt and the pants worn with it."""
 
-    label: str
+    garment: str
     pants: str
 
 
 @dataclass(frozen=True)
 class PantsRow:
-    """What one Closet pairs with one pair of Pants.
+    """The sweater and shoes worn with `pants`.
 
-    Sweaters and shoes follow from the Pants rather than from the
-    Shirt, so a Closet has three of these however many Shirts it
-    holds. Only the Office Closet fills in `fallback`, because only an
-    Office Week has a sweater it may not repeat.
+    Attributes:
+        pants: The pants the row hangs from.
+        sweater: The sweater worn with them.
+        shoes: The shoes worn with them.
+        fallback: A second sweater, for when the first is taken.
     """
 
     pants: str
@@ -123,7 +88,7 @@ class PantsRow:
 
 
 class DayType(StrEnum):
-    """Every date is exactly one of these."""
+    """The kind of day a date is."""
 
     OFFICE = "office"
     HOME = "home"

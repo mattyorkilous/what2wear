@@ -1,11 +1,3 @@
-"""Resolution: what follows from the pants, and the Week Fallback.
-
-The sweater and the shoes follow from the pants; the Fallback covers
-an office Week that would otherwise repeat one. Everything is driven
-through the pure `answer` seam and asserted on the resolved Outfit --
-never on how a Week was walked.
-"""
-
 from dataclasses import replace
 from datetime import date
 
@@ -111,12 +103,6 @@ class TestOfficeWeeks:
 
 
 class TestFourOfficeDays:
-    """A fourth Office Day exhausts the sweaters a Week can offer.
-
-    Going in on the Saturday is the only way to reach one, now that
-    the weekly pattern is given. One sweater has to come round twice.
-    """
-
     STATE = replace(
         get_default_state(TODAY),
         overrides={date(2026, 8, 29): DayType.OFFICE},

@@ -1,111 +1,137 @@
-"""The imperative shell: reads the State, reads the clock, prints.
-
-Deliberately disposable -- a thin renderer over the two seams, expected
-to be replaced by something phone-friendly later. Every invocation is
-about exactly one date, which is today unless `--on` says otherwise.
-"""
+"""The command line interface."""
 
 import argparse
 import sys
 from collections.abc import Sequence
 from datetime import UTC, date, datetime
+from functools import partial
 from pathlib import Path
 
 from platformdirs import user_config_path
 
-from what2wear.core import answer, apply
+from what2wear.core import (
+    answer,
+    get_due_shirt,
+    record_override,
+    replace_,
+    reset,
+    swap,
+)
 from what2wear.errors import What2wearError
 from what2wear.model import (
-    Command,
     DayType,
-    DayTypeOverride,
-    ResetRequest,
     Response,
+    State,
+    UpdateFunction,
 )
 from what2wear.store import read_state, write_state
+from what2wear.wardrobe import CLOSETS, KEYS, get_garments
 
 
 def main() -> int:
-    """Answer from the State this platform keeps for the user.
+    """Run the CLI against the wearer's config directory.
 
-    The one seam that reads the platform directory, so no invocation
-    can point the tool's own file anywhere else.
+    Returns:
+        The process exit code.
     """
     return run(state_dir=user_config_path("what2wear"))
 
 
 def run(argv: Sequence[str] | None = None, *, state_dir: Path) -> int:
-    """Answer, and record first if the command asked for that.
+    """Run the CLI over the given arguments.
 
-    The two seams composed: `apply` says what the State becomes and
-    `answer` says what the date calls for, so a command that records
-    shows its result without either knowing about the other. Both are
-    handed the one date the invocation is about.
+    Args:
+        argv: The arguments to parse, or None to read `sys.argv`.
+        state_dir: The directory holding the state file.
+
+    Returns:
+        The process exit code: 0, or 2 if the command failed.
     """
-    args = _build_parser().parse_args(argv)
-    path = state_dir / "state.json"
     today = datetime.now(UTC).astimezone().date()
-    on = getattr(args, "on", today)
+    args = _get_parser(today).parse_args(argv)
+    path = state_dir / "state.json"
     try:
-        command = _get_command(args, on)
         state = read_state(path, today)
-        state_updated = apply(state, command, on)
-        if state_updated != state:
-            write_state(path, state_updated)
-        response = answer(state_updated, on)
+        if args.action == "show-closet":
+            print(_render_wardrobe(state, today))
+            return 0
+        updated_state = _choose_update_function(args)(state)
+        changed = updated_state != state
+        if changed:
+            write_state(path, updated_state)
+        response = answer(updated_state, args.on)
     except What2wearError as error:
         print(error, file=sys.stderr)
         return 2
-    print(_render(response, command, today))
+    message = _get_message(args)
+    print(_render(response, message, today, changed=changed))
     return 0
 
 
-def _build_parser() -> argparse.ArgumentParser:
-    date_parser = _build_date_parser()
+def _get_parser(today: date) -> argparse.ArgumentParser:
+    date_parser = _get_date_parser(today)
     parser = argparse.ArgumentParser(
         prog="what2wear",
         description="What to wear today, or on any other date.",
         parents=[date_parser],
     )
-    subparsers = parser.add_subparsers()
+    subparsers = parser.add_subparsers(dest="action")
     subparsers.add_parser(
         "stay-home",
         parents=[date_parser],
         help="record that a date is a home day",
-    ).set_defaults(day_type=DayType.HOME)
+    )
     subparsers.add_parser(
         "go-in",
         parents=[date_parser],
         help="record that a date is an office day",
-    ).set_defaults(day_type=DayType.OFFICE)
-    reset = subparsers.add_parser(
+    )
+    reset_parser = subparsers.add_parser(
         "reset",
         parents=[date_parser],
-        help="move a date on to the next shirt, or to a named one",
+        help="move a date's rotation to a named shirt",
     )
-    reset.add_argument(
-        "shirt",
-        nargs="?",
-        default=None,
-        metavar="SHIRT",
-        help="the shirt to move to; defaults to the next one",
+    reset_parser.add_argument(
+        "shirt", metavar="SHIRT", help="the shirt to move to"
+    )
+    replace_parser = subparsers.add_parser(
+        "replace",
+        help="give a garment a new label",
+    )
+    replace_parser.add_argument(
+        "garment",
+        metavar="GARMENT",
+        help="the garment, as show-closet prints it",
+    )
+    replace_parser.add_argument(
+        "label", metavar="LABEL", help="what it is called now"
+    )
+    swap_parser = subparsers.add_parser(
+        "swap",
+        help="exchange two shirts' labels, if they share pants",
+    )
+    swap_parser.add_argument(
+        "closet",
+        type=DayType,
+        choices=tuple(DayType),
+        metavar="CLOSET",
+        help="office or home",
+    )
+    swap_parser.add_argument("first", metavar="LABEL")
+    swap_parser.add_argument("second", metavar="LABEL")
+    subparsers.add_parser(
+        "show-closet",
+        help="list every garment and how to name it",
     )
     return parser
 
 
-def _build_date_parser() -> argparse.ArgumentParser:
-    """Declare the `--on` that every invocation shares.
-
-    One parent parser rather than a flag per command, so the date
-    arrives the same way whatever is being asked. Suppressed rather
-    than defaulted because a subcommand's own default would otherwise
-    silently overwrite an `--on` given ahead of it, and record today.
-    """
+def _get_date_parser(today: date) -> argparse.ArgumentParser:
     date_parser = argparse.ArgumentParser(add_help=False)
     date_parser.add_argument(
         "--on",
         type=_parse_date,
-        default=argparse.SUPPRESS,
+        default=today,
         metavar="YYYY-MM-DD",
         help="the date to act on; defaults to today",
     )
@@ -116,25 +142,125 @@ def _parse_date(text: str) -> date:
     try:
         return date.fromisoformat(text)
     except ValueError:
-        message = f"{text!r} is not a date of the form YYYY-MM-DD"
-        raise argparse.ArgumentTypeError(message) from None
+        problem = f"{text!r} is not a date of the form YYYY-MM-DD"
+        raise argparse.ArgumentTypeError(problem) from None
 
 
-def _get_command(args: argparse.Namespace, on: date) -> Command | None:
-    """Say what the invocation asks to be recorded, if anything.
+def _render_wardrobe(state: State, today: date) -> str:
+    return "\n".join(
+        (
+            "> the shirt each closet is due to give you",
+            "",
+            *_get_closet_lines(state, DayType.OFFICE, today),
+            *_get_closet_lines(state, DayType.HOME, today),
+            "pants",
+            *(
+                _get_garment_line(state, "pants", place, "")
+                for place in range(len(CLOSETS[DayType.OFFICE].rows))
+            ),
+        )
+    )
 
-    Each command is known by what it brought with it rather than by
-    its name, so the names live only on the parsers that declare them.
+
+def _get_closet_lines(
+    state: State, day_type: DayType, today: date
+) -> tuple[str, ...]:
+    due = get_due_shirt(state, day_type, today)
+    return (
+        f"{day_type}",
+        *(
+            _get_garment_line(
+                state,
+                f"{day_type}.{kind}",
+                place,
+                state.labels[KEYS[f"pants.{pants}"]],
+                due=kind == "shirt" and garment == due,
+            )
+            for kind, place, garment, pants in get_garments(
+                CLOSETS[day_type]
+            )
+        ),
+        "",
+    )
+
+
+def _get_garment_line(
+    state: State,
+    scope: str,
+    place: int,
+    pants: str,
+    *,
+    due: bool = False,
+) -> str:
+    label = state.labels[f"{scope}.{place}"]
+    kind = scope.rpartition(".")[2]
+    gutter = "> " if due else "  "
+    return f"{gutter}{kind:<8} {label:<9} {pants:<9} {scope}.{label}"
+
+
+def _choose_update_function(
+    args: argparse.Namespace,
+) -> UpdateFunction:
+    """Return the core function that records what was typed.
+
+    Args:
+        args: The parsed arguments.
+
+    Returns:
+        The function recording it, or one that hands back the state it
+        was given if nothing was typed.
     """
-    if "day_type" in args:
-        return DayTypeOverride(on, args.day_type)
-    if "shirt" in args:
-        return ResetRequest(args.shirt)
-    return None
+    match args.action:
+        case None:
+            return lambda state: state
+        case "stay-home":
+            return partial(
+                record_override, on=args.on, day_type=DayType.HOME
+            )
+        case "go-in":
+            return partial(
+                record_override, on=args.on, day_type=DayType.OFFICE
+            )
+        case "reset":
+            return partial(reset, shirt=args.shirt, on=args.on)
+        case "replace":
+            return partial(
+                replace_, garment=args.garment, label=args.label
+            )
+        case "swap":
+            return partial(
+                swap,
+                closet=args.closet,
+                first=args.first,
+                second=args.second,
+            )
+        case _:
+            raise AssertionError(args.action)
+
+
+def _get_message(args: argparse.Namespace) -> str:
+    """Return the message describing what was typed, or "" if none."""
+    match args.action:
+        case None:
+            return ""
+        case "stay-home":
+            return f"{args.on} - {DayType.HOME} day"
+        case "go-in":
+            return f"{args.on} - {DayType.OFFICE} day"
+        case "reset":
+            return f"{args.on} - shirt rotation reset to {args.shirt}"
+        case "replace":
+            return f"{args.garment} is {args.label}"
+        case "swap":
+            return (
+                f"{args.closet} {args.first} and {args.second} swapped"
+            )
+        case _:
+            raise AssertionError(args.action)
 
 
 def _render(
-    response: Response, command: Command | None, today: date
+    response: Response, message: str, today: date, *, changed: bool
 ) -> str:
     return "\n".join(
         [
@@ -143,24 +269,14 @@ def _render(
             f"  pants    {response.outfit.pants}",
             f"  sweater  {response.outfit.sweater}",
             f"  shoes    {response.outfit.shoes}",
-            *_get_notes(response, command, today),
+            *_get_notes(response, message, today, changed=changed),
         ]
     )
 
 
 def _get_notes(
-    response: Response, command: Command | None, today: date
+    response: Response, message: str, today: date, *, changed: bool
 ) -> tuple[str, ...]:
-    """Say what the lines above do not say on their face.
-
-    A Week with no sweater left to offer is called out rather than
-    left to be noticed, so a repeat never looks like the tool having
-    simply lost track. A past date says it answers from where the
-    Rotation stands now: a Reset moves an Anchor and no wear history
-    is kept, so the date is answerable but is not a record of what was
-    worn. A command that wrote something says what -- a Reset naming
-    no Position, because the Shirt it moved to is printed above.
-    """
     repeat = (
         ("  note     already worn this week -- no free sweater left",)
         if response.unavoidable_repeat
@@ -171,11 +287,9 @@ def _get_notes(
         "not what was worn"
     )
     behind = (past,) if response.on < today else ()
-    recorded = (
-        (f"  recorded {command.on} - {command.day_type} day",)
-        if isinstance(command, DayTypeOverride)
+    confirmation = (
+        (f"  {'recorded' if changed else 'already':<8} {message}",)
+        if message
         else ()
-        if command is None
-        else (f"  recorded {response.on} - shirt rotation reset",)
     )
-    return (*repeat, *behind, *recorded)
+    return (*repeat, *behind, *confirmation)

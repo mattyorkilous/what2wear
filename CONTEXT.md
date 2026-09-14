@@ -28,10 +28,15 @@ _Avoid_: collection, drawer
 
 **Garment**:
 Anything you put on — a Shirt, a pair of Pants, a sweater, a jacket, a
-pair of shoes. Every Garment has a fixed identity and a Label that can
-change. Within one Closet a Label names exactly one Garment; the same
-Label in the two Closets names two different Garments.
-_Avoid_: item, piece, article
+pair of shoes. A Garment is fixed by where it hangs in the Wardrobe,
+and its Label is the only thing about it that can change. You name one
+by its Closet, what kind of thing it is, and its Label today —
+`office.shirt.ecru` — which is what `show-closet` prints and what
+`replace` takes, and which moves the moment the Label does. Within one
+Closet a Label names exactly one Shirt, one sweater and one pair of
+shoes — the office sweater and the office shoes may both be black —
+and the same Label in the two Closets names two different Garments.
+_Avoid_: item, piece, article, address
 
 **Label**:
 What a Garment is called — usually its color, sometimes its cut. A
@@ -184,6 +189,9 @@ given isn't the one you want, or when the Home Outerwear Rotation has
 fallen out of step with what you actually wore. It is the only way a
 Rotation is corrected, and it takes the whole Rotation with it rather
 than skipping a day — so a Reset dated ahead of today moves today too.
+The Position is always named: there is no bare "next Shirt" form, because
+moving on by one moves every date by one, which is a Reset to the Shirt
+after this one and reads better said that way.
 _Avoid_: skip, reroll, shuffle, override, re-anchor
 
 **Replace**:
