@@ -14,7 +14,7 @@ An `init` command is deliberately out of scope. Creating a Wardrobe for the user
 
 **Blocked by:** None — can start immediately.
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [x] `cli.py` has no module-level path constants and does not import `os`
 - [x] `main` is the only caller of `platformdirs`, and the `what2wear` console script points at it
