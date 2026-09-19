@@ -291,7 +291,6 @@ def _get_row_for_pants(closet: Closet, pants: str) -> PantsRow:
 def _choose_office_sweater(
     row: PantsRow, worn_sweaters: frozenset[str]
 ) -> str:
-    """Return the row's sweater, its fallback if free, else a repeat."""
     if row.sweater not in worn_sweaters:
         return row.sweater
     if row.fallback is not None and row.fallback not in worn_sweaters:

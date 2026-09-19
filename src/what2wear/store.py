@@ -79,9 +79,6 @@ def _parse_state(document: dict[str, Any]) -> State:
         labels=MappingProxyType(
             dict(build_default_labels())
             | {
-                # ponytail: carries keys spelled with the garment's
-                # given label, from before they counted places. Drop
-                # once no state file predates it.
                 KEYS.get(recorded, recorded): label
                 for recorded, label in document.get(
                     "labels", {}

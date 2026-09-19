@@ -141,9 +141,6 @@ CLOSETS: Mapping[DayType, Closet] = MappingProxyType(
 )
 
 
-# Each garment as the wardrobe names it, mapped to the key the file
-# its label under: what the wardrobe calls a garment, and where in its
-# closet that garment hangs.
 KEYS: Mapping[str, str] = MappingProxyType(
     {
         f"pants.{row.pants}": f"pants.{place}"
