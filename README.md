@@ -2,9 +2,9 @@
 
 Tells you what to wear today, and what you'll wear on any other day.
 
-It walks a fixed list of shirts — one closet for the office, one for home — advancing each rotation only on days of its own kind. Pants come welded to the shirt; shoes and sweaters follow from the pants. At the office it guarantees no sweater and no pair of shoes repeats within a Monday-start week. At home, when it's cold, it alternates jacket and sweater so the same kind of outerwear never comes twice running.
+It walks a fixed list of shirts — one closet for the office, one for home — advancing each rotation only on days of its own kind. Pants come welded to the shirt; shoes and sweaters follow from the pants. At the office it guarantees no sweater and no pair of shoes repeats within a Monday-start week. When it's cold you wear the sweater your pants call for. At home it will alternate that with a jacket, so the same kind of outerwear never comes twice running.
 
-> **Status: the given wardrobe.** There is nothing to install and nothing to configure — the wardrobe lives in source, so a fresh checkout answers straight away. `what2wear` and `what2wear --on <date>` give you the shirt, its pants, its sweater, its shoes and whether it's an office day; a past date answers too, with a note that it says where the rotation stands now rather than what was worn. `stay-home` and `go-in` switch a date's side, and `reset` moves the shirt rotation to a shirt you name. `replace` gives a garment a new label, `swap` reorders two shirts that share pants, and `show-closet` lists everything with the name to copy into either. Every command that acts on a date takes today unless `--on` says otherwise. Everything it's been told lives in one state file it owns. Outerwear and weather are still ahead.
+> **Status: the given wardrobe.** There is nothing to install and nothing to configure — the wardrobe lives in source, so a fresh checkout answers straight away. `what2wear` and `what2wear --on <date>` give you the shirt, its pants, its shoes, whether it's an office day, and whether today's forecast calls for the sweater; a past date answers too, with a note that it says where the rotation stands now rather than what was worn. `stay-home` and `go-in` switch a date's side, and `reset` moves the shirt rotation to a shirt you name. `replace` gives a garment a new label, `swap` reorders two shirts that share pants, and `show-closet` lists everything with the name to copy into either. Every command that acts on a date takes today unless `--on` says otherwise. Everything it's been told lives in one state file it owns. Home outerwear still names the pants row's sweater; the jacket alternation is still ahead.
 
 ## How it works
 
@@ -21,6 +21,20 @@ There is no offset term: a reset moves the anchor, so the whole rotation comes w
 Resolution keys off **pants, not shirts** — there is one set of pants and both closets wear it, each carrying its own row per pair, holding the sweater, shoes and jacket that follow from it. This is also why fallbacks exist at all: an office sweater collision is precisely two shirts in the same week sharing pants. See [ADR-0003](docs/adr/0003-garments-are-keyed-by-pants-not-by-shirt.md).
 
 Home outerwear alternates on the calendar too. Every home day is a jacket day or a sweater day by its own rotation, and the weather decides only whether the outerwear gets worn — so a mild day in the middle of a cold stretch spends its turn wearing nothing, and you can land on the same kind of outerwear either side of it. That trade buys a system with nothing stored anywhere. See [ADR-0004](docs/adr/0004-home-outerwear-alternates-on-the-calendar.md), which supersedes ADR-0002.
+
+## Outerwear and the weather
+
+Below 50°F you wear the sweater — the one your pants call for, or the week's fallback when that one is taken. At or above it, no sweater at all, and no sweater line is printed. The forecast decides only *whether*: which sweater a date calls for is worked out without it, so a warm Monday still spends its sweater for the week, and a date too far out for the forecast still names one:
+
+```
+  sweater  beige                  # cold: wear it
+                                  # warm: no sweater line
+  sweater  beige, if it's cold    # no forecast for that date yet
+```
+
+The last is also what you get when the forecast can't be fetched at all. A network problem never stops the tool answering — it just can't say yet whether you'll want the sweater.
+
+Forecasts are daily highs from [Open-Meteo](https://open-meteo.com), which needs no API key, for the coordinates in `wardrobe.py`. It covers the next sixteen days. Only the forecast endpoint is ever called — no historical archive — so a past date hedges the same way.
 
 ## Interface
 
@@ -46,7 +60,7 @@ A garment is named by a dotted string — `office.shirt.white`, `home.shoes.blac
 
 ## The wardrobe is given
 
-There is no configuration. Both closets, the pants they share, the office weekday pattern, and the labels and anchors a fresh install starts from all live in [`src/what2wear/wardrobe.py`](src/what2wear/wardrobe.py), because the rules only mean anything against this wardrobe's shape — office sweaters one-to-one with office shoes, a fallback that is always another row's sweater, closet sizes coprime with the office and home days in a week. A stranger's closet satisfying a schema and none of that would produce confident nonsense, and no amount of validation would catch it. See [ADR-0005](docs/adr/0005-what2wear-dresses-one-person-from-a-given-wardrobe.md).
+There is no configuration. Both closets, the pants they share, the office weekday pattern, the cold threshold, the forecast coordinates, and the labels and anchors a fresh install starts from all live in [`src/what2wear/wardrobe.py`](src/what2wear/wardrobe.py), because the rules only mean anything against this wardrobe's shape — office sweaters one-to-one with office shoes, a fallback that is always another row's sweater, closet sizes coprime with the office and home days in a week. A stranger's closet satisfying a schema and none of that would produce confident nonsense, and no amount of validation would catch it. See [ADR-0005](docs/adr/0005-what2wear-dresses-one-person-from-a-given-wardrobe.md).
 
 So there is nothing to write, nothing to copy and no first run. The properties the rules lean on — those pairings, those sizes — are asserted once by `tests/test_wardrobe.py`.
 
@@ -78,9 +92,11 @@ src/what2wear/wardrobe.py   the given wardrobe
 The architecture is a functional core with an imperative shell, and the core has two pure seams. One answers and never changes anything — `answer` for a whole outfit, `get_due_shirt` for where one rotation stands:
 
 ```
-answer(state, on)                  -> Response
+answer(state, on, weather)         -> Response
 get_due_shirt(state, day_type, on) -> str
 ```
+
+`weather` maps each date the forecast reaches to its high, so the core never touches the network: the shell fetches and the core decides.
 
 The other records and never renders anything — one function per thing that can be recorded:
 

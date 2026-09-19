@@ -174,4 +174,4 @@ def _outfit(on: date, state: State | None = None) -> Outfit:
 
 
 def _response(on: date, state: State | None = None) -> Response:
-    return answer(state or get_default_state(TODAY), on)
+    return answer(state or get_default_state(TODAY), on, {})

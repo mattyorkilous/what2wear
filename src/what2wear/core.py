@@ -18,6 +18,7 @@ from what2wear.model import (
 )
 from what2wear.wardrobe import (
     CLOSETS,
+    DEFAULT_COLD_THRESHOLD,
     DEFAULT_OFFICE_WEEKDAYS,
     KEYS,
 )
@@ -152,23 +153,29 @@ def swap(
     )
 
 
-def answer(state: State, on: date) -> Response:
+def answer(
+    state: State, on: date, weather: Mapping[date, float]
+) -> Response:
     """Work out what to wear on a date.
 
     Args:
         state: The state to answer from.
         on: The date to answer for.
+        weather: The forecast high, in degrees Fahrenheit, for each
+            date the forecast reaches. A date it does not reach names
+            its sweater and leaves open whether it is cold.
 
     Returns:
         The response for `on`, its garments named by the wearer's
         labels.
     """
-    return _get_labeled_response(
-        state,
+    response = (
         _get_office_response(state, on)
         if _get_day_type(state, on) is DayType.OFFICE
-        else _get_home_response(state, on),
+        else _get_home_response(state, on)
     )
+    labeled_response = _get_labeled_response(state, response)
+    return _apply_weather(labeled_response, weather.get(on))
 
 
 def get_due_shirt(state: State, day_type: DayType, on: date) -> str:
@@ -289,7 +296,7 @@ def _get_row_for_pants(closet: Closet, pants: str) -> PantsRow:
 
 
 def _choose_office_sweater(
-    row: PantsRow, worn_sweaters: frozenset[str]
+    row: PantsRow, worn_sweaters: frozenset[str | None]
 ) -> str:
     if row.sweater not in worn_sweaters:
         return row.sweater
@@ -334,8 +341,20 @@ def _get_labeled_response(state: State, response: Response) -> Response:
 
 
 def _get_label(state: State, given: str) -> str:
-    """Return the label the garment the wardrobe so names has now."""
     return state.labels[KEYS[given]]
+
+
+def _apply_weather(response: Response, high: float | None) -> Response:
+    if high is None:
+        return response
+    cold = high < DEFAULT_COLD_THRESHOLD
+    return replace(
+        response,
+        outfit=response.outfit
+        if cold
+        else replace(response.outfit, sweater=None),
+        cold=cold,
+    )
 
 
 def _count_days_of_type_between(

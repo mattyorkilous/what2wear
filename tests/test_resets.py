@@ -44,7 +44,7 @@ class TestANamedReset:
         state = _reset(WED26, "black")
         assert state.anchors[DayType.OFFICE] == Anchor(WED26, 1)
         assert all(
-            answer(state, day) == answer(GIVEN, day)
+            answer(state, day, {}) == answer(GIVEN, day, {})
             for day in (WED26, FRI28, MON31, FRI_SEP4)
         )
 
@@ -111,7 +111,7 @@ class TestEveryLaterDateFollows:
 
 class TestAMidWeekReset:
     def test_the_week_before_it_is_untouched(self) -> None:
-        assert answer(GIVEN, FRI_SEP4).outfit == Outfit(
+        assert answer(GIVEN, FRI_SEP4, {}).outfit == Outfit(
             "white", "blue", "grey", "white"
         )
 
@@ -121,7 +121,7 @@ class TestAMidWeekReset:
         # The walk now reads Monday as tan rather than blue, so blue's
         # own beige is free on the Friday and the Fallback goes unused.
         state = _reset(WED_SEP2, "lblue")
-        assert answer(state, FRI_SEP4).outfit == Outfit(
+        assert answer(state, FRI_SEP4, {}).outfit == Outfit(
             "striped", "blue", "beige", "brown"
         )
 
@@ -149,4 +149,4 @@ def _reset(today: date, shirt: str) -> State:
 
 
 def _shirt(state: State, on: date) -> str:
-    return answer(state, on).outfit.shirt
+    return answer(state, on, {}).outfit.shirt

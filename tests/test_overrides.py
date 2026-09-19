@@ -24,13 +24,13 @@ GIVEN = get_default_state(TODAY)
 
 class TestWhichClosetTheDayDrawsFrom:
     def test_staying_home_draws_from_the_home_closet(self) -> None:
-        response = answer(_with(WED26, DayType.HOME), WED26)
+        response = answer(_with(WED26, DayType.HOME), WED26, {})
         assert response.day_type is DayType.HOME
         # Wed is now the fourth home day since the anchor.
         assert response.outfit.shirt == "black"
 
     def test_going_in_draws_from_the_office_closet(self) -> None:
-        response = answer(_with(TUE25, DayType.OFFICE), TUE25)
+        response = answer(_with(TUE25, DayType.OFFICE), TUE25, {})
         assert response.day_type is DayType.OFFICE
         assert response.outfit.shirt == "black"
 
@@ -40,7 +40,7 @@ class TestWhichClosetTheDayDrawsFrom:
         # Recording a Wednesday you were going in on anyway.
         state = _with(WED26, DayType.OFFICE)
         assert all(
-            answer(state, day) == answer(GIVEN, day)
+            answer(state, day, {}) == answer(GIVEN, day, {})
             for day in (MON24, WED26, FRI28, MON31)
         )
 
@@ -50,9 +50,9 @@ class TestWhichClosetTheDayDrawsFrom:
         # the Sunday rather than lost -- the same parking rule as any
         # other date, applied to the date every Position counts from.
         state = _with(SAT22, DayType.OFFICE)
-        assert answer(state, SAT22).day_type is DayType.OFFICE
-        assert answer(GIVEN, SUN23).outfit.shirt == "brown"
-        assert answer(state, SUN23).outfit.shirt == "white"
+        assert answer(state, SAT22, {}).day_type is DayType.OFFICE
+        assert answer(GIVEN, SUN23, {}).outfit.shirt == "brown"
+        assert answer(state, SUN23, {}).outfit.shirt == "white"
 
 
 class TestTheOtherRotation:
@@ -64,7 +64,7 @@ class TestTheOtherRotation:
         # after.
         state = _with(WED26, DayType.HOME)
         worn = [
-            answer(state, day).outfit.shirt
+            answer(state, day, {}).outfit.shirt
             for day in (MON24, FRI28, MON31)
         ]
         assert worn == ["white", "black", "lblue"]
@@ -74,7 +74,7 @@ class TestTheOtherRotation:
     ) -> None:
         state = _with(TUE25, DayType.OFFICE)
         worn = [
-            answer(state, day).outfit.shirt
+            answer(state, day, {}).outfit.shirt
             for day in (MON24, TUE25, WED26)
         ]
         assert worn == ["white", "black", "lblue"]
@@ -84,7 +84,7 @@ class TestTheOtherRotation:
     ) -> None:
         state = _with(WED26, DayType.HOME)
         worn = [
-            answer(state, day).outfit.shirt
+            answer(state, day, {}).outfit.shirt
             for day in (TUE25, WED26, THU27)
         ]
         assert worn == ["dgreen", "black", "purple"]
@@ -95,8 +95,8 @@ class TestTheOtherRotation:
         # A public holiday on the Monday is a Day Type Override and
         # nothing else, so Monday's white reappears on the Wednesday.
         state = _with(MON24, DayType.HOME)
-        assert answer(state, MON24).day_type is DayType.HOME
-        assert answer(state, WED26).outfit.shirt == "white"
+        assert answer(state, MON24, {}).day_type is DayType.HOME
+        assert answer(state, WED26, {}).outfit.shirt == "white"
 
 
 class TestLookAhead:
@@ -104,12 +104,12 @@ class TestLookAhead:
         self,
     ) -> None:
         state = _with(WED26, DayType.HOME)
-        assert answer(GIVEN, MON31).outfit.shirt == "striped"
-        assert answer(state, MON31).outfit.shirt == "lblue"
+        assert answer(GIVEN, MON31, {}).outfit.shirt == "striped"
+        assert answer(state, MON31, {}).outfit.shirt == "lblue"
 
     def test_dates_before_the_override_are_untouched(self) -> None:
         state = _with(WED26, DayType.HOME)
-        assert answer(state, MON24) == answer(GIVEN, MON24)
+        assert answer(state, MON24, {}) == answer(GIVEN, MON24, {})
 
 
 class TestRecordingOne:
@@ -134,7 +134,7 @@ class TestRecordingOne:
         home = record_override(GIVEN, WED26, DayType.HOME)
         both = record_override(home, WED26, DayType.OFFICE)
         assert both == GIVEN
-        assert answer(both, WED26).day_type is DayType.OFFICE
+        assert answer(both, WED26, {}).day_type is DayType.OFFICE
 
     def test_agreeing_with_the_pattern_records_nothing(self) -> None:
         # Going in on a Wednesday was never news.
@@ -156,7 +156,7 @@ class TestAFourthOfficeDay:
         # What the fourth Office Day does to the sweaters is
         # `test_resolution.py`'s business; that it answers at all is
         # this one's.
-        response = answer(_with(SAT29, DayType.OFFICE), SAT29)
+        response = answer(_with(SAT29, DayType.OFFICE), SAT29, {})
         assert response.day_type is DayType.OFFICE
         assert response.outfit.shirt == "striped"
 

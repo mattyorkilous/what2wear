@@ -66,5 +66,5 @@ SEQUENCE = [
 def test_the_worked_calendar(
     on: date, day_type: DayType, outfit: Outfit
 ) -> None:
-    response = answer(get_default_state(TODAY), on)
+    response = answer(get_default_state(TODAY), on, {})
     assert (response.day_type, response.outfit) == (day_type, outfit)

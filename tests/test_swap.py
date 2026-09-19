@@ -24,7 +24,9 @@ def test_two_shirts_sharing_pants_trade_labels() -> None:
     # Position 0 is Monday's and Position 3 the Monday after, and the
     # names change hands rather than the Positions.
     told = _swapped(DayType.OFFICE, "white", "striped")
-    assert [answer(told, on).outfit.shirt for on in (MON24, MON31)] == [
+    assert [
+        answer(told, on, {}).outfit.shirt for on in (MON24, MON31)
+    ] == [
         "striped",
         "white",
     ]
@@ -50,5 +52,5 @@ class TestARefusedSwap:
 
 
 def _but_the_shirt(state: State, on: date) -> object:
-    response = answer(state, on)
+    response = answer(state, on, {})
     return replace(response, outfit=replace(response.outfit, shirt=""))

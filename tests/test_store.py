@@ -96,7 +96,7 @@ class TestTheLabels:
         )
         assert (
             answer(
-                read_state(_path(tmp_path), TODAY), TODAY
+                read_state(_path(tmp_path), TODAY), TODAY, {}
             ).outfit.pants
             == "navy"
         )
@@ -152,8 +152,8 @@ class TestTheFirstWritePinsTheAnchors:
         # Asked today about the Wednesday, and asked on the Wednesday
         # about the Wednesday, with nothing recorded in between.
         write_state(_path(tmp_path), get_default_state(TODAY))
-        looked = answer(read_state(_path(tmp_path), TODAY), WED26)
-        arrived = answer(read_state(_path(tmp_path), WED26), WED26)
+        looked = answer(read_state(_path(tmp_path), TODAY), WED26, {})
+        arrived = answer(read_state(_path(tmp_path), WED26), WED26, {})
         assert looked == arrived
 
 
