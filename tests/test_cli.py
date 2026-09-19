@@ -1,10 +1,17 @@
 from datetime import UTC, date, datetime, timedelta
+from functools import partial
 from pathlib import Path
 
 import pytest
 
-from what2wear.cli import run
-from what2wear.wardrobe import DEFAULT_OFFICE_WEEKDAYS
+from what2wear import cli
+from what2wear.wardrobe import (
+    DEFAULT_COLD_THRESHOLD,
+    DEFAULT_OFFICE_WEEKDAYS,
+)
+
+# No forecast, so no test here touches the network.
+run = partial(cli.run, fetch_weather=dict)
 
 MON, SAT = 0, 5
 LINES = ("shirt", "pants", "sweater", "shoes")
@@ -69,6 +76,32 @@ def test_an_unavoidable_repeat_is_called_out(
     # and their Fallbacks cannot cover however the Week is walked.
     assert _run("go-in", _next(SAT), tmp_path) == 0
     assert "already worn this week" in capsys.readouterr().out
+
+
+class TestOuterwear:
+    def test_a_cold_day_names_its_sweater(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        _run_in(DEFAULT_COLD_THRESHOLD - 10, tmp_path)
+        assert "if it's cold" not in _get_sweater_line(
+            capsys.readouterr().out
+        )
+
+    def test_a_warm_day_prints_no_sweater_line(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        _run_in(DEFAULT_COLD_THRESHOLD, tmp_path)
+        out = capsys.readouterr().out
+        assert "  shoes" in out
+        assert "  sweater" not in out
+
+    def test_an_unknown_day_names_it_if_its_cold(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        assert run([], state_dir=tmp_path) == 0
+        assert _get_sweater_line(capsys.readouterr().out).endswith(
+            "if it's cold"
+        )
 
 
 def test_a_malformed_date_is_rejected(tmp_path: Path) -> None:
@@ -410,6 +443,25 @@ def _reset(shirt: str, on: date, state_dir: Path) -> int:
 
 def _ask(on: date, state_dir: Path) -> int:
     return run(["--on", on.isoformat()], state_dir=state_dir)
+
+
+def _run_in(high: float, state_dir: Path) -> None:
+    assert (
+        cli.run(
+            [],
+            state_dir=state_dir,
+            fetch_weather=lambda: {_today(): high},
+        )
+        == 0
+    )
+
+
+def _get_sweater_line(out: str) -> str:
+    return next(
+        line
+        for line in out.splitlines()
+        if line.startswith("  sweater")
+    )
 
 
 def _state(state_dir: Path) -> Path:

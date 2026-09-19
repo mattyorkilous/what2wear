@@ -2,7 +2,7 @@
 
 import argparse
 import sys
-from collections.abc import Sequence
+from collections.abc import Callable, Mapping, Sequence
 from datetime import UTC, date, datetime
 from functools import partial
 from pathlib import Path
@@ -18,6 +18,7 @@ from what2wear.core import (
     swap,
 )
 from what2wear.errors import What2wearError
+from what2wear.forecast import fetch_forecast
 from what2wear.model import (
     DayType,
     Response,
@@ -34,15 +35,25 @@ def main() -> int:
     Returns:
         The process exit code.
     """
-    return run(state_dir=user_config_path("what2wear"))
+    return run(
+        state_dir=user_config_path("what2wear"),
+        fetch_weather=fetch_forecast,
+    )
 
 
-def run(argv: Sequence[str] | None = None, *, state_dir: Path) -> int:
+def run(
+    argv: Sequence[str] | None = None,
+    *,
+    state_dir: Path,
+    fetch_weather: Callable[[], Mapping[date, float]],
+) -> int:
     """Run the CLI over the given arguments.
 
     Args:
         argv: The arguments to parse, or None to read `sys.argv`.
         state_dir: The directory holding the state file.
+        fetch_weather: Fetches the forecast high for each date it
+            reaches, or nothing if it cannot.
 
     Returns:
         The process exit code: 0, or 2 if the command failed.
@@ -59,7 +70,8 @@ def run(argv: Sequence[str] | None = None, *, state_dir: Path) -> int:
         changed = updated_state != state
         if changed:
             write_state(path, updated_state)
-        response = answer(updated_state, args.on)
+        weather = fetch_weather()
+        response = answer(updated_state, args.on, weather)
     except What2wearError as error:
         print(error, file=sys.stderr)
         return 2
@@ -267,11 +279,23 @@ def _render(
             f"{response.on:%a %d %b %Y} - {response.day_type} day",
             f"  shirt    {response.outfit.shirt}",
             f"  pants    {response.outfit.pants}",
-            f"  sweater  {response.outfit.sweater}",
+            *_get_sweater_lines(response),
             f"  shoes    {response.outfit.shoes}",
             *_get_notes(response, message, today, changed=changed),
         ]
     )
+
+
+def _get_sweater_lines(response: Response) -> tuple[str, ...]:
+    match response.cold:
+        case True:
+            return (f"  sweater  {response.outfit.sweater}",)
+        case False:
+            return ()
+        case None:
+            return (
+                f"  sweater  {response.outfit.sweater}, if it's cold",
+            )
 
 
 def _get_notes(

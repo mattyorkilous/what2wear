@@ -15,6 +15,8 @@ from what2wear.model import (
 
 MON, WED, FRI = 0, 2, 4
 DEFAULT_OFFICE_WEEKDAYS = frozenset({MON, WED, FRI})
+DEFAULT_COLD_THRESHOLD = 50  # degrees Fahrenheit
+LATITUDE, LONGITUDE = 38.9, -77.04 # Washington, DC.
 
 
 def get_default_state(today: date) -> State:

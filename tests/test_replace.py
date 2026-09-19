@@ -23,7 +23,7 @@ def _replaced(garment: str, label: str) -> State:
 
 def test_a_replaced_garment_is_named_by_its_new_label() -> None:
     told = _replaced("office.shirt.white", "cream")
-    assert answer(told, MON24).outfit.shirt == "cream"
+    assert answer(told, MON24, {}).outfit.shirt == "cream"
 
 
 def test_a_replace_moves_no_rotation() -> None:
@@ -31,7 +31,8 @@ def test_a_replace_moves_no_rotation() -> None:
     # where they were, so nothing followed the Label.
     told = _replaced("office.shirt.white", "cream")
     assert [
-        answer(told, on).outfit.shirt for on in (MON24, WED26, FRI28)
+        answer(told, on, {}).outfit.shirt
+        for on in (MON24, WED26, FRI28)
     ] == ["cream", "black", "lblue"]
 
 
@@ -40,14 +41,16 @@ def test_a_garment_is_replaced_again_by_its_new_label() -> None:
     # is the whole of what the wearer has to go on.
     once = _replaced("home.shirt.white", "cream")
     twice = replace_(once, "home.shirt.cream", "ecru")
-    assert answer(twice, SAT22).outfit.shirt == "ecru"
+    assert answer(twice, SAT22, {}).outfit.shirt == "ecru"
 
 
 def test_home_shoes_two_pants_rows_call_for_change_once() -> None:
     # Saturday wears blue pants and Tuesday tan, and the black shoes
     # are one pair worn with either.
     told = _replaced("home.shoes.black", "oxblood")
-    assert [answer(told, on).outfit.shoes for on in (SAT22, TUE25)] == [
+    assert [
+        answer(told, on, {}).outfit.shoes for on in (SAT22, TUE25)
+    ] == [
         "oxblood",
         "oxblood",
     ]
@@ -56,7 +59,9 @@ def test_home_shoes_two_pants_rows_call_for_change_once() -> None:
 def test_replacing_pants_changes_them_in_both_closets() -> None:
     # One set of trousers, both Closets wearing it.
     told = _replaced("pants.blue", "navy")
-    assert [answer(told, on).outfit.pants for on in (SAT22, MON24)] == [
+    assert [
+        answer(told, on, {}).outfit.pants for on in (SAT22, MON24)
+    ] == [
         "navy",
         "navy",
     ]
@@ -66,7 +71,7 @@ def test_the_same_label_in_the_two_closets_stays_legal() -> None:
     # The home Closet already has a yellow sweater, and the office
     # one is a different garment.
     told = _replaced("office.sweater.beige", "yellow")
-    assert answer(told, MON24).outfit.sweater == "yellow"
+    assert answer(told, MON24, {}).outfit.sweater == "yellow"
 
 
 class TestARefusedReplace:

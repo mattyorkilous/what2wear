@@ -36,21 +36,33 @@ class Anchor:
 
 @dataclass(frozen=True)
 class Response:
-    """The answer for one date."""
+    """The answer for one date.
+
+    Attributes:
+        on: The date answered for.
+        day_type: The kind of day it is.
+        outfit: What to wear on it.
+        unavoidable_repeat: Whether its sweater was already worn that
+            week.
+        cold: Whether it is cold enough for the outfit's sweater, or
+            None if its weather is not known. A warm day names no
+            sweater; an unknown one names it, to be worn if it's cold.
+    """
 
     on: date
     day_type: DayType
     outfit: Outfit
     unavoidable_repeat: bool = False
+    cold: bool | None = None
 
 
 @dataclass(frozen=True)
 class Outfit:
-    """The four garments worn on a day."""
+    """The garments worn on a day, the sweater only if it's cold."""
 
     shirt: str
     pants: str
-    sweater: str
+    sweater: str | None
     shoes: str
 
 

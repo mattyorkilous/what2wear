@@ -104,7 +104,7 @@ class TestDatesBehindTheOneAsked:
         state = replace(
             get_default_state(TODAY), overrides={MON24: DayType.HOME}
         )
-        assert answer(state, WED26).outfit.shirt == "white"
+        assert answer(state, WED26, {}).outfit.shirt == "white"
 
     def test_the_week_walk_still_resolves_earlier_office_days(
         self,
@@ -118,4 +118,4 @@ class TestDatesBehindTheOneAsked:
 
 
 def _on(day: date) -> Response:
-    return answer(get_default_state(TODAY), day)
+    return answer(get_default_state(TODAY), day, {})
