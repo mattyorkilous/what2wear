@@ -14,7 +14,7 @@ from what2wear.wardrobe import (
 run = partial(cli.run, fetch_weather=dict)
 
 MON, SAT = 0, 5
-LINES = ("shirt", "pants", "sweater", "shoes")
+OUTERWEAR = ("  sweater", "  jacket")
 
 
 def test_a_bare_invocation_prints_todays_day_and_outfit(
@@ -24,9 +24,11 @@ def test_a_bare_invocation_prints_todays_day_and_outfit(
     out = capsys.readouterr().out
     assert f"{_today():%a %d %b %Y}" in out
     assert " day" in out.splitlines()[0]
-    assert [line.split()[0] for line in out.splitlines()[1:5]] == list(
-        LINES
+    shirt, pants, outerwear, shoes = (
+        line.split()[0] for line in out.splitlines()[1:5]
     )
+    assert (shirt, pants, shoes) == ("shirt", "pants", "shoes")
+    assert outerwear in {"sweater", "jacket"}
 
 
 def test_a_fresh_installation_answers_and_leaves_nothing_behind(
@@ -79,29 +81,50 @@ def test_an_unavoidable_repeat_is_called_out(
 
 
 class TestOuterwear:
-    def test_a_cold_day_names_its_sweater(
+    def test_a_cold_day_names_its_outerwear(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
         _run_in(DEFAULT_COLD_THRESHOLD - 10, tmp_path)
-        assert "if it's cold" not in _get_sweater_line(
+        assert "if it's cold" not in _get_outerwear_line(
             capsys.readouterr().out
         )
 
-    def test_a_warm_day_prints_no_sweater_line(
+    def test_a_warm_day_prints_no_outerwear_line(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
         _run_in(DEFAULT_COLD_THRESHOLD, tmp_path)
         out = capsys.readouterr().out
         assert "  shoes" in out
-        assert "  sweater" not in out
+        assert not any(kind in out for kind in OUTERWEAR)
 
     def test_an_unknown_day_names_it_if_its_cold(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
         assert run([], state_dir=tmp_path) == 0
-        assert _get_sweater_line(capsys.readouterr().out).endswith(
+        assert _get_outerwear_line(capsys.readouterr().out).endswith(
             "if it's cold"
         )
+
+    def test_a_home_jacket_day_prints_a_jacket_line(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        # Of two Home Days in a row, one is a jacket day.
+        saturday = _next(SAT)
+        assert _ask(saturday, tmp_path) == 0
+        assert _ask(saturday + timedelta(days=1), tmp_path) == 0
+        assert "  jacket   " in capsys.readouterr().out
+
+    def test_resolving_it_writes_nothing(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        assert _run("reset-outerwear", None, tmp_path) == 0
+        written = _state(tmp_path).read_text()
+        _run_in(DEFAULT_COLD_THRESHOLD - 10, tmp_path)
+        capsys.readouterr()
+        assert _state(tmp_path).read_text() == written
+        assert [path.name for path in tmp_path.iterdir()] == [
+            "state.json"
+        ]
 
 
 def test_a_malformed_date_is_rejected(tmp_path: Path) -> None:
@@ -255,6 +278,40 @@ class TestRecordingAReset:
         assert "no home shirt" in capsys.readouterr().err
 
 
+class TestRecordingAnOuterwearReset:
+    def test_it_says_what_it_did(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        assert _run("reset-outerwear", None, tmp_path) == 0
+        out = capsys.readouterr().out
+        assert "recorded" in out
+        assert "outerwear rotation" in out
+
+    @pytest.mark.parametrize(
+        "extra", [["jacket"], ["--on", "2026-09-22"]]
+    )
+    def test_it_takes_no_argument_and_no_date(
+        self, tmp_path: Path, extra: list[str]
+    ) -> None:
+        # Over two kinds, moving on by one and switching to the other
+        # are the same, so there is nothing to name, and it always
+        # moves on from today.
+        with pytest.raises(SystemExit):
+            run(["reset-outerwear", *extra], state_dir=tmp_path)
+
+    def test_it_switches_the_next_home_day(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        saturday = _next(SAT) + timedelta(days=7)
+        assert _ask(saturday, tmp_path) == 0
+        before = _get_outerwear_line(capsys.readouterr().out)
+        assert _run("reset-outerwear", None, tmp_path) == 0
+        capsys.readouterr()
+        assert _ask(saturday, tmp_path) == 0
+        after = _get_outerwear_line(capsys.readouterr().out)
+        assert before.split()[0] != after.split()[0]
+
+
 class TestShowingTheCloset:
     def test_it_lists_both_closets_shirts_in_rotation_order(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
@@ -326,6 +383,14 @@ class TestShowingTheCloset:
         marked = _marked(capsys.readouterr().out, _todays_closet())
         assert marked == ["dblue"]
         assert before != marked
+
+    def test_it_lists_the_jackets_home_alone_has(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        assert run(["show-closet"], state_dir=tmp_path) == 0
+        out = capsys.readouterr().out
+        assert "home.jacket.brown" in out
+        assert "office.jacket" not in out
 
     def test_it_lists_the_pants_both_closets_share_once(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
@@ -456,11 +521,9 @@ def _run_in(high: float, state_dir: Path) -> None:
     )
 
 
-def _get_sweater_line(out: str) -> str:
+def _get_outerwear_line(out: str) -> str:
     return next(
-        line
-        for line in out.splitlines()
-        if line.startswith("  sweater")
+        line for line in out.splitlines() if line.startswith(OUTERWEAR)
     )
 
 

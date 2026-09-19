@@ -30,16 +30,16 @@ specified this against the decision log and the hand-authored anchor.
 
 **Blocked by:** 05 — Weather and office Outerwear
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Consecutive cold Home Days alternate jacket, sweater, jacket
-- [ ] A warm Home Day names no Outerwear and still spends its turn, so the days either side land on the same kind — asserted, not worked around
-- [ ] Office sweaters interleaved through the same Weeks have no effect on the home alternation
-- [ ] The Home Outerwear Rotation counts from its own Anchor, which arrives in the State file in this ticket; a State written before it reads as the given Anchor
-- [ ] Nothing is written when Outerwear resolves, and there is no second file
-- [ ] Look-ahead to a Home Day past the forecast horizon names the garment and hedges only the condition, per 05
-- [ ] `reset-outerwear` takes no argument and shifts every subsequent Home Day's Outerwear
-- [ ] `reset-outerwear` leaves both Shirt Anchors untouched, and a Shirt `reset` leaves the Outerwear Anchor untouched
-- [ ] `reset-outerwear` issued on an Office Day is accepted and takes effect on the next Home Day
-- [ ] Home has no no-repeat rule
-- [ ] The README describes the home alternation and the full command surface
+- [x] Consecutive cold Home Days alternate jacket, sweater, jacket
+- [x] A warm Home Day names no Outerwear and still spends its turn, so the days either side land on the same kind — asserted, not worked around
+- [x] Office sweaters interleaved through the same Weeks have no effect on the home alternation
+- [x] The Home Outerwear Rotation counts from its own Anchor, which arrives in the State file in this ticket; a State written before it reads as the given Anchor
+- [x] Nothing is written when Outerwear resolves, and there is no second file
+- [x] Look-ahead to a Home Day past the forecast horizon names the garment and hedges only the condition, per 05
+- [x] `reset-outerwear` takes no argument and shifts every subsequent Home Day's Outerwear
+- [x] `reset-outerwear` leaves both Shirt Anchors untouched, and a Shirt `reset` leaves the Outerwear Anchor untouched
+- [x] `reset-outerwear` issued on an Office Day is accepted and takes effect on the next Home Day
+- [x] Home has no no-repeat rule
+- [x] The README describes the home alternation and the full command surface

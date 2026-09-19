@@ -2,9 +2,14 @@ from datetime import date
 
 import pytest
 
-from what2wear.core import answer, record_override, reset
+from what2wear.core import (
+    answer,
+    record_override,
+    reset,
+    reset_outerwear,
+)
 from what2wear.errors import What2wearError
-from what2wear.model import Anchor, DayType, Outfit, State
+from what2wear.model import Anchor, DayType, Outfit, Rotation, State
 from what2wear.wardrobe import get_default_state
 
 TODAY = date(2026, 8, 22)
@@ -20,6 +25,8 @@ MON31, WED_SEP2, FRI_SEP4 = (
     date(2026, 9, 4),
 )
 
+HOME_DAYS = (TUE25, THU27, SAT29, date(2026, 8, 30))
+
 GIVEN = get_default_state(TODAY)
 
 
@@ -29,9 +36,9 @@ class TestANamedReset:
 
     def test_it_anchors_today_at_that_shirts_position(self) -> None:
         # dblue sits at 4, whatever the day stood at before.
-        assert _reset(WED26, "dblue").anchors[DayType.OFFICE] == Anchor(
-            WED26, 4
-        )
+        assert _reset(WED26, "dblue").anchors[
+            Rotation.OFFICE
+        ] == Anchor(WED26, 4)
 
     def test_a_shirt_already_behind_is_simply_landed_on(self) -> None:
         # Monday's white is behind Wednesday's black, and naming it
@@ -42,7 +49,7 @@ class TestANamedReset:
         # The Anchor moves and the Rotation does not, which is what
         # "the Anchor states a Position" has to mean.
         state = _reset(WED26, "black")
-        assert state.anchors[DayType.OFFICE] == Anchor(WED26, 1)
+        assert state.anchors[Rotation.OFFICE] == Anchor(WED26, 1)
         assert all(
             answer(state, day, {}) == answer(GIVEN, day, {})
             for day in (WED26, FRI28, MON31, FRI_SEP4)
@@ -70,20 +77,20 @@ class TestTheClosetIsInferredFromTheDay:
         state = reset(stayed_home, "beige", WED26)
         assert _shirt(state, WED26) == "beige"
         assert (
-            state.anchors[DayType.OFFICE]
-            == GIVEN.anchors[DayType.OFFICE]
+            state.anchors[Rotation.OFFICE]
+            == GIVEN.anchors[Rotation.OFFICE]
         )
 
     def test_the_other_closet_is_left_exactly_where_it_stood(
         self,
     ) -> None:
         assert (
-            _reset(WED26, "lblue").anchors[DayType.HOME]
-            == GIVEN.anchors[DayType.HOME]
+            _reset(WED26, "lblue").anchors[Rotation.HOME]
+            == GIVEN.anchors[Rotation.HOME]
         )
         assert (
-            _reset(TUE25, "black").anchors[DayType.OFFICE]
-            == GIVEN.anchors[DayType.OFFICE]
+            _reset(TUE25, "black").anchors[Rotation.OFFICE]
+            == GIVEN.anchors[Rotation.OFFICE]
         )
 
 
@@ -144,9 +151,63 @@ class TestInterleavedWithOverrides:
         assert _shirt(state, MON31) == "striped"
 
 
+class TestResettingTheOuterwear:
+    def test_every_later_home_day_takes_the_other_kind(self) -> None:
+        state = reset_outerwear(GIVEN, TUE25)
+        assert [_get_kind(state, day) for day in HOME_DAYS] == [
+            "sweater",
+            "jacket",
+            "sweater",
+            "jacket",
+        ]
+
+    def test_given_those_days_alternate_the_other_way(self) -> None:
+        assert [_get_kind(GIVEN, day) for day in HOME_DAYS] == [
+            "jacket",
+            "sweater",
+            "jacket",
+            "sweater",
+        ]
+
+    def test_it_leaves_both_shirt_anchors_alone(self) -> None:
+        state = reset_outerwear(GIVEN, TUE25)
+        assert all(
+            state.anchors[rotation] == GIVEN.anchors[rotation]
+            for rotation in (Rotation.OFFICE, Rotation.HOME)
+        )
+
+    def test_a_shirt_reset_leaves_the_outerwear_anchor_alone(
+        self,
+    ) -> None:
+        assert (
+            _reset(TUE25, "beige").anchors[Rotation.OUTERWEAR]
+            == GIVEN.anchors[Rotation.OUTERWEAR]
+        )
+
+    def test_on_an_office_day_it_lands_on_the_next_home_day(
+        self,
+    ) -> None:
+        state = reset_outerwear(GIVEN, WED26)
+        assert _get_kind(state, THU27) == "jacket"
+        assert _shirt(state, WED26) == _shirt(GIVEN, WED26)
+
+    def test_twice_is_where_it_started(self) -> None:
+        state = reset_outerwear(reset_outerwear(GIVEN, TUE25), TUE25)
+        assert all(
+            answer(state, day, {}) == answer(GIVEN, day, {})
+            for day in HOME_DAYS
+        )
+
+
 def _reset(today: date, shirt: str) -> State:
     return reset(GIVEN, shirt, today)
 
 
 def _shirt(state: State, on: date) -> str:
     return answer(state, on, {}).outfit.shirt
+
+
+def _get_kind(state: State, on: date) -> str:
+    return (
+        "jacket" if answer(state, on, {}).outfit.jacket else "sweater"
+    )

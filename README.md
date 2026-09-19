@@ -2,9 +2,9 @@
 
 Tells you what to wear today, and what you'll wear on any other day.
 
-It walks a fixed list of shirts — one closet for the office, one for home — advancing each rotation only on days of its own kind. Pants come welded to the shirt; shoes and sweaters follow from the pants. At the office it guarantees no sweater and no pair of shoes repeats within a Monday-start week. When it's cold you wear the sweater your pants call for. At home it will alternate that with a jacket, so the same kind of outerwear never comes twice running.
+It walks a fixed list of shirts — one closet for the office, one for home — advancing each rotation only on days of its own kind. Pants come welded to the shirt; shoes and sweaters follow from the pants. At the office it guarantees no sweater and no pair of shoes repeats within a Monday-start week. When it's cold you wear the outerwear your pants call for — at the office their sweater, at home their sweater or their jacket, whichever kind the day's turn says.
 
-> **Status: the given wardrobe.** There is nothing to install and nothing to configure — the wardrobe lives in source, so a fresh checkout answers straight away. `what2wear` and `what2wear --on <date>` give you the shirt, its pants, its shoes, whether it's an office day, and whether today's forecast calls for the sweater; a past date answers too, with a note that it says where the rotation stands now rather than what was worn. `stay-home` and `go-in` switch a date's side, and `reset` moves the shirt rotation to a shirt you name. `replace` gives a garment a new label, `swap` reorders two shirts that share pants, and `show-closet` lists everything with the name to copy into either. Every command that acts on a date takes today unless `--on` says otherwise. Everything it's been told lives in one state file it owns. Home outerwear still names the pants row's sweater; the jacket alternation is still ahead.
+> **Status: the given wardrobe.** There is nothing to install and nothing to configure — the wardrobe lives in source, so a fresh checkout answers straight away. `what2wear` and `what2wear --on <date>` give you the shirt, its pants, its shoes, whether it's an office day, and whether today's forecast calls for its sweater or jacket; a past date answers too, with a note that it says where the rotation stands now rather than what was worn. `stay-home` and `go-in` switch a date's side, `reset` moves the shirt rotation to a shirt you name, and `reset-outerwear` moves the home outerwear rotation on to the other kind. `replace` gives a garment a new label, `swap` reorders two shirts that share pants, and `show-closet` lists everything with the name to copy into either. Every command that acts on a date takes today unless `--on` says otherwise. Everything it's been told lives in one state file it owns.
 
 ## How it works
 
@@ -24,15 +24,19 @@ Home outerwear alternates on the calendar too. Every home day is a jacket day or
 
 ## Outerwear and the weather
 
-Below 50°F you wear the sweater — the one your pants call for, or the week's fallback when that one is taken. At or above it, no sweater at all, and no sweater line is printed. The forecast decides only *whether*: which sweater a date calls for is worked out without it, so a warm Monday still spends its sweater for the week, and a date too far out for the forecast still names one:
+Below 50°F you wear outerwear; at or above it, none, and no outerwear line is printed. The forecast decides only *whether*: which garment a date calls for is worked out without it, so a date too far out for the forecast still names one:
 
 ```
   sweater  beige                  # cold: wear it
-                                  # warm: no sweater line
+                                  # warm: no outerwear line
   sweater  beige, if it's cold    # no forecast for that date yet
 ```
 
-The last is also what you get when the forecast can't be fetched at all. A network problem never stops the tool answering — it just can't say yet whether you'll want the sweater.
+The last is also what you get when the forecast can't be fetched at all. A network problem never stops the tool answering — it just can't say yet whether you'll want it.
+
+At the office it is always a sweater — the one your pants call for, or the week's fallback when that one is taken. A warm Monday still spends its sweater for the week.
+
+At home each day is a jacket day or a sweater day, taking turns across home days, and the pants row supplies the garment: the blue pants' jacket is brown, the tan and black pants share one black jacket. The turn is spent whatever the weather, so cold, mild, cold gives jacket, nothing, jacket — the mild day took the sweater's turn. Office days don't take a turn, and home has no rule against wearing the same thing twice in a week. When the turn has fallen out of step with what you actually wore, `reset-outerwear` moves it on by one from today; typed on an office day it lands on the next home day. It takes no `--on`: the turn is only ever put right from where you stand.
 
 Forecasts are daily highs from [Open-Meteo](https://open-meteo.com), which needs no API key, for the coordinates in `wardrobe.py`. It covers the next sixteen days. Only the forecast endpoint is ever called — no historical archive — so a past date hedges the same way.
 
@@ -47,6 +51,7 @@ what2wear stay-home                  # this office day is now a home day
 what2wear go-in                      # this home day is now an office day
 what2wear reset lblue                # move the rotation to that shirt, today
 what2wear reset lblue --on 2026-09-07  # --on goes after the command, and defaults to today
+what2wear reset-outerwear            # home jacket days become sweater days, and back
 what2wear show-closet                # every garment, how to name it, and what's due
 what2wear replace office.sweater.beige oatmeal   # this one is called that now
 what2wear swap office white striped  # two shirts sharing pants trade labels
@@ -72,7 +77,7 @@ Every string in `wardrobe.py` names a garment rather than stating what it is cal
 
 ## The state is one file the tool owns
 
-Everything it's been told — what every garment is called, the two anchors and the day type overrides — lives in `state.json` in your platform's user config directory (`~/Library/Application Support/what2wear` on macOS, `~/.config/what2wear` on Linux). Nobody authors it and there is nothing in it to edit; it is readable if you open it, but you are not expected to. There is no flag, environment variable or working-directory fallback to point it elsewhere: where it lives is a property of the installation, not of an invocation. The directory arrives with the first record; until then an installation has no files at all.
+Everything it's been told — what every garment is called, the three anchors (one per shirt rotation, one for home outerwear) and the day type overrides — lives in `state.json` in your platform's user config directory (`~/Library/Application Support/what2wear` on macOS, `~/.config/what2wear` on Linux). Nobody authors it and there is nothing in it to edit; it is readable if you open it, but you are not expected to. There is no flag, environment variable or working-directory fallback to point it elsewhere: where it lives is a property of the installation, not of an invocation. The directory arrives with the first record; until then an installation has no files at all.
 
 It is rewritten whole rather than appended to, so it is written to a temporary file beside it and moved into place atomically — a recording that fails partway leaves the previous state intact. See [ADR-0006](docs/adr/0006-the-wardrobe-is-source-the-state-is-one-file-the-tool-owns.md).
 
@@ -103,11 +108,12 @@ The other records and never renders anything — one function per thing that can
 ```
 record_override(state, on, day_type) -> State
 reset(state, shirt, on)              -> State
+reset_outerwear(state, today)        -> State
 replace_(state, garment, label)      -> State
 swap(state, closet, first, second)   -> State
 ```
 
-That is four functions rather than a single `apply` over a union of command objects, because nothing here queues, logs or replays a command — there was nothing for a command object to be. The shell picks one of them for what was typed and calls it (`_choose_update_function(args)(state)`), so trading the CLI for another interface trades the parser, the chooser and the renderers, and moves nothing in core. See [ADR-0009](docs/adr/0009-the-recording-seam-is-four-functions-not-a-command-union.md).
+That is five functions rather than a single `apply` over a union of command objects, because nothing here queues, logs or replays a command — there was nothing for a command object to be. The shell picks one of them for what was typed and calls it (`_choose_update_function(args)(state)`), so trading the CLI for another interface trades the parser, the chooser and the renderers, and moves nothing in core. See [ADR-0009](docs/adr/0009-the-recording-seam-is-four-functions-not-a-command-union.md).
 
 The shell composes the two seams, so a command that records shows its result for free. It only reads and writes the state file, reads the clock, fetches the forecast and prints. Those two seams are the whole test surface — no mocks, no files touched, no clock reads outside the shell's own tests. The wardrobe under test is the given one, so there is no fixture that can drift from what ships.
 

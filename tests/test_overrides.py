@@ -120,13 +120,7 @@ class TestRecordingOne:
 
     def test_it_moves_no_anchor(self) -> None:
         state = _applied(WED26, DayType.HOME)
-        assert (
-            state.anchors[DayType.OFFICE],
-            state.anchors[DayType.HOME],
-        ) == (
-            GIVEN.anchors[DayType.OFFICE],
-            GIVEN.anchors[DayType.HOME],
-        )
+        assert state.anchors == GIVEN.anchors
 
     def test_taking_one_back_leaves_the_state_as_it_was(self) -> None:
         # Wed is an Office Day already, so going back to going in is

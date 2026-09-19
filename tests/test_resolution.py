@@ -48,16 +48,15 @@ WEEK_SHAPES = (
     ),
 )
 
-# One Monday-start Week of Home Days. Sunday wears blue pants again,
-# so its yellow sweater and black shoes repeat Tuesday's inside the
-# Week -- at the office that would force a Fallback; at home it is
-# simply what the row says, which is the no-no-repeat rule in the only
-# form it can be observed.
+# One Monday-start Week of Home Days, alternating jacket and sweater.
+# Sunday wears blue pants again, so its black shoes repeat Tuesday's
+# inside the Week -- at the office that would force a Fallback; at
+# home it is simply what the row says.
 HOME_WEEK = (
-    (date(2026, 9, 1), "beige", "blue", "yellow", "black"),
-    (date(2026, 9, 3), "lblue", "black", "beige", "white"),
-    (date(2026, 9, 5), "lgreen", "tan", "blue", "black"),
-    (date(2026, 9, 6), "white", "blue", "yellow", "black"),
+    (date(2026, 9, 1), Outfit("beige", "blue", None, "black", "brown")),
+    (date(2026, 9, 3), Outfit("lblue", "black", "beige", "white")),
+    (date(2026, 9, 5), Outfit("lgreen", "tan", None, "black", "black")),
+    (date(2026, 9, 6), Outfit("white", "blue", "yellow", "black")),
 )
 
 
@@ -148,20 +147,11 @@ class TestFourOfficeDays:
 
 
 class TestHome:
-    @pytest.mark.parametrize(
-        ("on", "shirt", "pants", "sweater", "shoes"), HOME_WEEK
-    )
-    def test_sweater_and_shoes_follow_the_pants(
-        self,
-        on: date,
-        shirt: str,
-        pants: str,
-        sweater: str,
-        shoes: str,
+    @pytest.mark.parametrize(("on", "outfit"), HOME_WEEK)
+    def test_outerwear_and_shoes_follow_the_pants(
+        self, on: date, outfit: Outfit
     ) -> None:
-        assert _outfit(on) == Outfit(
-            shirt=shirt, pants=pants, sweater=sweater, shoes=shoes
-        )
+        assert _outfit(on) == outfit
 
     def test_a_home_day_is_never_flagged_as_a_repeat(self) -> None:
         assert not any(

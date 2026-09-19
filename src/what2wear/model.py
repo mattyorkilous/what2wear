@@ -14,21 +14,21 @@ class State:
     """The recorded state.
 
     Attributes:
-        anchors: Where each rotation stood, keyed by day type.
+        anchors: Where each rotation stood.
         labels: Each garment's place in its closet, such as
             `office.shirt.0` or `pants.1`, mapped to the label the
             garment there has now.
         overrides: The day type recorded for a date, keyed by date.
     """
 
-    anchors: Mapping[DayType, Anchor]
+    anchors: Mapping[Rotation, Anchor]
     labels: Mapping[str, str]
     overrides: Mapping[date, DayType] = MappingProxyType({})
 
 
 @dataclass(frozen=True)
 class Anchor:
-    """The closet position the rotation stood at on `on`."""
+    """The position a rotation stood at on `on`."""
 
     on: date
     position: int
@@ -44,9 +44,10 @@ class Response:
         outfit: What to wear on it.
         unavoidable_repeat: Whether its sweater was already worn that
             week.
-        cold: Whether it is cold enough for the outfit's sweater, or
-            None if its weather is not known. A warm day names no
-            sweater; an unknown one names it, to be worn if it's cold.
+        cold: Whether it is cold enough for the outfit's outerwear,
+            or None if its weather is not known. A warm day names no
+            outerwear; an unknown one names it, to be worn if it's
+            cold.
     """
 
     on: date
@@ -58,12 +59,16 @@ class Response:
 
 @dataclass(frozen=True)
 class Outfit:
-    """The garments worn on a day, the sweater only if it's cold."""
+    """The garments worn on a day, the outerwear only if it's cold.
+
+    At most one of `sweater` and `jacket` is named.
+    """
 
     shirt: str
     pants: str
     sweater: str | None
     shoes: str
+    jacket: str | None = None
 
 
 @dataclass(frozen=True)
@@ -91,12 +96,15 @@ class PantsRow:
         sweater: The sweater worn with them.
         shoes: The shoes worn with them.
         fallback: A second sweater, for when the first is taken.
+            Office rows only.
+        jacket: The jacket worn with them. Home rows only.
     """
 
     pants: str
     sweater: str
     shoes: str
     fallback: str | None = None
+    jacket: str | None = None
 
 
 class DayType(StrEnum):
@@ -104,3 +112,24 @@ class DayType(StrEnum):
 
     OFFICE = "office"
     HOME = "home"
+
+
+class Rotation(StrEnum):
+    """A rotation, named as the state file names its anchor.
+
+    A closet's shirt rotation shares its day type's value, so
+    `Rotation(day_type)` is that closet's.
+    """
+
+    OFFICE = "office"
+    HOME = "home"
+    OUTERWEAR = "outerwear"
+
+    @property
+    def day_type(self) -> DayType:
+        """The kind of day the rotation advances on."""
+        return (
+            DayType.HOME
+            if self is Rotation.OUTERWEAR
+            else DayType(self)
+        )

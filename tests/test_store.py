@@ -7,7 +7,7 @@ import pytest
 from what2wear import store
 from what2wear.core import answer, replace_
 from what2wear.errors import What2wearError
-from what2wear.model import Anchor, DayType, State
+from what2wear.model import Anchor, DayType, Rotation, State
 from what2wear.store import read_state, write_state
 from what2wear.wardrobe import build_default_labels, get_default_state
 
@@ -18,8 +18,9 @@ WED26 = date(2026, 8, 26)
 TOLD = State(
     labels=build_default_labels(),
     anchors={
-        DayType.OFFICE: Anchor(TODAY, 3),
-        DayType.HOME: Anchor(WED26, 7),
+        Rotation.OFFICE: Anchor(TODAY, 3),
+        Rotation.HOME: Anchor(WED26, 7),
+        Rotation.OUTERWEAR: Anchor(TOMORROW, 1),
     },
     overrides={WED26: DayType.HOME, TOMORROW: DayType.OFFICE},
 )
@@ -111,6 +112,28 @@ class TestTheLabels:
             read_state(_path(tmp_path), TODAY).labels
             == build_default_labels()
         )
+
+
+class TestTheOuterwearAnchor:
+    def test_it_is_written_beside_the_shirt_anchors(
+        self, tmp_path: Path
+    ) -> None:
+        write_state(_path(tmp_path), TOLD)
+        assert '"outerwear"' in _path(tmp_path).read_text()
+
+    def test_a_file_written_before_it_reads_as_the_given_one(
+        self, tmp_path: Path
+    ) -> None:
+        # So nothing has to be migrated: Position 0 on the home
+        # Anchor's date, which the file has already pinned -- today
+        # would move it with every read.
+        _path(tmp_path).write_text(_document("{}"))
+        assert [
+            read_state(_path(tmp_path), today).anchors[
+                Rotation.OUTERWEAR
+            ]
+            for today in (TODAY, WED26)
+        ] == [Anchor(TODAY, 0)] * 2
 
 
 class TestAMissingFile:
