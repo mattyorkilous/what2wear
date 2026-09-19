@@ -12,8 +12,8 @@ SEQUENCE = [
     (
         date(2026, 8, 29),
         DayType.HOME,
-        Outfit("purple", "black", "beige", "white"),
-    ),  # Sat
+        Outfit("purple", "black", None, "white", jacket="black"),
+    ),  # Sat -- a jacket day, and Sunday a sweater day
     (
         date(2026, 8, 30),
         DayType.HOME,
@@ -27,7 +27,7 @@ SEQUENCE = [
     (
         date(2026, 9, 1),
         DayType.HOME,
-        Outfit("beige", "blue", "yellow", "black"),
+        Outfit("beige", "blue", None, "black", jacket="brown"),
     ),
     (
         date(2026, 9, 2),
@@ -47,7 +47,7 @@ SEQUENCE = [
     (
         date(2026, 9, 5),
         DayType.HOME,
-        Outfit("lgreen", "tan", "blue", "black"),
+        Outfit("lgreen", "tan", None, "black", jacket="black"),
     ),  # Sat -- the end of the home closet
     (
         date(2026, 9, 6),

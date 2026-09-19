@@ -8,7 +8,7 @@ from types import MappingProxyType
 from typing import Any
 
 from what2wear.errors import What2wearError
-from what2wear.model import Anchor, DayType, State
+from what2wear.model import Anchor, DayType, Rotation, State
 from what2wear.wardrobe import (
     KEYS,
     build_default_labels,
@@ -69,11 +69,24 @@ def write_state(path: Path, state: State) -> None:
 
 
 def _parse_state(document: dict[str, Any]) -> State:
+    """Parse a state document.
+
+    A document written before the home outerwear rotation had an anchor
+    reads as position 0 on the home shirt anchor's date, which the file
+    has already pinned, so nothing has to be migrated.
+    """
+    records = {
+        Rotation.OUTERWEAR: {
+            **document["anchors"][Rotation.HOME],
+            "position": 0,
+        },
+        **document["anchors"],
+    }
     return State(
         anchors=MappingProxyType(
             {
-                day_type: _parse_anchor(document["anchors"][day_type])
-                for day_type in DayType
+                rotation: _parse_anchor(records[rotation])
+                for rotation in Rotation
             }
         ),
         labels=MappingProxyType(
@@ -104,11 +117,11 @@ def _get_document(state: State) -> dict[str, Any]:
     given_labels = build_default_labels()
     return {
         "anchors": {
-            day_type.value: {
+            rotation.value: {
                 "date": anchor.on.isoformat(),
                 "position": anchor.position,
             }
-            for day_type, anchor in sorted(state.anchors.items())
+            for rotation, anchor in sorted(state.anchors.items())
         },
         "labels": {
             key: label

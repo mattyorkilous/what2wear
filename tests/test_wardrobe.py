@@ -3,7 +3,7 @@ from datetime import date
 
 import pytest
 
-from what2wear.model import Closet, DayType
+from what2wear.model import Closet, DayType, Rotation
 from what2wear.wardrobe import CLOSETS, get_default_state
 
 OFFICE = CLOSETS[DayType.OFFICE]
@@ -20,7 +20,7 @@ def test_the_top_of_every_closet_is_white(closet: Closet) -> None:
     # What makes Position 0 the same promise in both Closets: a fresh
     # installation opens on white whichever kind of day it is.
     given = get_default_state(date(2026, 8, 22))
-    position = given.anchors[DayType.OFFICE].position
+    position = given.anchors[Rotation.OFFICE].position
     assert closet.shirts[position].garment == "white"
 
 

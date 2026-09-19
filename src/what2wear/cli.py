@@ -15,6 +15,7 @@ from what2wear.core import (
     record_override,
     replace_,
     reset,
+    reset_outerwear,
     swap,
 )
 from what2wear.errors import What2wearError
@@ -66,7 +67,7 @@ def run(
         if args.action == "show-closet":
             print(_render_wardrobe(state, today))
             return 0
-        updated_state = _choose_update_function(args)(state)
+        updated_state = _choose_update_function(args, today)(state)
         changed = updated_state != state
         if changed:
             write_state(path, updated_state)
@@ -105,6 +106,10 @@ def _get_parser(today: date) -> argparse.ArgumentParser:
     )
     reset_parser.add_argument(
         "shirt", metavar="SHIRT", help="the shirt to move to"
+    )
+    subparsers.add_parser(
+        "reset-outerwear",
+        help="move home outerwear on to the other kind",
     )
     replace_parser = subparsers.add_parser(
         "replace",
@@ -211,12 +216,13 @@ def _get_garment_line(
 
 
 def _choose_update_function(
-    args: argparse.Namespace,
+    args: argparse.Namespace, today: date
 ) -> UpdateFunction:
     """Return the core function that records what was typed.
 
     Args:
         args: The parsed arguments.
+        today: The date a command that takes no date acts on.
 
     Returns:
         The function recording it, or one that hands back the state it
@@ -235,6 +241,8 @@ def _choose_update_function(
             )
         case "reset":
             return partial(reset, shirt=args.shirt, on=args.on)
+        case "reset-outerwear":
+            return partial(reset_outerwear, today=today)
         case "replace":
             return partial(
                 replace_, garment=args.garment, label=args.label
@@ -261,6 +269,8 @@ def _get_message(args: argparse.Namespace) -> str:
             return f"{args.on} - {DayType.OFFICE} day"
         case "reset":
             return f"{args.on} - shirt rotation reset to {args.shirt}"
+        case "reset-outerwear":
+            return "home outerwear rotation reset"
         case "replace":
             return f"{args.garment} is {args.label}"
         case "swap":
@@ -279,23 +289,24 @@ def _render(
             f"{response.on:%a %d %b %Y} - {response.day_type} day",
             f"  shirt    {response.outfit.shirt}",
             f"  pants    {response.outfit.pants}",
-            *_get_sweater_lines(response),
+            *_get_outerwear_lines(response),
             f"  shoes    {response.outfit.shoes}",
             *_get_notes(response, message, today, changed=changed),
         ]
     )
 
 
-def _get_sweater_lines(response: Response) -> tuple[str, ...]:
-    match response.cold:
-        case True:
-            return (f"  sweater  {response.outfit.sweater}",)
-        case False:
-            return ()
-        case None:
-            return (
-                f"  sweater  {response.outfit.sweater}, if it's cold",
-            )
+def _get_outerwear_lines(response: Response) -> tuple[str, ...]:
+    outfit = response.outfit
+    hedge = ", if it's cold" if response.cold is None else ""
+    return tuple(
+        f"  {kind:<8} {label}{hedge}"
+        for kind, label in (
+            ("sweater", outfit.sweater),
+            ("jacket", outfit.jacket),
+        )
+        if label is not None
+    )
 
 
 def _get_notes(

@@ -13,6 +13,7 @@ from what2wear.model import (
     Outfit,
     PantsRow,
     Response,
+    Rotation,
     Shirt,
     State,
 )
@@ -20,6 +21,7 @@ from what2wear.wardrobe import (
     CLOSETS,
     DEFAULT_COLD_THRESHOLD,
     DEFAULT_OFFICE_WEEKDAYS,
+    HOME_OUTERWEAR,
     KEYS,
 )
 
@@ -65,12 +67,30 @@ def reset(state: State, shirt: str, on: date) -> State:
     """
     day_type = _get_day_type(state, on)
     position = _get_shirt_position(state, day_type, shirt)
-    return replace(
-        state,
-        anchors=MappingProxyType(
-            {**state.anchors, day_type: Anchor(on, position)}
-        ),
-    )
+    return _move_anchor(state, Rotation(day_type), Anchor(on, position))
+
+
+def reset_outerwear(state: State, today: date) -> State:
+    """Move the home outerwear rotation on by one from `today`.
+
+    Over two kinds of outerwear, moving on by one and switching to the
+    other are the same, so there is nothing to name. An office day
+    moves no home rotation, so a reset there lands on the next home
+    day.
+
+    Args:
+        state: The state to move the anchor in.
+        today: The date the rotation is moved at.
+
+    Returns:
+        The state with the outerwear anchor moved, and the shirt
+        anchors where they were.
+    """
+    rotation = Rotation.OUTERWEAR
+    position = (
+        _get_position(state, rotation, today) + 1
+    ) % _get_length(rotation)
+    return _move_anchor(state, rotation, Anchor(today, position))
 
 
 def replace_(state: State, garment: str, label: str) -> State:
@@ -194,6 +214,15 @@ def get_due_shirt(state: State, day_type: DayType, on: date) -> str:
     return _get_shirt(state, day_type, on).garment
 
 
+def _move_anchor(
+    state: State, rotation: Rotation, anchor: Anchor
+) -> State:
+    return replace(
+        state,
+        anchors=MappingProxyType({**state.anchors, rotation: anchor}),
+    )
+
+
 def _get_keys_by_label(state: State, scope: str) -> Mapping[str, str]:
     """Map each label in one closet and kind to the key under it."""
     return MappingProxyType(
@@ -282,13 +311,24 @@ def _resolve_office_day(
 
 
 def _get_shirt(state: State, day_type: DayType, on: date) -> Shirt:
-    return CLOSETS[day_type].shirts[_get_position(state, day_type, on)]
+    position = _get_position(state, Rotation(day_type), on)
+    return CLOSETS[day_type].shirts[position]
 
 
-def _get_position(state: State, day_type: DayType, on: date) -> int:
-    anchor = state.anchors[day_type]
-    steps = _count_days_of_type_between(state, day_type, anchor.on, on)
-    return (anchor.position + steps) % len(CLOSETS[day_type].shirts)
+def _get_position(state: State, rotation: Rotation, on: date) -> int:
+    anchor = state.anchors[rotation]
+    steps = _count_days_of_type_between(
+        state, rotation.day_type, anchor.on, on
+    )
+    return (anchor.position + steps) % _get_length(rotation)
+
+
+def _get_length(rotation: Rotation) -> int:
+    return (
+        len(HOME_OUTERWEAR)
+        if rotation is Rotation.OUTERWEAR
+        else len(CLOSETS[rotation.day_type].shirts)
+    )
 
 
 def _get_row_for_pants(closet: Closet, pants: str) -> PantsRow:
@@ -312,14 +352,18 @@ def _get_row_for_sweater(closet: Closet, sweater: str) -> PantsRow:
 def _get_home_response(state: State, on: date) -> Response:
     shirt = _get_shirt(state, DayType.HOME, on)
     row = _get_row_for_pants(CLOSETS[DayType.HOME], shirt.pants)
+    outerwear = HOME_OUTERWEAR[
+        _get_position(state, Rotation.OUTERWEAR, on)
+    ]
     return Response(
         on=on,
         day_type=DayType.HOME,
         outfit=Outfit(
             shirt=shirt.garment,
             pants=shirt.pants,
-            sweater=row.sweater,
+            sweater=row.sweater if outerwear == "sweater" else None,
             shoes=row.shoes,
+            jacket=row.jacket if outerwear == "jacket" else None,
         ),
     )
 
@@ -334,8 +378,13 @@ def _get_labeled_response(state: State, response: Response) -> Response:
             pants=_get_label(state, f"pants.{outfit.pants}"),
             sweater=_get_label(
                 state, f"{scope}.sweater.{outfit.sweater}"
-            ),
+            )
+            if outfit.sweater is not None
+            else None,
             shoes=_get_label(state, f"{scope}.shoes.{outfit.shoes}"),
+            jacket=_get_label(state, f"{scope}.jacket.{outfit.jacket}")
+            if outfit.jacket is not None
+            else None,
         ),
     )
 
@@ -352,7 +401,7 @@ def _apply_weather(response: Response, high: float | None) -> Response:
         response,
         outfit=response.outfit
         if cold
-        else replace(response.outfit, sweater=None),
+        else replace(response.outfit, sweater=None, jacket=None),
         cold=cold,
     )
 

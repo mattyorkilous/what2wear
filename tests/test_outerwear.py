@@ -11,7 +11,8 @@ MON = date(2026, 8, 24)
 # The Week whose Friday wears blue pants again after Monday took beige.
 FALLBACK_MON = date(2026, 8, 31)
 FALLBACK_FRI = date(2026, 9, 4)
-HOME_DAY = date(2026, 9, 1)
+# Home Days either side of the Office Days of one Week.
+TUE, WED, THU, FRI, SAT = (date(2026, 9, day) for day in range(1, 6))
 COLD = DEFAULT_COLD_THRESHOLD - 10
 WARM = DEFAULT_COLD_THRESHOLD + 25
 
@@ -119,18 +120,69 @@ class TestUnknownWeather:
 
 
 class TestHomeOuterwear:
-    def test_a_cold_home_day_names_a_sweater(self) -> None:
-        assert _response(HOME_DAY, {HOME_DAY: COLD}).outfit.sweater
+    def test_consecutive_cold_home_days_alternate(self) -> None:
+        # Wednesday and Friday are Office Days and do not move it.
+        assert [
+            _get_home_outerwear(on, {on: COLD})
+            for on in (TUE, THU, SAT)
+        ] == [(None, "brown"), ("beige", None), (None, "black")]
 
-    def test_a_warm_home_day_names_none(self) -> None:
-        assert (
-            _response(HOME_DAY, {HOME_DAY: WARM}).outfit.sweater is None
+    def test_a_warm_day_spends_its_turn(self) -> None:
+        # ADR-0004's price, asserted rather than worked around: the
+        # mild Thursday took the sweater turn, so both sides wear a
+        # jacket.
+        weather: dict[date, float] = {TUE: COLD, THU: WARM, SAT: COLD}
+        assert [
+            _get_home_outerwear(on, weather) for on in (TUE, THU, SAT)
+        ] == [(None, "brown"), (None, None), (None, "black")]
+
+    def test_office_sweaters_between_them_change_nothing(self) -> None:
+        cold_office = dict.fromkeys((WED, FRI), COLD)
+        warm_office = dict.fromkeys((WED, FRI), WARM)
+        assert all(
+            _response(on, {on: COLD, **cold_office})
+            == _response(on, {on: COLD, **warm_office})
+            for on in (TUE, THU, SAT)
+        )
+        assert all(
+            _response(on, {on: COLD}).outfit.sweater
+            for on in (WED, FRI)
         )
 
-    def test_an_unknown_home_day_names_it_and_hedges(self) -> None:
-        response = _response(HOME_DAY, {})
-        assert response.outfit.sweater
+    def test_beyond_the_horizon_names_the_garment_and_hedges(
+        self,
+    ) -> None:
+        response = _response(TUE, {})
+        assert (response.outfit.sweater, response.outfit.jacket) == (
+            None,
+            "brown",
+        )
         assert response.cold is None
+
+    def test_a_date_years_out_still_names_its_kind(self) -> None:
+        far = date(2031, 3, 1)
+        assert _get_home_outerwear(far, {}) != (None, None)
+
+    def test_a_jacket_can_come_twice_in_a_week(self) -> None:
+        # Tuesday's tan pants and Saturday's black both call for the
+        # one black jacket, and home has no no-repeat rule to stop it.
+        tue, sat = date(2026, 8, 25), date(2026, 8, 29)
+        responses = [_response(on, {on: COLD}) for on in (tue, sat)]
+        assert [r.outfit.jacket for r in responses] == ["black"] * 2
+        assert not any(r.unavoidable_repeat for r in responses)
+
+    def test_a_jacket_is_named_by_its_label(self) -> None:
+        state = replace_(
+            get_default_state(TODAY), "home.jacket.black", "navy"
+        )
+        assert answer(state, SAT, {SAT: COLD}).outfit.jacket == "navy"
+
+
+def _get_home_outerwear(
+    on: date, weather: dict[date, float]
+) -> tuple[str | None, str | None]:
+    outfit = _response(on, weather).outfit
+    return outfit.sweater, outfit.jacket
 
 
 def _response(on: date, weather: dict[date, float]) -> Response:
