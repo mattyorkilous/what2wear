@@ -97,4 +97,4 @@ The shell composes the two seams, so a command that records shows its result for
 
 Read [`CONTEXT.md`](CONTEXT.md) before touching anything, then the ADRs for the area you're working in.
 
-Built with uv, ruff and pytest. No dataframe library — the data is a few dozen records.
+Built with uv, ruff, ty and pytest. No dataframe library — the data is a few dozen records.
