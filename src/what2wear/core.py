@@ -25,6 +25,8 @@ from what2wear.wardrobe import (
     KEYS,
 )
 
+HORIZON_DAYS = 365  # A year, beyond which a search gives up.
+
 
 def record_override(state: State, on: date, day_type: DayType) -> State:
     """Record `on` as a `day_type` day.
@@ -63,7 +65,7 @@ def reset(state: State, shirt: str, on: date) -> State:
         The state with the day type's anchor moved.
 
     Raises:
-        What2wearError: If the closet has no shirt so labelled.
+        What2wearError: If the closet has no shirt so labeled.
     """
     day_type = _get_day_type(state, on)
     position = _get_shirt_position(state, day_type, shirt)
@@ -279,6 +281,42 @@ def get_due_shirt(state: State, day_type: DayType, on: date) -> str:
         The shirt's own name, not the wearer's label for it.
     """
     return _get_shirt(state, day_type, on).garment
+
+
+def get_due_date(
+    state: State, day_type: DayType, shirt: str, today: date
+) -> date | None:
+    """Work out when a closet's rotation is next due to offer a shirt.
+
+    The inverse of `get_due_shirt`: one asks a date for its shirt, this
+    asks a shirt for its date.
+
+    Args:
+        state: The state to read the rotation from.
+        day_type: The closet the shirt hangs in.
+        shirt: The wearer's label for the shirt.
+        today: The date to search forward from, itself included.
+
+    Returns:
+        The first day of that kind whose due shirt is the one named, or
+        None if no day within a year of `today` wears it.
+
+    Raises:
+        What2wearError: If the closet has no shirt so labeled.
+    """
+    position = _get_shirt_position(state, day_type, shirt)
+    days = (
+        today + timedelta(days=offset) for offset in range(HORIZON_DAYS)
+    )
+    return next(
+        (
+            on
+            for on in days
+            if _get_day_type(state, on) is day_type
+            and _get_position(state, Rotation(day_type), on) == position
+        ),
+        None,
+    )
 
 
 def _move_anchor(

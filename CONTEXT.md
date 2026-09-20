@@ -113,7 +113,9 @@ _Avoid_: cycle, schedule, queue
 
 **Shirt Rotation**:
 The Rotation over one Closet's Shirts. Where a Closet is in scope and
-Outerwear is not, "Rotation" unqualified means this one.
+Outerwear is not, "Rotation" unqualified means this one. It reads
+either way: a date names the Shirt due on it, and a Shirt names the
+next date it is due.
 _Avoid_: closet rotation, main rotation
 
 **Home Outerwear Rotation**:
