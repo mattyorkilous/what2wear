@@ -2,7 +2,7 @@
 
 import argparse
 import sys
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from datetime import UTC, date, datetime
 from functools import partial
 from pathlib import Path
@@ -16,6 +16,8 @@ from what2wear.core import (
     replace_,
     reset,
     reset_outerwear,
+    set_cold_threshold,
+    set_office_weekdays,
     swap,
 )
 from what2wear.errors import What2wearError
@@ -27,7 +29,7 @@ from what2wear.model import (
     UpdateFunction,
 )
 from what2wear.store import read_state, write_state
-from what2wear.wardrobe import CLOSETS, KEYS, get_garments
+from what2wear.wardrobe import CLOSETS, KEYS, WEEKDAYS, get_garments
 
 
 def main() -> int:
@@ -64,8 +66,9 @@ def run(
     path = state_dir / "state.json"
     try:
         state = read_state(path, today)
-        if args.action == "show-closet":
-            print(_render_wardrobe(state, today))
+        display = _get_display(args, state, today)
+        if display is not None:
+            print(display)
             return 0
         updated_state = _choose_update_function(args, today)(state)
         changed = updated_state != state
@@ -76,8 +79,8 @@ def run(
     except What2wearError as error:
         print(error, file=sys.stderr)
         return 2
-    message = _get_message(args)
-    print(_render(response, message, today, changed=changed))
+    confirmation = _get_confirmation(args)
+    print(_render(response, confirmation, today, changed=changed))
     return 0
 
 
@@ -140,6 +143,35 @@ def _get_parser(today: date) -> argparse.ArgumentParser:
         "show-closet",
         help="list every garment and how to name it",
     )
+    subparsers.add_parser(
+        "office-weekdays",
+        help="show the three weekdays you go in",
+    )
+    weekdays_parser = subparsers.add_parser(
+        "set-office-weekdays",
+        help="set the three weekdays you go in",
+    )
+    weekdays_parser.add_argument(
+        "weekdays",
+        nargs="+",
+        type=_parse_weekday,
+        metavar="WEEKDAY",
+        help="mon to sun; name exactly three",
+    )
+    subparsers.add_parser(
+        "cold-threshold",
+        help="show the high below which outerwear is worn",
+    )
+    threshold_parser = subparsers.add_parser(
+        "set-cold-threshold",
+        help="set the high below which outerwear is worn",
+    )
+    threshold_parser.add_argument(
+        "threshold",
+        type=float,
+        metavar="DEGREES",
+        help="in Fahrenheit",
+    )
     return parser
 
 
@@ -161,6 +193,30 @@ def _parse_date(text: str) -> date:
     except ValueError:
         problem = f"{text!r} is not a date of the form YYYY-MM-DD"
         raise argparse.ArgumentTypeError(problem) from None
+
+
+def _parse_weekday(text: str) -> int:
+    try:
+        return WEEKDAYS.index(text.lower())
+    except ValueError:
+        problem = f"{text!r} is not a weekday: {' '.join(WEEKDAYS)}"
+        raise argparse.ArgumentTypeError(problem) from None
+
+
+def _get_display(
+    args: argparse.Namespace, state: State, today: date
+) -> str | None:
+    """Return everything a command that only shows prints, or None."""
+    match args.action:
+        case "show-closet":
+            return _render_wardrobe(state, today)
+        case "office-weekdays":
+            weekdays = _render_weekdays(state.office_weekdays)
+            return f"office weekdays {weekdays}"
+        case "cold-threshold":
+            return f"cold threshold {state.cold_threshold:g}°F"
+        case _:
+            return None
 
 
 def _render_wardrobe(state: State, today: date) -> str:
@@ -215,6 +271,10 @@ def _get_garment_line(
     return f"{gutter}{kind:<8} {label:<9} {pants:<9} {scope}.{label}"
 
 
+def _render_weekdays(weekdays: Iterable[int]) -> str:
+    return " ".join(WEEKDAYS[weekday] for weekday in sorted(weekdays))
+
+
 def _choose_update_function(
     args: argparse.Namespace, today: date
 ) -> UpdateFunction:
@@ -254,12 +314,20 @@ def _choose_update_function(
                 first=args.first,
                 second=args.second,
             )
+        case "set-office-weekdays":
+            return partial(
+                set_office_weekdays,
+                weekdays=args.weekdays,
+                today=today,
+            )
+        case "set-cold-threshold":
+            return partial(set_cold_threshold, threshold=args.threshold)
         case _:
             raise AssertionError(args.action)
 
 
-def _get_message(args: argparse.Namespace) -> str:
-    """Return the message describing what was typed, or "" if none."""
+def _get_confirmation(args: argparse.Namespace) -> str:
+    """Return the line describing what was typed, or "" if none."""
     match args.action:
         case None:
             return ""
@@ -277,12 +345,19 @@ def _get_message(args: argparse.Namespace) -> str:
             return (
                 f"{args.closet} {args.first} and {args.second} swapped"
             )
+        case "set-office-weekdays":
+            return (
+                f"office weekdays {_render_weekdays(args.weekdays)}, "
+                "every rotation re-anchored to today"
+            )
+        case "set-cold-threshold":
+            return f"cold threshold {args.threshold:g}°F"
         case _:
             raise AssertionError(args.action)
 
 
 def _render(
-    response: Response, message: str, today: date, *, changed: bool
+    response: Response, confirmation: str, today: date, *, changed: bool
 ) -> str:
     return "\n".join(
         [
@@ -291,7 +366,7 @@ def _render(
             f"  pants    {response.outfit.pants}",
             *_get_outerwear_lines(response),
             f"  shoes    {response.outfit.shoes}",
-            *_get_notes(response, message, today, changed=changed),
+            *_get_notes(response, confirmation, today, changed=changed),
         ]
     )
 
@@ -310,7 +385,11 @@ def _get_outerwear_lines(response: Response) -> tuple[str, ...]:
 
 
 def _get_notes(
-    response: Response, message: str, today: date, *, changed: bool
+    response: Response,
+    confirmation: str,
+    today: date,
+    *,
+    changed: bool,
 ) -> tuple[str, ...]:
     repeat = (
         ("  note     already worn this week -- no free sweater left",)
@@ -322,9 +401,9 @@ def _get_notes(
         "not what was worn"
     )
     behind = (past,) if response.on < today else ()
-    confirmation = (
-        (f"  {'recorded' if changed else 'already':<8} {message}",)
-        if message
+    confirmed = (
+        (f"  {'recorded' if changed else 'already':<8} {confirmation}",)
+        if confirmation
         else ()
     )
-    return (*repeat, *behind, *confirmation)
+    return (*repeat, *behind, *confirmed)

@@ -37,10 +37,10 @@ this ticket reads as that starting value with nothing to migrate.
 The command surface this adds:
 
 ```
-what2wear office-weekdays              show the current three
-what2wear office-weekdays mon wed fri  set them, and re-anchor
-what2wear cold-threshold               show it
-what2wear cold-threshold 55            set it
+what2wear office-weekdays                  show the current three
+what2wear set-office-weekdays mon wed fri  set them, and re-anchor
+what2wear cold-threshold                   show it
+what2wear set-cold-threshold 55            set it
 ```
 
 **Blocked by:** 06 — Home Outerwear alternation
@@ -50,23 +50,23 @@ three Anchors, and the Home Outerwear Anchor does not exist until 06.
 Landing this first would leave a two-Anchor re-anchor for 06 to
 remember to widen.
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Office Weekdays and the Cold Threshold live in the State; the values in source are only the starting values used when no State file exists, and a State written before this ticket reads as them
-- [ ] `office-weekdays mon wed fri` sets them and a later invocation answers from the new pattern
-- [ ] Exactly three weekdays are required; any other count is refused with a message saying the count is a source change
-- [ ] A repeated weekday names fewer than three days and is refused the same way
-- [ ] Weekday names are accepted case-insensitively as three-letter abbreviations
-- [ ] Any weekday may be named, weekends included
-- [ ] Setting Office Weekdays moves all three Anchors to today at the Positions today held under the previous Office Weekdays, so no date's Shirt or Outerwear changes as a result of the change alone
-- [ ] Restating the current Office Weekdays changes no answer for any date
-- [ ] The output says that the Rotations were re-anchored, rather than leaving it to be noticed
-- [ ] A mid-Week change resolving that Week's earlier Office Days under the new pattern, and therefore possibly moving that Week's Fallback, is asserted directly — ADR-0007 accepts it knowingly and the test is what stops it being "fixed"
-- [ ] Day Type Overrides already recorded are left alone, including those now made redundant by the new pattern
-- [ ] A fourth Office Day in a Week is still reachable by `go-in` and still flags an unavoidable repeat — the exactly-three rule does not retire that machinery
-- [ ] `cold-threshold 55` sets it and a later invocation uses it to decide whether Outerwear is worn
-- [ ] The Cold Threshold moves no Position: a Home Day that becomes warm under a new threshold still spends its Home Outerwear Rotation turn
-- [ ] `office-weekdays` and `cold-threshold` with no argument print the current value and change nothing
-- [ ] There is no generic setter command and no grouping of the two in the State file — they are two named facts alongside the Labels, the Anchors and the Overrides
-- [ ] `wardrobe.py` keeps its name and gains a docstring saying it holds the Wardrobe's given shape *and* the starting values the State overlays — the Labels, the Anchors, the Office Weekdays and the Cold Threshold. Renaming it was considered and rejected: almost every reference is to a Wardrobe thing, and `tests/test_wardrobe.py` genuinely does test the Wardrobe, so a rename would make one name honest and another name wrong
-- [ ] The README describes both commands and the exactly-three rule
+- [x] Office Weekdays and the Cold Threshold live in the State; the values in source are only the starting values used when no State file exists, and a State written before this ticket reads as them
+- [x] `set-office-weekdays mon wed fri` sets them and a later invocation answers from the new pattern
+- [x] Exactly three weekdays are required; any other count is refused with a message saying the count is a source change
+- [x] A repeated weekday names fewer than three days and is refused the same way
+- [x] Weekday names are accepted case-insensitively as three-letter abbreviations
+- [x] Any weekday may be named, weekends included
+- [x] Setting Office Weekdays moves all three Anchors to today at the Positions today held under the previous Office Weekdays, so no date's Shirt or Outerwear changes as a result of the change alone
+- [x] Restating the current Office Weekdays changes no answer for any date
+- [x] The output says that the Rotations were re-anchored, rather than leaving it to be noticed
+- [x] A mid-Week change resolving that Week's earlier Office Days under the new pattern, and therefore possibly moving that Week's Fallback, is asserted directly — ADR-0007 accepts it knowingly and the test is what stops it being "fixed"
+- [x] Day Type Overrides already recorded are left alone, including those now made redundant by the new pattern
+- [x] A fourth Office Day in a Week is still reachable by `go-in` and still flags an unavoidable repeat — the exactly-three rule does not retire that machinery
+- [x] `set-cold-threshold 55` sets it and a later invocation uses it to decide whether Outerwear is worn
+- [x] The Cold Threshold moves no Position: a Home Day that becomes warm under a new threshold still spends its Home Outerwear Rotation turn
+- [x] `office-weekdays` and `cold-threshold` print the current value and change nothing; each setting command is a separate `set-` name that always changes something
+- [x] There is no generic setter command and no grouping of the two in the State file — they are two named facts alongside the Labels, the Anchors and the Overrides
+- [x] `wardrobe.py` keeps its name and gains a docstring saying it holds the Wardrobe's given shape *and* the starting values the State overlays — the Labels, the Anchors, the Office Weekdays and the Cold Threshold. Renaming it was considered and rejected: almost every reference is to a Wardrobe thing, and `tests/test_wardrobe.py` genuinely does test the Wardrobe, so a rename would make one name honest and another name wrong
+- [x] The README describes both commands and the exactly-three rule

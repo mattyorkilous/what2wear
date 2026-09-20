@@ -10,7 +10,10 @@ from typing import Any
 from what2wear.errors import What2wearError
 from what2wear.model import Anchor, DayType, Rotation, State
 from what2wear.wardrobe import (
+    DEFAULT_COLD_THRESHOLD,
+    DEFAULT_OFFICE_WEEKDAYS,
     KEYS,
+    WEEKDAYS,
     build_default_labels,
     get_default_state,
 )
@@ -73,7 +76,9 @@ def _parse_state(document: dict[str, Any]) -> State:
 
     A document written before the home outerwear rotation had an anchor
     reads as position 0 on the home shirt anchor's date, which the file
-    has already pinned, so nothing has to be migrated.
+    has already pinned, so nothing has to be migrated. One written
+    before the office weekdays or the cold threshold were told reads
+    as the given ones, for the same reason.
     """
     records = {
         Rotation.OUTERWEAR: {
@@ -97,6 +102,16 @@ def _parse_state(document: dict[str, Any]) -> State:
                     "labels", {}
                 ).items()
             }
+        ),
+        office_weekdays=frozenset(
+            WEEKDAYS.index(name)
+            for name in document.get(
+                "office_weekdays",
+                [WEEKDAYS[day] for day in DEFAULT_OFFICE_WEEKDAYS],
+            )
+        ),
+        cold_threshold=float(
+            document.get("cold_threshold", DEFAULT_COLD_THRESHOLD)
         ),
         overrides=MappingProxyType(
             {
@@ -128,6 +143,10 @@ def _get_document(state: State) -> dict[str, Any]:
             for key, label in sorted(state.labels.items())
             if label != given_labels.get(key)
         },
+        "office_weekdays": [
+            WEEKDAYS[day] for day in sorted(state.office_weekdays)
+        ],
+        "cold_threshold": state.cold_threshold,
         "overrides": {
             on.isoformat(): day_type.value
             for on, day_type in sorted(state.overrides.items())

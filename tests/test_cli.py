@@ -13,7 +13,7 @@ from what2wear.wardrobe import (
 # No forecast, so no test here touches the network.
 run = partial(cli.run, fetch_weather=dict)
 
-MON, SAT = 0, 5
+MON, TUE, SAT = 0, 1, 5
 OUTERWEAR = ("  sweater", "  jacket")
 
 
@@ -491,6 +491,127 @@ class TestSwappingTwoShirts:
                 ["swap", "attic", "white", "striped"],
                 state_dir=tmp_path,
             )
+
+
+class TestSettingTheOfficeWeekdays:
+    def test_a_later_invocation_answers_from_the_new_pattern(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        tuesday = _next(TUE)
+        assert _set_weekdays(["tue", "thu", "sat"], tmp_path) == 0
+        capsys.readouterr()
+        assert _ask(tuesday, tmp_path) == 0
+        assert "office day" in capsys.readouterr().out
+
+    def test_the_names_are_read_whatever_their_case(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        assert _set_weekdays(["Tue", "THU", "sat"], tmp_path) == 0
+        capsys.readouterr()
+        assert run(["office-weekdays"], state_dir=tmp_path) == 0
+        assert "tue thu sat" in capsys.readouterr().out
+
+    def test_it_says_every_rotation_was_re_anchored(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        assert _set_weekdays(["tue", "thu", "sat"], tmp_path) == 0
+        out = capsys.readouterr().out
+        assert "recorded" in out
+        assert "re-anchored" in out
+
+    @pytest.mark.parametrize(
+        "weekdays",
+        [
+            ["mon"],
+            ["mon", "wed"],
+            ["mon", "tue", "wed", "thu"],
+            ["mon", "mon", "wed"],
+            ["mon", "mon", "wed", "fri"],
+        ],
+    )
+    def test_anything_but_three_different_days_is_refused(
+        self,
+        tmp_path: Path,
+        capsys: pytest.CaptureFixture[str],
+        weekdays: list[str],
+    ) -> None:
+        assert _set_weekdays(weekdays, tmp_path) == 2
+        assert "source" in capsys.readouterr().err
+        assert not _state(tmp_path).exists()
+
+    def test_a_name_that_is_not_a_weekday_is_refused(
+        self, tmp_path: Path
+    ) -> None:
+        with pytest.raises(SystemExit):
+            _set_weekdays(["mon", "wed", "friday"], tmp_path)
+
+    def test_naming_none_at_all_is_refused(
+        self, tmp_path: Path
+    ) -> None:
+        # Showing them is its own command, so there is no bare form
+        # of this one to mean it.
+        with pytest.raises(SystemExit):
+            _set_weekdays([], tmp_path)
+
+
+class TestSettingTheColdThreshold:
+    def test_a_later_invocation_uses_it(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        mild = DEFAULT_COLD_THRESHOLD + 2
+        assert (
+            run(
+                ["set-cold-threshold", f"{mild + 3}"],
+                state_dir=tmp_path,
+            )
+            == 0
+        )
+        assert "recorded" in capsys.readouterr().out
+        _run_in(mild, tmp_path)
+        assert "if it's cold" not in _get_outerwear_line(
+            capsys.readouterr().out
+        )
+
+    def test_naming_none_at_all_is_refused(
+        self, tmp_path: Path
+    ) -> None:
+        with pytest.raises(SystemExit):
+            run(["set-cold-threshold"], state_dir=tmp_path)
+
+    def test_a_threshold_that_is_not_a_number_is_refused(
+        self, tmp_path: Path
+    ) -> None:
+        with pytest.raises(SystemExit):
+            run(["set-cold-threshold", "brisk"], state_dir=tmp_path)
+
+
+class TestShowingWhatIsTold:
+    def test_the_office_weekdays_are_printed_and_nothing_changes(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        assert run(["office-weekdays"], state_dir=tmp_path) == 0
+        assert (
+            capsys.readouterr().out == "office weekdays mon wed fri\n"
+        )
+        assert not _state(tmp_path).exists()
+
+    def test_the_cold_threshold_is_printed_and_nothing_changes(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        assert run(["cold-threshold"], state_dir=tmp_path) == 0
+        assert (
+            capsys.readouterr().out
+            == f"cold threshold {DEFAULT_COLD_THRESHOLD}°F\n"
+        )
+        assert not _state(tmp_path).exists()
+
+    def test_neither_takes_a_value_to_set(self, tmp_path: Path) -> None:
+        with pytest.raises(SystemExit):
+            run(["cold-threshold", "55"], state_dir=tmp_path)
+
+
+def _set_weekdays(weekdays: list[str], state_dir: Path) -> int:
+    return run(["set-office-weekdays", *weekdays], state_dir=state_dir)
 
 
 def _run(command: str, on: date | None, state_dir: Path) -> int:
