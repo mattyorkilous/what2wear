@@ -8,12 +8,13 @@ from what2wear import cli
 from what2wear.wardrobe import (
     DEFAULT_COLD_THRESHOLD,
     DEFAULT_OFFICE_WEEKDAYS,
+    WEEKDAYS,
 )
 
 # No forecast, so no test here touches the network.
 run = partial(cli.run, fetch_weather=dict)
 
-MON, TUE, SAT = 0, 1, 5
+MON, TUE, WED, FRI, SAT = 0, 1, 2, 4, 5
 OUTERWEAR = ("  sweater", "  jacket")
 
 
@@ -130,6 +131,120 @@ class TestOuterwear:
 def test_a_malformed_date_is_rejected(tmp_path: Path) -> None:
     with pytest.raises(SystemExit):
         run(["--on", "the 21st"], state_dir=tmp_path)
+
+
+class TestNamingADateWithAWord:
+    def test_tomorrow_resolves(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        tomorrow = _today() + timedelta(days=1)
+        assert run(["--on", "tomorrow"], state_dir=tmp_path) == 0
+        assert f"{tomorrow:%a %d %b %Y}" in capsys.readouterr().out
+
+    def test_yesterday_resolves_and_keeps_the_past_date_note(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        yesterday = _today() - timedelta(days=1)
+        assert run(["--on", "yesterday"], state_dir=tmp_path) == 0
+        out = capsys.readouterr().out
+        assert f"{yesterday:%a %d %b %Y}" in out
+        assert "not what was worn" in out
+
+    @pytest.mark.parametrize(
+        "word", ["wed", "Wed", "wednesday", "WEDNESDAY"]
+    )
+    def test_a_weekday_is_spelled_however_it_comes_out(
+        self,
+        tmp_path: Path,
+        capsys: pytest.CaptureFixture[str],
+        word: str,
+    ) -> None:
+        assert run(["--on", word], state_dir=tmp_path) == 0
+        assert f"{_next(WED):%a %d %b %Y}" in capsys.readouterr().out
+
+    @pytest.mark.parametrize("weekday", range(len(WEEKDAYS)))
+    def test_a_weekday_lands_on_the_soonest_such_date(
+        self,
+        tmp_path: Path,
+        capsys: pytest.CaptureFixture[str],
+        weekday: int,
+    ) -> None:
+        # Asserted as the property rather than against the same
+        # arithmetic the parser does, which would agree with itself
+        # however wrong it was.
+        assert run(["--on", WEEKDAYS[weekday]], state_dir=tmp_path) == 0
+        landed = _dated(capsys.readouterr().out)
+        assert landed.weekday() == weekday
+        assert timedelta() <= landed - _today() <= timedelta(days=6)
+
+    def test_todays_own_weekday_is_today(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        today = _today()
+        assert (
+            run(["--on", WEEKDAYS[today.weekday()]], state_dir=tmp_path)
+            == 0
+        )
+        out = capsys.readouterr().out
+        assert f"{today:%a %d %b %Y}" in out
+        assert "not what was worn" not in out
+
+    def test_today_is_not_one_of_the_words(
+        self, tmp_path: Path
+    ) -> None:
+        # A bare invocation already means today, so the word would be
+        # a second spelling of the default. The asymmetry is the
+        # decision, not a gap to be closed later.
+        with pytest.raises(SystemExit) as refusal:
+            run(["--on", "today"], state_dir=tmp_path)
+        assert refusal.value.code == 2
+
+    @pytest.mark.parametrize("word", ["wedding", "monkey", "satchel"])
+    def test_a_word_merely_starting_with_one_is_refused(
+        self, tmp_path: Path, word: str
+    ) -> None:
+        # Silently reading a typo as the weekday it starts with would
+        # move a reset's anchor to the wrong day without saying so.
+        with pytest.raises(SystemExit) as refusal:
+            run(["--on", word], state_dir=tmp_path)
+        assert refusal.value.code == 2
+
+    def test_a_word_that_is_neither_says_what_is_accepted(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        with pytest.raises(SystemExit) as refusal:
+            run(["--on", "nonesuch"], state_dir=tmp_path)
+        assert refusal.value.code == 2
+        assert "tomorrow" in capsys.readouterr().err
+
+    def test_a_recording_command_takes_one(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        saturday = _next(SAT)
+        assert run(["go-in", "--on", "sat"], state_dir=tmp_path) == 0
+        assert f"{saturday} - office day" in capsys.readouterr().out
+
+    def test_a_reset_takes_one(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        friday = _next(FRI)
+        assert (
+            run(["reset", "lblue", "--on", "fri"], state_dir=tmp_path)
+            == 0
+        )
+        capsys.readouterr()
+        assert _ask(friday, tmp_path) == 0
+        assert _shirt(capsys.readouterr().out) == "lblue"
+
+    def test_a_word_ahead_of_the_command_still_records_today(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        # ADR-0008: a subcommand's own default overwrites an `--on`
+        # given ahead of it, and a word is no exception.
+        assert (
+            run(["--on", "tomorrow", "go-in"], state_dir=tmp_path) == 0
+        )
+        assert f"{_today()} - office day" in capsys.readouterr().out
 
 
 class TestRecordingADayTypeOverride:
@@ -543,7 +658,14 @@ class TestSettingTheOfficeWeekdays:
         self, tmp_path: Path
     ) -> None:
         with pytest.raises(SystemExit):
-            _set_weekdays(["mon", "wed", "friday"], tmp_path)
+            _set_weekdays(["mon", "wed", "funday"], tmp_path)
+
+    def test_a_weekday_is_spelled_out_or_shortened(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        # The same vocabulary `--on` takes, so the two agree.
+        assert _set_weekdays(["mon", "Wednesday", "FRI"], tmp_path) == 0
+        assert "office weekdays mon wed fri" in capsys.readouterr().out
 
     def test_naming_none_at_all_is_refused(
         self, tmp_path: Path
@@ -714,3 +836,14 @@ def _next(weekday: int) -> date:
 
 def _today() -> date:
     return datetime.now(UTC).astimezone().date()
+
+
+def _dated(out: str) -> date:
+    """Return the date the first line of an answer prints."""
+    return (
+        datetime.strptime(
+            out.splitlines()[0].split(" - ")[0], "%a %d %b %Y"
+        )
+        .replace(tzinfo=UTC)
+        .date()
+    )
