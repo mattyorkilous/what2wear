@@ -3,7 +3,7 @@
 import argparse
 import sys
 from collections.abc import Callable, Iterable, Mapping, Sequence
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from functools import partial
 from pathlib import Path
 
@@ -179,28 +179,67 @@ def _get_date_parser(today: date) -> argparse.ArgumentParser:
     date_parser = argparse.ArgumentParser(add_help=False)
     date_parser.add_argument(
         "--on",
-        type=_parse_date,
+        type=partial(_parse_date, today=today),
         default=today,
-        metavar="YYYY-MM-DD",
-        help="the date to act on; defaults to today",
+        metavar="DATE",
+        help=(
+            "the date to act on: YYYY-MM-DD, tomorrow, yesterday, or "
+            "a weekday name for the soonest such date; defaults to "
+            "today"
+        ),
     )
     return date_parser
 
 
-def _parse_date(text: str) -> date:
-    try:
-        return date.fromisoformat(text)
-    except ValueError:
-        problem = f"{text!r} is not a date of the form YYYY-MM-DD"
-        raise argparse.ArgumentTypeError(problem) from None
+def _parse_date(text: str, *, today: date) -> date:
+    weekday = _get_weekday(text)
+    match text.lower():
+        case "tomorrow":
+            return today + timedelta(days=1)
+        case "yesterday":
+            return today - timedelta(days=1)
+        case _ if weekday is not None:
+            ahead = (weekday - today.weekday()) % 7
+            return today + timedelta(days=ahead)
+        case _:
+            try:
+                return date.fromisoformat(text)
+            except ValueError:
+                problem = (
+                    f"{text!r} is not a date: give YYYY-MM-DD, "
+                    "tomorrow, yesterday, or a weekday "
+                    f"({' '.join(WEEKDAYS)})"
+                )
+                raise argparse.ArgumentTypeError(problem) from None
+
+
+def _get_weekday(text: str) -> int | None:
+    names = (
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday",
+        "sunday",
+    )
+    word = text.lower()
+    return next(
+        (
+            weekday
+            for weekday, name in enumerate(names)
+            if word in {name, name[:3]}
+        ),
+        None,
+    )
 
 
 def _parse_weekday(text: str) -> int:
-    try:
-        return WEEKDAYS.index(text.lower())
-    except ValueError:
+    weekday = _get_weekday(text)
+    if weekday is None:
         problem = f"{text!r} is not a weekday: {' '.join(WEEKDAYS)}"
-        raise argparse.ArgumentTypeError(problem) from None
+        raise argparse.ArgumentTypeError(problem)
+    return weekday
 
 
 def _get_display(

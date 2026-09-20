@@ -26,28 +26,47 @@ a word for a date is a spelling, not a concept.
 
 **Blocked by:** None — can start immediately.
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] `--on tomorrow` and `--on yesterday` resolve, and `yesterday`
+- [x] `--on tomorrow` and `--on yesterday` resolve, and `yesterday`
       still carries the past-date note
-- [ ] `wed`, `Wed`, `wednesday` and `WEDNESDAY` all resolve to the same
+- [x] `wed`, `Wed`, `wednesday` and `WEDNESDAY` all resolve to the same
       date
-- [ ] A weekday word resolves to the soonest date with that weekday, at
+- [x] A weekday word resolves to the soonest date with that weekday, at
       most six days out, from whichever day it is asked
-- [ ] Asking for today's own weekday returns today, not seven days on
-- [ ] `--on today` is refused, with a test pinning the asymmetry so it
+- [x] Asking for today's own weekday returns today, not seven days on
+- [x] `--on today` is refused, with a test pinning the asymmetry so it
       is not "fixed" later
-- [ ] A word that is neither a date nor a weekday is refused at exit 2
+- [x] A word that is neither a date nor a weekday is refused at exit 2
       with a message naming what `--on` accepts
-- [ ] ISO dates keep working, including the existing malformed-date
+- [x] ISO dates keep working, including the existing malformed-date
       refusal
-- [ ] The words work on a recording command: `go-in --on sat` records
+- [x] The words work on a recording command: `go-in --on sat` records
       that Saturday, and the confirmation line names that date
-- [ ] `reset <label> --on fri` moves the Anchor to the coming Friday
-- [ ] `--on`'s metavar is `DATE` and its help text names the accepted
+- [x] `reset <label> --on fri` moves the Anchor to the coming Friday
+- [x] `--on`'s metavar is `DATE` and its help text names the accepted
       words
-- [ ] ADR-0008's ordering caveat still holds: `what2wear --on tomorrow
+- [x] ADR-0008's ordering caveat still holds: `what2wear --on tomorrow
       go-in` still records today
-- [ ] Tests go through `cli.run`, the existing shell seam; `_parse_date`
+- [x] Tests go through `cli.run`, the existing shell seam; `_parse_date`
       is not tested directly
-- [ ] The README's Interface section shows the words
+- [x] The README's Interface section shows the words
+
+## Comments
+
+Weekday matching came out stricter than this ticket specified. "Matched
+on the first three letters" was implemented literally at first, which
+made `--on wedding` mean Wednesday and `--on monkey` mean Monday —
+silently, so a mistyped `reset` would move an Anchor to the wrong day
+without refusing. Both reviews flagged it. It now matches the full name
+or its first three letters and nothing else.
+
+That needed the seven names spelled out, which this ticket had hoped to
+avoid ("rather than introducing a second table"). They are local to
+`_get_weekday` in the shell, and every abbreviation elsewhere is one of
+their first three letters, so the two cannot drift unnoticed: mistyping
+one fails ten tests through `cli.run`.
+
+`set-office-weekdays` shares that lookup, so it takes the spelled-out
+names too — a change to a command this ticket did not name, made so the
+two cannot disagree about what a weekday is called.
