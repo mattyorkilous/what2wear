@@ -1,4 +1,10 @@
-"""The closets, and the default state built from them."""
+"""Everything given: the Wardrobe, and the state a wearer starts from.
+
+The Wardrobe's shape -- the closets, their shirts and the pants rows
+that dress them -- is given and absolute. Alongside it sit the
+starting values the state overlays when nothing has been told: the
+labels, the anchors, the office weekdays and the cold threshold.
+"""
 
 from collections.abc import Mapping
 from datetime import date
@@ -14,6 +20,7 @@ from what2wear.model import (
     State,
 )
 
+WEEKDAYS = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
 MON, WED, FRI = 0, 2, 4
 DEFAULT_OFFICE_WEEKDAYS = frozenset({MON, WED, FRI})
 DEFAULT_COLD_THRESHOLD = 50  # degrees Fahrenheit
@@ -38,6 +45,8 @@ def get_default_state(today: date) -> State:
             }
         ),
         labels=build_default_labels(),
+        office_weekdays=DEFAULT_OFFICE_WEEKDAYS,
+        cold_threshold=DEFAULT_COLD_THRESHOLD,
     )
 
 

@@ -18,11 +18,17 @@ class State:
         labels: Each garment's place in its closet, such as
             `office.shirt.0` or `pants.1`, mapped to the label the
             garment there has now.
+        office_weekdays: The three weekdays, Monday 0, that are
+            office days unless overridden.
+        cold_threshold: The high, in degrees Fahrenheit, below which
+            outerwear is worn.
         overrides: The day type recorded for a date, keyed by date.
     """
 
     anchors: Mapping[Rotation, Anchor]
     labels: Mapping[str, str]
+    office_weekdays: frozenset[int]
+    cold_threshold: float
     overrides: Mapping[date, DayType] = MappingProxyType({})
 
 

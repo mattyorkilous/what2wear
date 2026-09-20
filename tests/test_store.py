@@ -9,7 +9,12 @@ from what2wear.core import answer, replace_
 from what2wear.errors import What2wearError
 from what2wear.model import Anchor, DayType, Rotation, State
 from what2wear.store import read_state, write_state
-from what2wear.wardrobe import build_default_labels, get_default_state
+from what2wear.wardrobe import (
+    DEFAULT_COLD_THRESHOLD,
+    DEFAULT_OFFICE_WEEKDAYS,
+    build_default_labels,
+    get_default_state,
+)
 
 TODAY = date(2026, 8, 22)
 TOMORROW = date(2026, 8, 23)
@@ -22,6 +27,8 @@ TOLD = State(
         Rotation.HOME: Anchor(WED26, 7),
         Rotation.OUTERWEAR: Anchor(TOMORROW, 1),
     },
+    office_weekdays=frozenset({1, 3, 5}),
+    cold_threshold=55.5,
     overrides={WED26: DayType.HOME, TOMORROW: DayType.OFFICE},
 )
 
@@ -136,6 +143,27 @@ class TestTheOuterwearAnchor:
         ] == [Anchor(TODAY, 0)] * 2
 
 
+class TestTheOfficeWeekdaysAndTheColdThreshold:
+    def test_they_are_written_as_two_named_facts(
+        self, tmp_path: Path
+    ) -> None:
+        write_state(_path(tmp_path), TOLD)
+        text = _path(tmp_path).read_text()
+        assert (
+            '"office_weekdays": [\n    "tue",\n    "thu",\n    "sat"'
+            in (text)
+        )
+        assert '"cold_threshold": 55.5' in text
+
+    def test_a_file_written_before_them_reads_as_the_given_ones(
+        self, tmp_path: Path
+    ) -> None:
+        _path(tmp_path).write_text(_document("{}"))
+        state = read_state(_path(tmp_path), TODAY)
+        assert state.office_weekdays == DEFAULT_OFFICE_WEEKDAYS
+        assert state.cold_threshold == DEFAULT_COLD_THRESHOLD
+
+
 class TestAMissingFile:
     def test_it_reads_as_the_given_anchors_with_no_overrides(
         self, tmp_path: Path
@@ -190,6 +218,12 @@ class TestAFileThatDoesNotReadBack:
             '{"anchors": {"office": {"position": 0}}, "overrides": {}}',
             _document('{"2026-08-26": "brunch"}'),
             _document('{"not-a-date": "home"}'),
+            _document("{}").replace(
+                "}}, ", '}}, "office_weekdays": ["someday"], ', 1
+            ),
+            _document("{}").replace(
+                "}}, ", '}}, "cold_threshold": "brisk", ', 1
+            ),
             "]not json at all[",
         ],
     )

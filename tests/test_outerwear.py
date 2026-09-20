@@ -2,7 +2,8 @@ from datetime import date
 
 import pytest
 
-from what2wear.core import answer, replace_
+from what2wear.core import answer, replace_, set_cold_threshold
+from what2wear.errors import What2wearError
 from what2wear.model import Response
 from what2wear.wardrobe import DEFAULT_COLD_THRESHOLD, get_default_state
 
@@ -176,6 +177,46 @@ class TestHomeOuterwear:
             get_default_state(TODAY), "home.jacket.black", "navy"
         )
         assert answer(state, SAT, {SAT: COLD}).outfit.jacket == "navy"
+
+
+class TestTheColdThreshold:
+    def test_a_new_threshold_decides_whether_outerwear_is_worn(
+        self,
+    ) -> None:
+        mild = DEFAULT_COLD_THRESHOLD + 2
+        state = set_cold_threshold(
+            get_default_state(TODAY), DEFAULT_COLD_THRESHOLD + 5
+        )
+        assert _response(MON, {MON: mild}).cold is False
+        assert answer(state, MON, {MON: mild}).outfit.sweater == "beige"
+
+    def test_a_day_it_makes_warm_still_spends_its_turn(self) -> None:
+        # Lowering it turns Thursday warm, and Saturday still wears
+        # the jacket its turn gave it: the threshold moves no
+        # Position.
+        weather: dict[date, float] = {
+            TUE: COLD,
+            THU: COLD + 5,
+            SAT: COLD,
+        }
+        state = set_cold_threshold(get_default_state(TODAY), COLD + 1)
+        assert [
+            _get_home_outerwear(on, weather) for on in (TUE, THU, SAT)
+        ] == [(None, "brown"), ("beige", None), (None, "black")]
+        assert [
+            (outfit.sweater, outfit.jacket)
+            for outfit in (
+                answer(state, on, weather).outfit
+                for on in (TUE, THU, SAT)
+            )
+        ] == [(None, "brown"), (None, None), (None, "black")]
+
+    @pytest.mark.parametrize("threshold", [float("nan"), float("inf")])
+    def test_a_threshold_that_is_no_temperature_is_refused(
+        self, threshold: float
+    ) -> None:
+        with pytest.raises(What2wearError):
+            set_cold_threshold(get_default_state(TODAY), threshold)
 
 
 def _get_home_outerwear(

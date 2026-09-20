@@ -1,6 +1,7 @@
 """Recording what the wearer tells the tool, and answering from it."""
 
-from collections.abc import Mapping
+import math
+from collections.abc import Collection, Mapping
 from dataclasses import replace
 from datetime import date, timedelta
 from types import MappingProxyType
@@ -19,7 +20,6 @@ from what2wear.model import (
 )
 from what2wear.wardrobe import (
     CLOSETS,
-    DEFAULT_COLD_THRESHOLD,
     DEFAULT_OFFICE_WEEKDAYS,
     HOME_OUTERWEAR,
     KEYS,
@@ -45,7 +45,7 @@ def record_override(state: State, on: date, day_type: DayType) -> State:
             {
                 on: day_type
                 for on, day_type in recorded_overrides.items()
-                if day_type is not _get_pattern_day_type(on)
+                if day_type is not _get_pattern_day_type(state, on)
             }
         ),
     )
@@ -173,6 +173,71 @@ def swap(
     )
 
 
+def set_office_weekdays(
+    state: State, weekdays: Collection[int], today: date
+) -> State:
+    """Set which weekdays are office days, moving no rotation.
+
+    A position counts days of its kind since its anchor, so a new
+    pattern would reclassify the past and move every rotation. Each
+    anchor is therefore moved to `today`, at the position it held
+    there under the old pattern. Recorded overrides are left alone.
+
+    Args:
+        state: The state to set them in.
+        weekdays: The new office weekdays, Monday 0, as typed.
+        today: The date every anchor is moved to.
+
+    Returns:
+        The state with the new weekdays and every anchor moved.
+
+    Raises:
+        What2wearError: If `weekdays` does not name exactly as many
+            days as the given pattern, each once.
+    """
+    count = len(DEFAULT_OFFICE_WEEKDAYS)
+    if len(weekdays) != count or len(frozenset(weekdays)) != count:
+        message = (
+            f"office weekdays must be exactly {count} different days; "
+            "the count is a change to the source"
+        )
+        raise What2wearError(message)
+    return replace(
+        state,
+        office_weekdays=frozenset(weekdays),
+        anchors=MappingProxyType(
+            {
+                rotation: Anchor(
+                    today, _get_position(state, rotation, today)
+                )
+                for rotation in Rotation
+            }
+        ),
+    )
+
+
+def set_cold_threshold(state: State, threshold: float) -> State:
+    """Set the high below which outerwear is worn.
+
+    It decides only whether outerwear is worn, never which, so no
+    rotation moves: a warm home day still spends its outerwear turn.
+
+    Args:
+        state: The state to set it in.
+        threshold: The new threshold, in degrees Fahrenheit.
+
+    Returns:
+        The state with the threshold replaced.
+
+    Raises:
+        What2wearError: If `threshold` is not a finite number.
+    """
+    if not math.isfinite(threshold):
+        message = f"{threshold} is not a temperature"
+        raise What2wearError(message)
+    return replace(state, cold_threshold=threshold)
+
+
 def answer(
     state: State, on: date, weather: Mapping[date, float]
 ) -> Response:
@@ -195,7 +260,9 @@ def answer(
         else _get_home_response(state, on)
     )
     labeled_response = _get_labeled_response(state, response)
-    return _apply_weather(labeled_response, weather.get(on))
+    return _apply_weather(
+        labeled_response, weather.get(on), state.cold_threshold
+    )
 
 
 def get_due_shirt(state: State, day_type: DayType, on: date) -> str:
@@ -235,13 +302,13 @@ def _get_keys_by_label(state: State, scope: str) -> Mapping[str, str]:
 
 
 def _get_day_type(state: State, on: date) -> DayType:
-    return state.overrides.get(on, _get_pattern_day_type(on))
+    return state.overrides.get(on, _get_pattern_day_type(state, on))
 
 
-def _get_pattern_day_type(on: date) -> DayType:
+def _get_pattern_day_type(state: State, on: date) -> DayType:
     return (
         DayType.OFFICE
-        if on.weekday() in DEFAULT_OFFICE_WEEKDAYS
+        if on.weekday() in state.office_weekdays
         else DayType.HOME
     )
 
@@ -393,10 +460,12 @@ def _get_label(state: State, given: str) -> str:
     return state.labels[KEYS[given]]
 
 
-def _apply_weather(response: Response, high: float | None) -> Response:
+def _apply_weather(
+    response: Response, high: float | None, threshold: float
+) -> Response:
     if high is None:
         return response
-    cold = high < DEFAULT_COLD_THRESHOLD
+    cold = high < threshold
     return replace(
         response,
         outfit=response.outfit
@@ -413,7 +482,7 @@ def _count_days_of_type_between(
     if end < start:
         return -_count_days_of_type_between(state, day_type, end, start)
     whole_weeks, remaining_days = divmod((end - start).days, 7)
-    office_per_week = len(DEFAULT_OFFICE_WEEKDAYS)
+    office_per_week = len(state.office_weekdays)
     per_week = (
         office_per_week
         if day_type is DayType.OFFICE
@@ -423,7 +492,7 @@ def _count_days_of_type_between(
     return (
         whole_weeks * per_week
         + sum(
-            _get_pattern_day_type(tail + timedelta(days=offset))
+            _get_pattern_day_type(state, tail + timedelta(days=offset))
             is day_type
             for offset in range(remaining_days)
         )
@@ -436,7 +505,7 @@ def _count_overridden_days(
 ) -> int:
     return sum(
         (_get_day_type(state, on) is day_type)
-        - (_get_pattern_day_type(on) is day_type)
+        - (_get_pattern_day_type(state, on) is day_type)
         for on in state.overrides
         if start <= on < end
     )

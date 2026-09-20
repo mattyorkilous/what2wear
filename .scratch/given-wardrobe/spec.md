@@ -388,8 +388,10 @@ rather than an edit.
   what2wear replace <target> <label>
   what2wear swap <closet> <label> <label>
   what2wear show-closet
-  what2wear office-weekdays [mon wed fri]
-  what2wear cold-threshold [55]
+  what2wear office-weekdays
+  what2wear set-office-weekdays mon wed fri
+  what2wear cold-threshold
+  what2wear set-cold-threshold 55
   ```
 
 - **A Garment is addressed by a dotted target** — `office.shirt.white`,
