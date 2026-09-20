@@ -4,7 +4,7 @@ Tells you what to wear today, and what you'll wear on any other day.
 
 It walks a fixed list of shirts — one closet for the office, one for home — advancing each rotation only on days of its own kind. Pants come welded to the shirt; shoes and sweaters follow from the pants. At the office it guarantees no sweater and no pair of shoes repeats within a Monday-start week. When it's cold you wear the outerwear your pants call for — at the office their sweater, at home their sweater or their jacket, whichever kind the day's turn says.
 
-> **Status: the given wardrobe.** There is nothing to install and nothing to configure — the wardrobe lives in source, so a fresh checkout answers straight away. `what2wear` and `what2wear --on <date>` give you the shirt, its pants, its shoes, whether it's an office day, and whether today's forecast calls for its sweater or jacket; a past date answers too, with a note that it says where the rotation stands now rather than what was worn. `stay-home` and `go-in` switch a date's side, `reset` moves the shirt rotation to a shirt you name, and `reset-outerwear` moves the home outerwear rotation on to the other kind. `replace` gives a garment a new label, `swap` reorders two shirts that share pants, and `show-closet` lists everything with the name to copy into either. `office-weekdays` and `cold-threshold` show which three weekdays you go in and how cold is cold; `set-office-weekdays` and `set-cold-threshold` change them. Every command that acts on a date takes today unless `--on` says otherwise. Everything it's been told lives in one state file it owns.
+> **Status: the given wardrobe.** There is nothing to install and nothing to configure — the wardrobe lives in source, so a fresh checkout answers straight away. `what2wear` and `what2wear --on <date>` give you the shirt, its pants, its shoes, whether it's an office day, and whether today's forecast calls for its sweater or jacket; a past date answers too, with a note that it says where the rotation stands now rather than what was worn. `stay-home` and `go-in` switch a date's side, `reset` moves the shirt rotation to a shirt you name, and `reset-outerwear` moves the home outerwear rotation on to the other kind. `when` reads a rotation backwards — name a shirt and it gives the next date you wear it, as a whole day. `replace` gives a garment a new label, `swap` reorders two shirts that share pants, and `show-closet` lists everything with the name to copy into either. `office-weekdays` and `cold-threshold` show which three weekdays you go in and how cold is cold; `set-office-weekdays` and `set-cold-threshold` change them. Every command that acts on a date takes today unless `--on` says otherwise. Everything it's been told lives in one state file it owns.
 
 ## How it works
 
@@ -53,6 +53,7 @@ what2wear go-in                      # this home day is now an office day
 what2wear reset lblue                # move the rotation to that shirt, today
 what2wear reset lblue --on 2026-09-07  # --on goes after the command, and defaults to today
 what2wear reset-outerwear            # home jacket days become sweater days, and back
+what2wear when office.shirt.white    # the next date that shirt comes round, as a whole day
 what2wear show-closet                # every garment, how to name it, and what's due
 what2wear replace office.sweater.beige oatmeal   # this one is called that now
 what2wear swap office white striped  # two shirts sharing pants trade labels
@@ -63,6 +64,8 @@ what2wear set-cold-threshold 55      # feel the cold sooner
 ```
 
 `--on` takes a word as readily as a date: `tomorrow`, `yesterday`, or any weekday name in any case and either spelling — `fri`, `Friday`, `FRIDAY` — which lands on the soonest date with that weekday, today included, so `--on fri` on a Friday means today. There is no `today`: a bare invocation already means it.
+
+`when` asks the question backwards: name a shirt and it gives you the next date that shirt comes round, printed as the whole day for that date — the same thing `--on <that date>` prints, so the pants, the shoes and the outerwear come with it. It searches forward from today, today included, so a shirt due today answers today. It takes no `--on`, and the rule it follows is that **a command takes `--on` when it acts *on* a date; `when` acts on a shirt and *produces* one.** That sharpens ADR-0008's carve-out — "a label is not dated" covers `replace` and `swap` but says nothing about a command whose entire output is a date. The search ignores the forecast while the answer honors it, deliberately: where a rotation puts a shirt is knowable a year out, while the forecast reaches sixteen days, and the answer goes through the renderer every other answer goes through. Only shirts can be asked about — sweaters, shoes and jackets follow from pants during resolution rather than being picked by a rotation, so naming one says so. A year is as far as it looks, which only a deliberate stretch of `stay-home` can exhaust; that isn't an error, it's a plain line saying no day of that kind in the next year wears it.
 
 Holidays and leave aren't separate concepts — they're just `stay-home` on the relevant date.
 
@@ -103,11 +106,12 @@ src/what2wear/wardrobe.py   the given wardrobe, and the starting values the stat
 
 ## Design
 
-The architecture is a functional core with an imperative shell, and the core has two pure seams. One answers and never changes anything — `answer` for a whole outfit, `get_due_shirt` for where one rotation stands:
+The architecture is a functional core with an imperative shell, and the core has two pure seams. One answers and never changes anything — `answer` for a whole outfit, `get_due_shirt` for where one rotation stands, `get_due_date` for the same rotation read backwards:
 
 ```
-answer(state, on, weather)         -> Response
-get_due_shirt(state, day_type, on) -> str
+answer(state, on, weather)                       -> Response
+get_due_shirt(state, day_type, on)               -> str
+get_due_date(state, day_type, shirt, today)      -> date | None
 ```
 
 `weather` maps each date the forecast reaches to its high, so the core never touches the network: the shell fetches and the core decides.
