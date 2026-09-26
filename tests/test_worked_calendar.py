@@ -56,9 +56,9 @@ SEQUENCE = [
     ),  # Sun -- wraps back to the start
     (
         date(2026, 9, 7),
-        DayType.OFFICE,
-        Outfit("black", "tan", "black", "black"),
-    ),  # Mon -- a fresh week, so tan takes black cleanly
+        DayType.HOME,
+        Outfit("brown", "black", None, "white", jacket="black"),
+    ),  # Mon -- Labor Day, so a Home Day, and the next home shirt
 ]
 
 

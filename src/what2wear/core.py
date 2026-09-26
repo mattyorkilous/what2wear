@@ -4,7 +4,10 @@ import math
 from collections.abc import Collection, Mapping
 from dataclasses import replace
 from datetime import date, timedelta
+from functools import cache
 from types import MappingProxyType
+
+import holidays
 
 from what2wear.errors import What2wearError
 from what2wear.model import (
@@ -38,7 +41,7 @@ def record_override(state: State, on: date, day_type: DayType) -> State:
 
     Returns:
         The state with the override recorded, less any override the
-        weekday pattern already gives.
+        weekday pattern and the holidays already give.
     """
     recorded_overrides = {**state.overrides, on: day_type}
     return replace(
@@ -47,7 +50,7 @@ def record_override(state: State, on: date, day_type: DayType) -> State:
             {
                 on: day_type
                 for on, day_type in recorded_overrides.items()
-                if day_type is not _get_pattern_day_type(state, on)
+                if day_type is not _get_default_day_type(state, on)
             }
         ),
     )
@@ -340,7 +343,25 @@ def _get_keys_by_label(state: State, scope: str) -> Mapping[str, str]:
 
 
 def _get_day_type(state: State, on: date) -> DayType:
-    return state.overrides.get(on, _get_pattern_day_type(state, on))
+    return state.overrides.get(on, _get_default_day_type(state, on))
+
+
+def _get_default_day_type(state: State, on: date) -> DayType:
+    return (
+        DayType.HOME
+        if on in _get_holidays(on.year)
+        else _get_pattern_day_type(state, on)
+    )
+
+
+@cache
+def _get_holidays(year: int) -> frozenset[date]:
+    """Federal holidays, observed, and the Friday after Thanksgiving."""
+    federal_holidays = holidays.country_holidays("US", years=year)
+    return frozenset(federal_holidays) | {
+        on + timedelta(days=1)
+        for on in federal_holidays.get_named("Thanksgiving")
+    }
 
 
 def _get_pattern_day_type(state: State, on: date) -> DayType:
@@ -534,16 +555,25 @@ def _count_days_of_type_between(
             is day_type
             for offset in range(remaining_days)
         )
-        + _count_overridden_days(state, day_type, start, end)
+        + _count_days_off_pattern(state, day_type, start, end)
     )
 
 
-def _count_overridden_days(
+def _count_days_off_pattern(
     state: State, day_type: DayType, start: date, end: date
 ) -> int:
+    """Correct the pattern's count for overrides and holidays.
+
+    A date both overridden and a holiday is counted once.
+    """
+    holidays_in_range = (
+        on
+        for year in range(start.year, end.year + 1)
+        for on in _get_holidays(year)
+    )
     return sum(
         (_get_day_type(state, on) is day_type)
         - (_get_pattern_day_type(state, on) is day_type)
-        for on in state.overrides
+        for on in {*state.overrides, *holidays_in_range}
         if start <= on < end
     )

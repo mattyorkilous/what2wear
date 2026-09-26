@@ -84,9 +84,11 @@ class TestRotation:
     @pytest.mark.parametrize(
         ("day", "shirt"),
         [
-            (date(2031, 8, 18), "white"),
-            (date(2031, 8, 20), "black"),
-            (date(2031, 8, 22), "lblue"),
+            # The Holidays on Office Weekdays in between are Home Days,
+            # so five years of them have moved the office Rotation on.
+            (date(2031, 8, 18), "lblue"),
+            (date(2031, 8, 20), "striped"),
+            (date(2031, 8, 22), "dblue"),
         ],
     )
     def test_dates_years_out_resolve_by_the_same_rule(

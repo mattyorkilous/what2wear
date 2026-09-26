@@ -30,22 +30,32 @@ WEEK_SHAPES = (
         # donor row's shoes with it.
         (date(2026, 9, 4), "white", "blue", "grey", "white"),
     ),
+    # Labor Day makes the Week of 7 September a Holiday Week of two
+    # Office Days, and the Week after it repeats the shape above, so
+    # the cycle picks up again two weeks on.
     (
-        (date(2026, 9, 7), "black", "tan", "black", "black"),
-        (date(2026, 9, 9), "lblue", "black", "grey", "white"),
-        (date(2026, 9, 11), "striped", "blue", "beige", "brown"),
+        (date(2026, 9, 21), "black", "tan", "black", "black"),
+        (date(2026, 9, 23), "lblue", "black", "grey", "white"),
+        (date(2026, 9, 25), "striped", "blue", "beige", "brown"),
     ),
     (
-        (date(2026, 9, 14), "dblue", "tan", "black", "black"),
-        (date(2026, 9, 16), "white", "blue", "beige", "brown"),
+        (date(2026, 9, 28), "dblue", "tan", "black", "black"),
+        (date(2026, 9, 30), "white", "blue", "beige", "brown"),
         # Tan again, and Monday took black.
-        (date(2026, 9, 18), "black", "tan", "grey", "white"),
+        (date(2026, 10, 2), "black", "tan", "grey", "white"),
     ),
     (
-        (date(2026, 9, 21), "lblue", "black", "grey", "white"),
-        (date(2026, 9, 23), "striped", "blue", "beige", "brown"),
-        (date(2026, 9, 25), "dblue", "tan", "black", "black"),
+        (date(2026, 10, 5), "lblue", "black", "grey", "white"),
+        (date(2026, 10, 7), "striped", "blue", "beige", "brown"),
+        (date(2026, 10, 9), "dblue", "tan", "black", "black"),
     ),
+)
+
+# Labor Day's Week. Monday is at home, so it takes no sweater, and
+# Wednesday's tan pants get the black one Monday would have.
+HOLIDAY_WEEK = (
+    (date(2026, 9, 9), "black", "tan", "black", "black"),
+    (date(2026, 9, 11), "lblue", "black", "grey", "white"),
 )
 
 # One Monday-start Week of Home Days, alternating jacket and sweater.
@@ -63,7 +73,7 @@ HOME_WEEK = (
 class TestOfficeWeeks:
     @pytest.mark.parametrize(
         ("on", "shirt", "pants", "sweater", "shoes"),
-        [day for week in WEEK_SHAPES for day in week],
+        [day for week in (*WEEK_SHAPES, HOLIDAY_WEEK) for day in week],
     )
     def test_every_office_week_shape_resolves(
         self,
@@ -77,14 +87,14 @@ class TestOfficeWeeks:
             shirt=shirt, pants=pants, sweater=sweater, shoes=shoes
         )
 
-    @pytest.mark.parametrize("week", WEEK_SHAPES)
+    @pytest.mark.parametrize("week", [*WEEK_SHAPES, HOLIDAY_WEEK])
     def test_no_sweater_repeats_within_a_week(
         self, week: tuple[tuple[date, str, str, str, str], ...]
     ) -> None:
         worn = [_outfit(day[0]).sweater for day in week]
         assert len(set(worn)) == len(worn)
 
-    @pytest.mark.parametrize("week", WEEK_SHAPES)
+    @pytest.mark.parametrize("week", [*WEEK_SHAPES, HOLIDAY_WEEK])
     def test_no_shoes_repeat_within_a_week(
         self, week: tuple[tuple[date, str, str, str, str], ...]
     ) -> None:

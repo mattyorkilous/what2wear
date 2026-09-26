@@ -2,7 +2,8 @@
 
 > Amended by [ADR-0005](./0005-what2wear-dresses-one-person-from-a-given-wardrobe.md),
 > [ADR-0006](./0006-the-wardrobe-is-source-the-state-is-one-file-the-tool-owns.md)
-> and [ADR-0008](./0008-every-command-acts-on-one-date.md). The decision
+> and [ADR-0008](./0008-every-command-acts-on-one-date.md), and
+> [ADR-0011](./0011-holidays-are-given-home-days.md). The decision
 > below is unchanged and the formula got shorter; the consequences were
 > rewritten. What the amendments removed is noted against each.
 
@@ -52,10 +53,13 @@ or not you were watching.
   command can change a modulus. This replaces the original consequence,
   which accepted that adding a sixth office Shirt reshuffled every
   Position past and future.
-- **Day Type Overrides are just recorded facts about dates.** Holidays,
-  leave, going in on a Saturday and staying home on a Wednesday are one
-  concept, and future dates are as overridable as past ones. They are
-  the only thing left that the derivation reads out of the State.
+- **Day Type Overrides are just recorded facts about dates.** Leave,
+  working a Holiday, going in on a Saturday and staying home on a
+  Wednesday are one concept, and future dates are as overridable as
+  past ones. They are the only thing left that the derivation reads
+  out of the State. Per ADR-0011 they are no longer the only thing it
+  reads beyond the weekday pattern: a given calendar of Holidays sits
+  beneath them.
 - **This holds without exception.** The Home Outerwear alternation was once
   carved out of it (ADR-0002) and has since been brought back in — see
   ADR-0004. The other former exception, an authored Anchor Date
