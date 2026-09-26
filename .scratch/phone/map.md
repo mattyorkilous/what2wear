@@ -34,16 +34,14 @@ where the State lives, and what the phone shows.
 - [Free hosting for the Python core](issues/02-free-python-hosting.md) — PythonAnywhere free fits nearly unchanged (3.13 means one `except` line needs parentheses; renew every month); next best is Cloudflare Python Workers with a Durable Object for the State
 - [Python on iOS, free-signed](issues/01-python-on-ios.md) — works: a SwiftUI app embeds CPython 3.14 via BeeWare, the widget reads JSON the app precomputes, and re-signing is weekly via Xcode or SideStore
 - [Widgets and apps without a native build](issues/03-widgets-without-a-native-app.md) — no single tool does both; best is a web app (Pyodide can run the core in the page) plus a Scriptable widget, which needs a hosted State or an a-Shell + iCloud Drive relay; Pythonista is ruled out
+- [Choose the approach](issues/05-choose-the-approach.md) — a hosted core on PythonAnywhere free: the State file lives on its disk behind one token, the phone gets Python-rendered HTML pages, a Scriptable widget reads JSON from the same server, and the core holds to Python 3.13
 
 ## Not yet specified
 
-- How each command becomes UI: which are screens, which are forms
-  (`replace`, `swap`, `set-office-weekdays`), and whether `show-closet`
-  is the home screen.
-- Moving the existing `state.json` to wherever the State lives next.
-- What becomes of `cli.py` and its tests once the phone replaces it.
-- How the phone behaves offline or when its data is stale, especially
-  the widget's timeline.
+- Moving the existing `state.json` onto PythonAnywhere, and backing it
+  up now that it lives on a free host.
+- What the widget shows when its fetch fails or the server has lapsed
+  after a missed monthly renewal.
 
 ## Out of scope
 
