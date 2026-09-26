@@ -84,14 +84,23 @@ _Avoid_: look, combination, ensemble
 **Office Day**:
 A date on which you go into the office, and therefore draw from the
 Office Closet. Which dates those are comes from the Office Weekdays,
-unless a Day Type Override says otherwise.
+less the Holidays, unless a Day Type Override says otherwise.
 _Avoid_: in-office day, commute day
 
 **Home Day**:
 A date on which you do not go into the office, and therefore draw from
 the Home Closet. Weekends are Home Days unless the Office Weekdays say
+otherwise, and Holidays are Home Days unless a Day Type Override says
 otherwise.
 _Avoid_: WFH day, remote day, day off
+
+**Holiday**:
+A date the tool knows to be a Home Day without being told — the US
+federal holidays on their observed dates, and the Friday after
+Thanksgiving. The set is given, not told: nothing about it is written
+to the State, and a change to it is a commit. A Day Type Override
+outranks it, so going in on a Holiday is an Override.
+_Avoid_: day off, bank holiday, PTO
 
 Every date is exactly one of an Office Day or a Home Day. There is no
 third, unclassified kind of day.
@@ -165,10 +174,11 @@ _Avoid_: epoch, start date, origin, anchor date
 
 **Day Type Override**:
 A record that a specific date is an Office Day or a Home Day regardless
-of the Office Weekdays. Holidays, leave, going in on a Saturday and
-staying home on a Wednesday are all the same thing. One record per
+of the Office Weekdays and the Holidays. Leave, working a Holiday,
+going in on a Saturday and staying home on a Wednesday are all the
+same thing. One record per
 date, so saying it again replaces what was said before.
-_Avoid_: exception, holiday, PTO, absence
+_Avoid_: exception, PTO, absence
 
 **Office Weekdays**:
 The three weekdays that are Office Days unless a Day Type Override says
