@@ -37,6 +37,7 @@ where the State lives, and what the phone shows.
 - [Choose the approach](issues/05-choose-the-approach.md) — a hosted core on PythonAnywhere free: the State file lives on its disk behind one token, the phone gets Python-rendered HTML pages, a Scriptable widget reads JSON from the same server, and the core holds to Python 3.13
 - [What an emoji Outfit looks like](issues/04-emoji-outfit.md) — a small widget: 🏢/🏠 and a short date, then drawn icons in each Garment's real colour with its full name ("Light Blue Shirt"); Outerwear worn only if it's cold is dimmed
 - [Pages and forms for each command](issues/06-pages-and-forms.md) — three pages (Day at `/`, Closet, Settings); dates in the URL with prev/next and a date picker; writes POST-redirect with a notice; `when` folds into the Closet, the show commands into their set forms
+- [What becomes of the CLI](issues/07-what-becomes-of-the-cli.md) — deleted with its tests, script entry and `platformdirs`, as the last step once the State is hosted; the web shell owns the confirmation strings; the shell behaviours worth keeping become the web shell's test checklist
 
 ## Not yet specified
 
