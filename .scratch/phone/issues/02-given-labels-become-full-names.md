@@ -7,13 +7,13 @@ conversion is needed. See `.scratch/phone/spec.md`.
 
 **Blocked by:** 01 — Outfits carry Garments with a told Color.
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Every given Label is a full name with no `.` in it
-- [ ] One Label per Closet and kind still holds
-- [ ] Tests that name given Labels are swept to the full names; the
+- [x] Every given Label is a full name with no `.` in it
+- [x] One Label per Closet and kind still holds
+- [x] Tests that name given Labels are swept to the full names; the
       suite is green
-- [ ] A State file with `"labels": {}` answers with the full names
-- [ ] CONTEXT.md **Label** becomes "what a Garment is called, in words
+- [x] A State file with `"labels": {}` answers with the full names
+- [x] CONTEXT.md **Label** becomes "what a Garment is called, in words
       you'd say (Light Blue)", no longer "the whole of what the tool
       prints", with `color` dropped from its _Avoid_
