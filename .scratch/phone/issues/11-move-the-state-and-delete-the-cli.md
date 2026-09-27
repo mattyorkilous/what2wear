@@ -1,0 +1,24 @@
+# 11 — Move the State and delete the CLI
+
+**What to build:** The wearer's existing State moves to PythonAnywhere,
+is checked against the Mac, and the CLI is deleted so the web app is
+the one writer. See `.scratch/phone/spec.md`.
+
+**Blocked by:** 02 — Given Labels become full names; 04 — Day page
+actions; 05 — Settings page; 06 — Closet page with due dates and Swap;
+07 — Replace with a Color.
+
+**Status:** ready-for-agent (the upload and check are HITL)
+
+- [ ] `state.json` uploaded in the Files tab to the WSGI file's
+      `state_path`
+- [ ] Today's Day page matches `what2wear` on the Mac; from then on the
+      Mac CLI isn't used
+- [ ] Deleted: the CLI module, its tests, the `[project.scripts]`
+      entry, `platformdirs`, and the CLI's per-file ruff ignores
+- [ ] CONTEXT.md no longer mentions `show-closet` or the
+      `office.shirt.ecru` wording
+- [ ] README covers deploy (`git pull`, `uv sync`, Reload), monthly
+      renewal with a `state.json` download as backup, and restore by
+      upload
+- [ ] The deletion is committed and deployed
