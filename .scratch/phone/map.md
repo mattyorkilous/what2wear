@@ -38,13 +38,11 @@ where the State lives, and what the phone shows.
 - [What an emoji Outfit looks like](issues/04-emoji-outfit.md) — a small widget: 🏢/🏠 and a short date, then drawn icons in each Garment's real colour with its full name ("Light Blue Shirt"); Outerwear worn only if it's cold is dimmed
 - [Pages and forms for each command](issues/06-pages-and-forms.md) — three pages (Day at `/`, Closet, Settings); dates in the URL with prev/next and a date picker; writes POST-redirect with a notice; `when` folds into the Closet, the show commands into their set forms
 - [What becomes of the CLI](issues/07-what-becomes-of-the-cli.md) — deleted with its tests, script entry and `platformdirs`, as the last step once the State is hosted; the web shell owns the confirmation strings; the shell behaviours worth keeping become the web shell's test checklist
+- [The web shell on PythonAnywhere](issues/08-the-web-shell.md) — Flask in `web.py`; the token is the first URL segment (no login); today is America/New_York from `wardrobe.py`; notices ride `?notice=`; the widget reads `/<token>/day/YYYY-MM-DD.json`; deployed by git clone + `uv sync`
 
 ## Not yet specified
 
-- Moving the existing `state.json` onto PythonAnywhere, and backing it
-  up now that it lives on a free host.
-- What the widget shows when its fetch fails or the server has lapsed
-  after a missed monthly renewal.
+Nothing right now: both patches became tickets, [Moving and backing up the State](issues/11-moving-and-backing-up-the-state.md) and [When the widget can't fetch](issues/12-when-the-widget-cant-fetch.md).
 
 ## Out of scope
 
