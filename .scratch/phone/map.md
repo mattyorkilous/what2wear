@@ -42,6 +42,7 @@ where the State lives, and what the phone shows.
 - [Drawing the garment icons on the phone](issues/09-drawing-the-icons.md) — the Scriptable widget draws them with `DrawContext` from path strings in the JSON (shape, optional pattern, detail), the same data the Day page's SVG uses; stripes are vertical bars inside the torso, dashes become segments
 - [Full names and colours for Labels](issues/10-full-names-and-colours.md) — the Label becomes the full name as typed ("Light Blue"); each Garment gains a told Color (and optional stripe Color) in the State, set by Replace's color picker and carried by Swap; the move needs no Label conversion (see Moving and backing up the State)
 - [Moving and backing up the State](issues/11-moving-and-backing-up-the-state.md) — upload `state.json` in PythonAnywhere's Files tab, check today against the Mac, then delete the CLI; no Label conversion needed (the file holds no replaced Labels); back up by downloading at each monthly renewal
+- [When the widget can't fetch](issues/12-when-the-widget-cant-fetch.md) — show the last good Outfit cached on the phone; a ⚠︎ date if it isn't today's; the header reads "State won't read" on a 500 or "Renew PythonAnywhere?" on any non-JSON answer; no tomorrow prefetch
 
 ## Not yet specified
 
