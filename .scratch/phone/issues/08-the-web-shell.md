@@ -13,3 +13,6 @@ What is the server that wraps the core on PythonAnywhere?
   or a header (Scriptable can send headers; a Home Screen bookmark
   can't)
 - The shape of the JSON endpoint the widget reads
+- How the post-redirect notice line (see
+  [Pages and forms for each command](06-pages-and-forms.md)) reaches
+  the page it redirects to: a query parameter or a cookie

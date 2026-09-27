@@ -21,3 +21,7 @@ can't display SVG. Where are the icons drawn?
 This bears on the JSON endpoint in
 [The web shell on PythonAnywhere](08-the-web-shell.md): colours and
 kinds, or image URLs.
+
+The Day page draws the same icons as inline SVG from Python (see
+[Pages and forms for each command](06-pages-and-forms.md)), so the
+shapes already exist server-side in some form either way.
