@@ -76,7 +76,7 @@ class TestTheLabels:
         self, tmp_path: Path
     ) -> None:
         told = replace_(
-            get_default_state(TODAY), "office.shirt.white", "cream"
+            get_default_state(TODAY), "office.shirt.White", "cream"
         )
         write_state(_path(tmp_path), told)
         assert read_state(_path(tmp_path), TODAY) == told
@@ -87,28 +87,28 @@ class TestTheLabels:
         # The given Labels go back underneath on the way in, so
         # writing them out again would only be the file repeating
         # itself.
-        told = replace_(get_default_state(TODAY), "pants.blue", "navy")
+        told = replace_(get_default_state(TODAY), "pants.Blue", "navy")
         write_state(_path(tmp_path), told)
         text = _path(tmp_path).read_text()
         assert '"pants.0": "navy"' in text
         assert '"pants.1"' not in text
 
-    def test_a_file_keyed_by_the_given_label_still_reads(
+    def test_a_file_with_no_told_labels_answers_with_full_names(
         self, tmp_path: Path
     ) -> None:
-        # Files written before keys counted places spell the key
-        # with the Label the garment shipped with.
+        # The live file, which is why the given Labels could become
+        # full names without converting it.
         _path(tmp_path).write_text(
             _document("{}").replace(
-                '"overrides": {}',
-                '"overrides": {}, "labels": {"pants.blue": "navy"}',
+                '"overrides": {}', '"overrides": {}, "labels": {}'
             )
         )
-        assert (
-            answer(
-                read_state(_path(tmp_path), TODAY), TODAY, {}
-            ).outfit.pants.label
-            == "navy"
+        outfit = answer(
+            read_state(_path(tmp_path), TODAY), TODAY, {}
+        ).outfit
+        assert (outfit.shirt.label, outfit.pants.label) == (
+            "White",
+            "Blue",
         )
 
     def test_a_garment_a_file_says_nothing_about_reads_as_given(

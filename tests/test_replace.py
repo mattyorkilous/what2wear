@@ -22,24 +22,24 @@ def _replaced(garment: str, label: str) -> State:
 
 
 def test_a_replaced_garment_is_named_by_its_new_label() -> None:
-    told = _replaced("office.shirt.white", "cream")
+    told = _replaced("office.shirt.White", "cream")
     assert answer(told, MON24, {}).outfit.shirt.label == "cream"
 
 
 def test_a_replace_moves_no_rotation() -> None:
     # The replaced Shirt is still Monday's and the other two are still
     # where they were, so nothing followed the Label.
-    told = _replaced("office.shirt.white", "cream")
+    told = _replaced("office.shirt.White", "cream")
     assert [
         answer(told, on, {}).outfit.shirt.label
         for on in (MON24, WED26, FRI28)
-    ] == ["cream", "black", "lblue"]
+    ] == ["cream", "Black", "Light Blue"]
 
 
 def test_a_garment_is_replaced_again_by_its_new_label() -> None:
     # How a Garment is named moves with the Label, because the Label
     # is the whole of what the wearer has to go on.
-    once = _replaced("home.shirt.white", "cream")
+    once = _replaced("home.shirt.White", "cream")
     twice = replace_(once, "home.shirt.cream", "ecru")
     assert answer(twice, SAT22, {}).outfit.shirt.label == "ecru"
 
@@ -47,7 +47,7 @@ def test_a_garment_is_replaced_again_by_its_new_label() -> None:
 def test_home_shoes_two_pants_rows_call_for_change_once() -> None:
     # Saturday wears blue pants and Tuesday tan, and the black shoes
     # are one pair worn with either.
-    told = _replaced("home.shoes.black", "oxblood")
+    told = _replaced("home.shoes.Black", "oxblood")
     assert [
         answer(told, on, {}).outfit.shoes.label for on in (SAT22, TUE25)
     ] == [
@@ -58,7 +58,7 @@ def test_home_shoes_two_pants_rows_call_for_change_once() -> None:
 
 def test_replacing_pants_changes_them_in_both_closets() -> None:
     # One set of trousers, both Closets wearing it.
-    told = _replaced("pants.blue", "navy")
+    told = _replaced("pants.Blue", "navy")
     assert [
         answer(told, on, {}).outfit.pants.label for on in (SAT22, MON24)
     ] == [
@@ -70,9 +70,9 @@ def test_replacing_pants_changes_them_in_both_closets() -> None:
 def test_the_same_label_in_the_two_closets_stays_legal() -> None:
     # The home Closet already has a yellow sweater, and the office
     # one is a different garment.
-    told = _replaced("office.sweater.beige", "yellow")
+    told = _replaced("office.sweater.Beige", "Yellow")
     assert (
-        _get_label(answer(told, MON24, {}).outfit.sweater) == "yellow"
+        _get_label(answer(told, MON24, {}).outfit.sweater) == "Yellow"
     )
 
 
@@ -82,13 +82,13 @@ class TestARefusedReplace:
     ) -> None:
         # The office already has black shoes, so a second pair called
         # black would leave the answer unactionable.
-        with pytest.raises(What2wearError, match="black"):
-            _replaced("office.shoes.brown", "black")
+        with pytest.raises(What2wearError, match="Black"):
+            _replaced("office.shoes.Brown", "Black")
 
     def test_restating_the_label_a_garment_already_has_is_not(
         self,
     ) -> None:
-        assert _replaced("office.shoes.brown", "brown") == GIVEN
+        assert _replaced("office.shoes.Brown", "Brown") == GIVEN
 
     def test_a_label_naming_no_garment_is_refused(self) -> None:
         with pytest.raises(
@@ -99,20 +99,20 @@ class TestARefusedReplace:
     def test_a_label_from_the_other_closet_names_nothing(
         self,
     ) -> None:
-        # `purple` is a home Shirt and the office Closet has no such
+        # `Purple` is a home Shirt and the office Closet has no such
         # Label, so the Closet named is what decides.
         with pytest.raises(
-            What2wearError, match="no office shirt is called 'purple'"
+            What2wearError, match="no office shirt is called 'Purple'"
         ):
-            _replaced("office.shirt.purple", "cream")
+            _replaced("office.shirt.Purple", "cream")
 
     def test_a_garment_with_no_closet_and_kind_is_refused(self) -> None:
         # A bare Label says neither which Closet nor what kind of
         # thing, so there is no scope to report it missing from.
         with pytest.raises(
-            What2wearError, match="nothing is called 'white'"
+            What2wearError, match="nothing is called 'White'"
         ):
-            _replaced("white", "cream")
+            _replaced("White", "cream")
 
 
 def _get_label(garment: Garment | None) -> str | None:

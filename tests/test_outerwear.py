@@ -23,7 +23,7 @@ class TestOfficeOuterwear:
         self,
     ) -> None:
         response = _response(MON, {MON: COLD})
-        assert _get_label(response.outfit.sweater) == "beige"
+        assert _get_label(response.outfit.sweater) == "Beige"
         assert response.cold is True
 
     def test_a_cold_day_after_a_taken_sweater_wears_the_fallback(
@@ -35,7 +35,7 @@ class TestOfficeOuterwear:
                     FALLBACK_FRI, {FALLBACK_FRI: COLD}
                 ).outfit.sweater
             )
-            == "grey"
+            == "Grey"
         )
 
     @pytest.mark.parametrize(
@@ -81,12 +81,12 @@ class TestOfficeOuterwear:
                     {FALLBACK_MON: WARM, FALLBACK_FRI: COLD},
                 ).outfit.sweater
             )
-            == "grey"
+            == "Grey"
         )
 
     def test_a_cold_day_names_the_sweater_by_its_label(self) -> None:
         state = replace_(
-            get_default_state(TODAY), "office.sweater.beige", "oatmeal"
+            get_default_state(TODAY), "office.sweater.Beige", "oatmeal"
         )
         assert (
             _get_label(answer(state, MON, {MON: COLD}).outfit.sweater)
@@ -99,7 +99,7 @@ class TestUnknownWeather:
         self,
     ) -> None:
         response = _response(MON, {TODAY: COLD})
-        assert _get_label(response.outfit.sweater) == "beige"
+        assert _get_label(response.outfit.sweater) == "Beige"
         assert response.cold is None
 
     def test_beyond_the_horizon_keeps_everything_else(self) -> None:
@@ -134,7 +134,7 @@ class TestHomeOuterwear:
         assert [
             _get_home_outerwear(on, {on: COLD})
             for on in (TUE, THU, SAT)
-        ] == [(None, "brown"), ("beige", None), (None, "black")]
+        ] == [(None, "Brown"), ("Beige", None), (None, "Black")]
 
     def test_a_warm_day_spends_its_turn(self) -> None:
         # ADR-0004's price, asserted rather than worked around: the
@@ -143,7 +143,7 @@ class TestHomeOuterwear:
         weather: dict[date, float] = {TUE: COLD, THU: WARM, SAT: COLD}
         assert [
             _get_home_outerwear(on, weather) for on in (TUE, THU, SAT)
-        ] == [(None, "brown"), (None, None), (None, "black")]
+        ] == [(None, "Brown"), (None, None), (None, "Black")]
 
     def test_office_sweaters_between_them_change_nothing(self) -> None:
         cold_office = dict.fromkeys((WED, FRI), COLD)
@@ -167,7 +167,7 @@ class TestHomeOuterwear:
             _get_label(response.outfit.jacket),
         ) == (
             None,
-            "brown",
+            "Brown",
         )
         assert response.cold is None
 
@@ -181,13 +181,13 @@ class TestHomeOuterwear:
         tue, sat = date(2026, 8, 25), date(2026, 8, 29)
         responses = [_response(on, {on: COLD}) for on in (tue, sat)]
         assert [_get_label(r.outfit.jacket) for r in responses] == [
-            "black"
+            "Black"
         ] * 2
         assert not any(r.unavoidable_repeat for r in responses)
 
     def test_a_jacket_is_named_by_its_label(self) -> None:
         state = replace_(
-            get_default_state(TODAY), "home.jacket.black", "navy"
+            get_default_state(TODAY), "home.jacket.Black", "navy"
         )
         assert (
             _get_label(answer(state, SAT, {SAT: COLD}).outfit.jacket)
@@ -206,7 +206,7 @@ class TestTheColdThreshold:
         assert _response(MON, {MON: mild}).cold is False
         assert (
             _get_label(answer(state, MON, {MON: mild}).outfit.sweater)
-            == "beige"
+            == "Beige"
         )
 
     def test_a_day_it_makes_warm_still_spends_its_turn(self) -> None:
@@ -221,14 +221,14 @@ class TestTheColdThreshold:
         state = set_cold_threshold(get_default_state(TODAY), COLD + 1)
         assert [
             _get_home_outerwear(on, weather) for on in (TUE, THU, SAT)
-        ] == [(None, "brown"), ("beige", None), (None, "black")]
+        ] == [(None, "Brown"), ("Beige", None), (None, "Black")]
         assert [
             (_get_label(outfit.sweater), _get_label(outfit.jacket))
             for outfit in (
                 answer(state, on, weather).outfit
                 for on in (TUE, THU, SAT)
             )
-        ] == [(None, "brown"), (None, None), (None, "black")]
+        ] == [(None, "Brown"), (None, None), (None, "Black")]
 
     @pytest.mark.parametrize("threshold", [float("nan"), float("inf")])
     def test_a_threshold_that_is_no_temperature_is_refused(

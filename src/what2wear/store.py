@@ -12,7 +12,6 @@ from what2wear.model import Anchor, DayType, Rotation, State
 from what2wear.wardrobe import (
     DEFAULT_COLD_THRESHOLD,
     DEFAULT_OFFICE_WEEKDAYS,
-    KEYS,
     WEEKDAYS,
     build_default_colors,
     build_default_labels,
@@ -96,13 +95,7 @@ def _parse_state(document: dict[str, Any]) -> State:
             }
         ),
         labels=MappingProxyType(
-            dict(build_default_labels())
-            | {
-                KEYS.get(recorded, recorded): label
-                for recorded, label in document.get(
-                    "labels", {}
-                ).items()
-            }
+            dict(build_default_labels()) | document.get("labels", {})
         ),
         colors=MappingProxyType(
             dict(build_default_colors())

@@ -54,7 +54,7 @@ class TestRotation:
     def test_today_stands_at_the_top_of_its_closet(self) -> None:
         # Nothing recorded, so the Anchor is today at Position 0 and
         # a fresh installation opens on white.
-        assert _on(TODAY).outfit.shirt.label == "white"
+        assert _on(TODAY).outfit.shirt.label == "White"
 
     def test_the_office_rotation_advances_only_on_office_days(
         self,
@@ -62,31 +62,31 @@ class TestRotation:
         worn = [
             _on(day).outfit.shirt.label for day in (MON24, WED26, FRI28)
         ]
-        assert worn == ["white", "black", "lblue"]
+        assert worn == ["White", "Black", "Light Blue"]
 
     def test_home_days_in_between_do_not_move_the_office_rotation(
         self,
     ) -> None:
         # Wed 26th follows Mon 24th in the office rotation despite
         # Tue 25th at home.
-        assert _on(WED26).outfit.shirt.label == "black"
+        assert _on(WED26).outfit.shirt.label == "Black"
 
     def test_the_home_rotation_advances_only_on_home_days(self) -> None:
         worn = [
             _on(day).outfit.shirt.label for day in (SAT22, SUN23, TUE25)
         ]
-        assert worn == ["white", "brown", "dgreen"]
+        assert worn == ["White", "Brown", "Dark Green"]
 
     def test_each_rotation_wraps_at_the_end_of_its_closet(self) -> None:
         # Five office shirts, so the sixth office day since the anchor
         # comes back round to white.
-        assert _on(FRI_SEP4).outfit.shirt.label == "white"
+        assert _on(FRI_SEP4).outfit.shirt.label == "White"
 
     def test_pants_come_welded_to_the_shirt(self) -> None:
         outfit = _on(TUE25).outfit
         assert (outfit.shirt.label, outfit.pants.label) == (
-            "dgreen",
-            "tan",
+            "Dark Green",
+            "Tan",
         )
 
     @pytest.mark.parametrize(
@@ -94,9 +94,9 @@ class TestRotation:
         [
             # The Holidays on Office Weekdays in between are Home Days,
             # so five years of them have moved the office Rotation on.
-            (date(2031, 8, 18), "lblue"),
-            (date(2031, 8, 20), "striped"),
-            (date(2031, 8, 22), "dblue"),
+            (date(2031, 8, 18), "Light Blue"),
+            (date(2031, 8, 20), "Striped"),
+            (date(2031, 8, 22), "Dark Blue"),
         ],
     )
     def test_dates_years_out_resolve_by_the_same_rule(
@@ -114,7 +114,7 @@ class TestDatesBehindTheOneAsked:
         state = replace(
             get_default_state(TODAY), overrides={MON24: DayType.HOME}
         )
-        assert answer(state, WED26, {}).outfit.shirt.label == "white"
+        assert answer(state, WED26, {}).outfit.shirt.label == "White"
 
     def test_the_week_walk_still_resolves_earlier_office_days(
         self,
@@ -125,8 +125,8 @@ class TestDatesBehindTheOneAsked:
         # Fallback and the white shoes that come with it.
         outfit = _on(FRI_SEP4).outfit
         assert (_get_label(outfit.sweater), outfit.shoes.label) == (
-            "grey",
-            "white",
+            "Grey",
+            "White",
         )
 
 

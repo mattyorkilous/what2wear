@@ -115,13 +115,13 @@ class TestEveryRotationIsReAnchored:
         before, after = (
             answer(told, FRI_SEP4, {}).outfit for told in (GIVEN, state)
         )
-        assert before.shirt.label == after.shirt.label == "white"
+        assert before.shirt.label == after.shirt.label == "White"
         assert (
             _get_label(before.sweater),
             _get_label(after.sweater),
         ) == (
-            "grey",
-            "beige",
+            "Grey",
+            "Beige",
         )
 
 

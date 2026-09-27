@@ -1,3 +1,4 @@
+import re
 from datetime import UTC, date, datetime, timedelta
 from functools import partial
 from pathlib import Path
@@ -230,12 +231,15 @@ class TestNamingADateWithAWord:
     ) -> None:
         friday = _next(FRI)
         assert (
-            run(["reset", "lblue", "--on", "fri"], state_dir=tmp_path)
+            run(
+                ["reset", "Light Blue", "--on", "fri"],
+                state_dir=tmp_path,
+            )
             == 0
         )
         capsys.readouterr()
         assert _ask(friday, tmp_path) == 0
-        assert _shirt(capsys.readouterr().out) == "lblue"
+        assert _shirt(capsys.readouterr().out) == "Light Blue"
 
     def test_a_word_ahead_of_the_command_still_records_today(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
@@ -337,13 +341,13 @@ class TestRecordingAReset:
     def test_it_says_what_it_did(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        assert run(["reset", "lblue"], state_dir=tmp_path) == 0
+        assert run(["reset", "Light Blue"], state_dir=tmp_path) == 0
         out = capsys.readouterr().out
         assert "recorded" in out
-        assert "shirt rotation reset to lblue" in out
+        assert "shirt rotation reset to Light Blue" in out
 
     def test_naming_no_shirt_is_refused(self, tmp_path: Path) -> None:
-        # Both closets hold an `lblue`, so the day never decides
+        # Both closets hold an `Light Blue`, so the day never decides
         # whether the label is one; leaving it out is the only way
         # `reset` can be typed without one.
         with pytest.raises(SystemExit):
@@ -362,13 +366,13 @@ class TestRecordingAReset:
     ) -> None:
         assert run([], state_dir=tmp_path) == 0
         before = _shirt(capsys.readouterr().out)
-        assert run(["reset", "lblue"], state_dir=tmp_path) == 0
+        assert run(["reset", "Light Blue"], state_dir=tmp_path) == 0
         assert _shirt(capsys.readouterr().out) != before
 
     def test_a_reset_outlives_the_invocation_that_made_it(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        assert run(["reset", "lblue"], state_dir=tmp_path) == 0
+        assert run(["reset", "Light Blue"], state_dir=tmp_path) == 0
         moved = _shirt(capsys.readouterr().out)
         assert run([], state_dir=tmp_path) == 0
         assert _shirt(capsys.readouterr().out) == moved
@@ -378,19 +382,19 @@ class TestRecordingAReset:
     ) -> None:
         # The Shirt lands on the date named rather than on today.
         monday = _next(MON) + timedelta(days=7)
-        assert _reset("lblue", monday, tmp_path) == 0
+        assert _reset("Light Blue", monday, tmp_path) == 0
         capsys.readouterr()
         assert _ask(monday, tmp_path) == 0
-        assert _shirt(capsys.readouterr().out) == "lblue"
+        assert _shirt(capsys.readouterr().out) == "Light Blue"
 
     def test_the_closet_comes_from_the_date_it_acts_on(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        # `striped` is an office Shirt and the home Closet has no
+        # `Striped` is an office Shirt and the home Closet has no
         # such Label, so the date alone decides which is searched.
-        assert _reset("striped", _next(MON), tmp_path) == 0
+        assert _reset("Striped", _next(MON), tmp_path) == 0
         capsys.readouterr()
-        assert _reset("striped", _next(SAT), tmp_path) == 2
+        assert _reset("Striped", _next(SAT), tmp_path) == 2
         assert "no home shirt" in capsys.readouterr().err
 
 
@@ -435,28 +439,28 @@ class TestShowingTheCloset:
         assert run(["show-closet"], state_dir=tmp_path) == 0
         out = capsys.readouterr().out
         assert _shirts(out, "office") == [
-            "white",
-            "black",
-            "lblue",
-            "striped",
-            "dblue",
+            "White",
+            "Black",
+            "Light Blue",
+            "Striped",
+            "Dark Blue",
         ]
         assert _shirts(out, "home")[:3] == [
-            "white",
-            "brown",
-            "dgreen",
+            "White",
+            "Brown",
+            "Dark Green",
         ]
 
     def test_it_shows_each_shirts_pants_in_its_own_column(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
         # Which is what makes a legal Swap something to scan for:
-        # `white` and `striped` both wear blue.
+        # `White` and `Striped` both wear blue.
         assert run(["show-closet"], state_dir=tmp_path) == 0
         out = capsys.readouterr().out
-        assert _get_columns(out, "white")[2] == "blue"
-        assert _get_columns(out, "striped")[2] == "blue"
-        assert _get_columns(out, "black")[2] == "tan"
+        assert _get_columns(out, "White")[2] == "Blue"
+        assert _get_columns(out, "Striped")[2] == "Blue"
+        assert _get_columns(out, "Black")[2] == "Tan"
 
     def test_it_prints_a_garment_that_can_be_replaced_by(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
@@ -464,7 +468,7 @@ class TestShowingTheCloset:
         # Copied rather than guessed at: whatever it printed is what
         # `replace` takes.
         assert run(["show-closet"], state_dir=tmp_path) == 0
-        garment = _get_columns(capsys.readouterr().out, "striped")[3]
+        garment = _get_columns(capsys.readouterr().out, "Striped")[3]
         assert (
             run(["replace", garment, "check"], state_dir=tmp_path) == 0
         )
@@ -489,15 +493,15 @@ class TestShowingTheCloset:
     def test_the_mark_moves_with_the_rotation(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        # `dblue` hangs in both closets, so today's kind cannot
+        # `Dark Blue` hangs in both closets, so today's kind cannot
         # decide whether this passes.
         assert run(["show-closet"], state_dir=tmp_path) == 0
         before = _marked(capsys.readouterr().out, _todays_closet())
-        assert run(["reset", "dblue"], state_dir=tmp_path) == 0
+        assert run(["reset", "Dark Blue"], state_dir=tmp_path) == 0
         capsys.readouterr()
         assert run(["show-closet"], state_dir=tmp_path) == 0
         marked = _marked(capsys.readouterr().out, _todays_closet())
-        assert marked == ["dblue"]
+        assert marked == ["Dark Blue"]
         assert before != marked
 
     def test_it_lists_the_jackets_home_alone_has(
@@ -505,7 +509,7 @@ class TestShowingTheCloset:
     ) -> None:
         assert run(["show-closet"], state_dir=tmp_path) == 0
         out = capsys.readouterr().out
-        assert "home.jacket.brown" in out
+        assert "home.jacket.Brown" in out
         assert "office.jacket" not in out
 
     def test_it_lists_the_pants_both_closets_share_once(
@@ -513,7 +517,7 @@ class TestShowingTheCloset:
     ) -> None:
         assert run(["show-closet"], state_dir=tmp_path) == 0
         out = capsys.readouterr().out
-        assert out.count("pants.blue") == 1
+        assert out.count("pants.Blue") == 1
 
 
 class TestReplacingAGarment:
@@ -521,7 +525,7 @@ class TestReplacingAGarment:
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
         assert (
-            run(["replace", "pants.blue", "navy"], state_dir=tmp_path)
+            run(["replace", "pants.Blue", "navy"], state_dir=tmp_path)
             == 0
         )
         assert "navy" in capsys.readouterr().out
@@ -533,7 +537,7 @@ class TestReplacingAGarment:
     ) -> None:
         assert (
             run(
-                ["replace", "home.shoes.black", "oxblood"],
+                ["replace", "home.shoes.Black", "oxblood"],
                 state_dir=tmp_path,
             )
             == 0
@@ -546,7 +550,7 @@ class TestReplacingAGarment:
         # A no-op rather than a refusal, so it is not an error -- but
         # nothing was written, so nothing says it was.
         assert (
-            run(["replace", "pants.blue", "blue"], state_dir=tmp_path)
+            run(["replace", "pants.Blue", "Blue"], state_dir=tmp_path)
             == 0
         )
         assert "recorded" not in capsys.readouterr().out
@@ -557,12 +561,12 @@ class TestReplacingAGarment:
     ) -> None:
         assert (
             run(
-                ["replace", "office.shoes.brown", "black"],
+                ["replace", "office.shoes.Brown", "Black"],
                 state_dir=tmp_path,
             )
             == 2
         )
-        assert "black" in capsys.readouterr().err
+        assert "Black" in capsys.readouterr().err
         assert not _state(tmp_path).exists()
 
 
@@ -571,11 +575,11 @@ class TestSwappingTwoShirts:
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
         assert run(["show-closet"], state_dir=tmp_path) == 0
-        columns = _get_columns(capsys.readouterr().out, "white")
-        assert columns[2] == "blue"
+        columns = _get_columns(capsys.readouterr().out, "White")
+        assert columns[2] == "Blue"
         assert (
             run(
-                ["swap", "office", "white", "striped"],
+                ["swap", "office", "White", "Striped"],
                 state_dir=tmp_path,
             )
             == 0
@@ -583,7 +587,7 @@ class TestSwappingTwoShirts:
         capsys.readouterr()
         assert run(["show-closet"], state_dir=tmp_path) == 0
         assert _shirts(capsys.readouterr().out, "office")[:1] == [
-            "striped"
+            "Striped"
         ]
 
     def test_shirts_that_do_not_share_pants_are_refused(
@@ -591,7 +595,7 @@ class TestSwappingTwoShirts:
     ) -> None:
         assert (
             run(
-                ["swap", "office", "white", "black"],
+                ["swap", "office", "White", "Black"],
                 state_dir=tmp_path,
             )
             == 2
@@ -604,7 +608,7 @@ class TestSwappingTwoShirts:
     ) -> None:
         with pytest.raises(SystemExit):
             run(
-                ["swap", "attic", "white", "striped"],
+                ["swap", "attic", "White", "Striped"],
                 state_dir=tmp_path,
             )
 
@@ -737,7 +741,7 @@ class TestAskingWhenAShirtIsNextDue:
     def test_it_prints_the_found_dates_whole_outfit(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        assert _when("office.shirt.white", tmp_path) == 0
+        assert _when("office.shirt.White", tmp_path) == 0
         found = capsys.readouterr().out
         assert _ask(_dated(found), tmp_path) == 0
         assert capsys.readouterr().out == found
@@ -747,20 +751,20 @@ class TestAskingWhenAShirtIsNextDue:
     ) -> None:
         # A fresh installation anchors today at the top of its closet.
         closet = _todays_closet()
-        assert _when(f"{closet}.shirt.white", tmp_path) == 0
+        assert _when(f"{closet}.shirt.White", tmp_path) == 0
         assert _dated(capsys.readouterr().out) == _today()
 
     def test_each_closets_white_is_a_different_shirt(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        assert _when("office.shirt.white", tmp_path) == 0
+        assert _when("office.shirt.White", tmp_path) == 0
         at_the_office = _dated(capsys.readouterr().out)
-        assert _when("home.shirt.white", tmp_path) == 0
+        assert _when("home.shirt.White", tmp_path) == 0
         assert _dated(capsys.readouterr().out) != at_the_office
 
     @pytest.mark.parametrize(
         "garment",
-        ["office.sweater.beige", "home.shoes.black", "pants.blue"],
+        ["office.sweater.Beige", "home.shoes.Black", "pants.Blue"],
     )
     def test_anything_but_a_shirt_is_refused(
         self,
@@ -790,10 +794,10 @@ class TestAskingWhenAShirtIsNextDue:
             for offset in range(HORIZON_DAYS)
         } == {0}
         capsys.readouterr()
-        assert _when("office.shirt.white", tmp_path) == 0
+        assert _when("office.shirt.White", tmp_path) == 0
         assert (
             capsys.readouterr().out
-            == "no office day in the next year wears white\n"
+            == "no office day in the next year wears White\n"
         )
 
     def test_it_takes_no_date(self, tmp_path: Path) -> None:
@@ -801,7 +805,7 @@ class TestAskingWhenAShirtIsNextDue:
             run(
                 [
                     "when",
-                    "office.shirt.white",
+                    "office.shirt.White",
                     "--on",
                     _today().isoformat(),
                 ],
@@ -814,11 +818,11 @@ class TestAskingWhenAShirtIsNextDue:
         # ADR-0008's ordering caveat, on a command that produces a date
         # rather than acting on one: the root parser's --on parses and
         # the search still runs from today.
-        assert _when("office.shirt.white", tmp_path) == 0
+        assert _when("office.shirt.White", tmp_path) == 0
         found = _dated(capsys.readouterr().out)
         assert (
             run(
-                ["--on", "2027-01-05", "when", "office.shirt.white"],
+                ["--on", "2027-01-05", "when", "office.shirt.White"],
                 state_dir=tmp_path,
             )
             == 0
@@ -829,19 +833,19 @@ class TestAskingWhenAShirtIsNextDue:
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
         absent = tmp_path / "absent"
-        assert _when("office.shirt.white", absent) == 0
+        assert _when("office.shirt.White", absent) == 0
         assert "shirt" in capsys.readouterr().out
         assert not absent.exists()
 
     def test_the_found_dates_outerwear_hedges_until_forecast(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        assert _when("office.shirt.white", tmp_path) == 0
+        assert _when("office.shirt.White", tmp_path) == 0
         out = capsys.readouterr().out
         assert _get_outerwear_line(out).endswith("if it's cold")
         assert (
             cli.run(
-                ["when", "office.shirt.white"],
+                ["when", "office.shirt.White"],
                 state_dir=tmp_path,
                 fetch_weather=lambda: {
                     _dated(out): DEFAULT_COLD_THRESHOLD - 10
@@ -904,7 +908,8 @@ def _listed(out: str, closet: str) -> list[list[str]]:
     block = out.split(f"{closet}\n", maxsplit=1)[1]
     listed = block.split("\n\n", maxsplit=1)[0]
     return [
-        line.removeprefix("> ").split() for line in listed.splitlines()
+        re.split(r" {2,}", line.removeprefix("> ").strip())
+        for line in listed.splitlines()
     ]
 
 
@@ -912,7 +917,7 @@ def _marked(out: str, closet: str) -> list[str]:
     block = out.split(f"{closet}\n", maxsplit=1)[1]
     listed = block.split("\n\n", maxsplit=1)[0]
     return [
-        line.removeprefix("> ").split()[1]
+        re.split(r" {2,}", line.removeprefix("> ").strip())[1]
         for line in listed.splitlines()
         if line.startswith("> ")
     ]
@@ -937,7 +942,7 @@ def _get_columns(out: str, label: str) -> list[str]:
 
 def _shirt(out: str) -> str:
     return next(
-        line.split()[1]
+        line.split(maxsplit=1)[1]
         for line in out.splitlines()
         if line.startswith("  shirt")
     )

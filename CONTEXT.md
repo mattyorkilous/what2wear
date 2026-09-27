@@ -39,10 +39,11 @@ and the same Label in the two Closets names two different Garments.
 _Avoid_: item, piece, article, address
 
 **Label**:
-What a Garment is called — usually its color, sometimes its cut. A
-Label and its **Color** are told together and are the only things
-about the Wardrobe that move. Changing one never disturbs a Rotation,
-because nothing is keyed by it.
+What a Garment is called, in words you'd say (Light Blue) — usually
+its color, sometimes its cut. A Label and its **Color** are told
+together and are the only things about the Wardrobe that move.
+Changing one never disturbs a Rotation, because nothing is keyed by
+it.
 _Avoid_: name, description
 
 **Color**:

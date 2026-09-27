@@ -321,7 +321,7 @@ def _get_garment_line(
     label = state.labels[f"{scope}.{place}"]
     kind = scope.rpartition(".")[2]
     gutter = "> " if due else "  "
-    return f"{gutter}{kind:<8} {label:<9} {pants:<9} {scope}.{label}"
+    return f"{gutter}{kind:<8} {label:<12} {pants:<12} {scope}.{label}"
 
 
 def _render_weekdays(weekdays: Iterable[int]) -> str:

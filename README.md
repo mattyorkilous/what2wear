@@ -50,13 +50,13 @@ what2wear --on 2026-08-24            # any other date, past or future
 what2wear --on tomorrow              # or tomorrow, yesterday, or a weekday name
 what2wear stay-home                  # this office day is now a home day
 what2wear go-in                      # this home day is now an office day
-what2wear reset lblue                # move the rotation to that shirt, today
-what2wear reset lblue --on 2026-09-07  # --on goes after the command, and defaults to today
+what2wear reset "Light Blue"         # move the rotation to that shirt, today
+what2wear reset "Light Blue" --on 2026-09-07  # --on goes after the command, and defaults to today
 what2wear reset-outerwear            # home jacket days become sweater days, and back
-what2wear when office.shirt.white    # the next date that shirt comes round, as a whole day
+what2wear when office.shirt.White    # the next date that shirt comes round, as a whole day
 what2wear show-closet                # every garment, how to name it, and what's due
-what2wear replace office.sweater.beige oatmeal   # this one is called that now
-what2wear swap office white striped  # two shirts sharing pants trade labels
+what2wear replace office.sweater.Beige Oatmeal   # this one is called that now
+what2wear swap office White Striped  # two shirts sharing pants trade labels
 what2wear office-weekdays            # the three weekdays you go in
 what2wear set-office-weekdays tue thu sat  # go in on these instead, re-anchoring every rotation
 what2wear cold-threshold             # the high below which outerwear is worn

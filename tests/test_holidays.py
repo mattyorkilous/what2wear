@@ -69,7 +69,7 @@ class TestTheRotations:
             answer(GIVEN, on, {}).outfit.shirt.label
             for on in (SUN_SEP6, LABOR_DAY, TUE_SEP8)
         ]
-        assert shirts == ["white", "brown", "dgreen"]
+        assert shirts == ["White", "Brown", "Dark Green"]
 
     def test_a_holiday_takes_a_home_outerwear_turn(self) -> None:
         outerwear = [
@@ -89,9 +89,9 @@ class TestTheRotations:
             outfit.pants.label,
             _get_label(outfit.sweater),
         ) == (
-            "black",
-            "tan",
-            "black",
+            "Black",
+            "Tan",
+            "Black",
         )
 
     def test_when_never_answers_an_office_shirt_with_a_holiday(

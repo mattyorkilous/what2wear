@@ -12,52 +12,52 @@ SEQUENCE = [
     (
         date(2026, 8, 29),
         DayType.HOME,
-        ("purple", "black", None, "white", "black"),
+        ("Purple", "Black", None, "White", "Black"),
     ),  # Sat -- a jacket day, and Sunday a sweater day
     (
         date(2026, 8, 30),
         DayType.HOME,
-        ("dblue", "tan", "blue", "black", None),
+        ("Dark Blue", "Tan", "Blue", "Black", None),
     ),  # Sun
     (
         date(2026, 8, 31),
         DayType.OFFICE,
-        ("striped", "blue", "beige", "brown", None),
+        ("Striped", "Blue", "Beige", "Brown", None),
     ),  # Mon -- takes beige, which Friday then wants
     (
         date(2026, 9, 1),
         DayType.HOME,
-        ("beige", "blue", None, "black", "brown"),
+        ("Beige", "Blue", None, "Black", "Brown"),
     ),
     (
         date(2026, 9, 2),
         DayType.OFFICE,
-        ("dblue", "tan", "black", "black", None),
+        ("Dark Blue", "Tan", "Black", "Black", None),
     ),
     (
         date(2026, 9, 3),
         DayType.HOME,
-        ("lblue", "black", "beige", "white", None),
+        ("Light Blue", "Black", "Beige", "White", None),
     ),
     (
         date(2026, 9, 4),
         DayType.OFFICE,
-        ("white", "blue", "grey", "white", None),
+        ("White", "Blue", "Grey", "White", None),
     ),  # Fri -- shares blue with Monday, so the fallback and its shoes
     (
         date(2026, 9, 5),
         DayType.HOME,
-        ("lgreen", "tan", None, "black", "black"),
+        ("Light Green", "Tan", None, "Black", "Black"),
     ),  # Sat -- the end of the home closet
     (
         date(2026, 9, 6),
         DayType.HOME,
-        ("white", "blue", "yellow", "black", None),
+        ("White", "Blue", "Yellow", "Black", None),
     ),  # Sun -- wraps back to the start
     (
         date(2026, 9, 7),
         DayType.HOME,
-        ("brown", "black", None, "white", "black"),
+        ("Brown", "Black", None, "White", "Black"),
     ),  # Mon -- Labor Day, so a Home Day, and the next home shirt
 ]
 

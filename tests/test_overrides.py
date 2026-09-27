@@ -27,12 +27,12 @@ class TestWhichClosetTheDayDrawsFrom:
         response = answer(_with(WED26, DayType.HOME), WED26, {})
         assert response.day_type is DayType.HOME
         # Wed is now the fourth home day since the anchor.
-        assert response.outfit.shirt.label == "black"
+        assert response.outfit.shirt.label == "Black"
 
     def test_going_in_draws_from_the_office_closet(self) -> None:
         response = answer(_with(TUE25, DayType.OFFICE), TUE25, {})
         assert response.day_type is DayType.OFFICE
-        assert response.outfit.shirt.label == "black"
+        assert response.outfit.shirt.label == "Black"
 
     def test_an_override_that_agrees_with_the_pattern_changes_nothing(
         self,
@@ -51,23 +51,23 @@ class TestWhichClosetTheDayDrawsFrom:
         # other date, applied to the date every Position counts from.
         state = _with(SAT22, DayType.OFFICE)
         assert answer(state, SAT22, {}).day_type is DayType.OFFICE
-        assert answer(GIVEN, SUN23, {}).outfit.shirt.label == "brown"
-        assert answer(state, SUN23, {}).outfit.shirt.label == "white"
+        assert answer(GIVEN, SUN23, {}).outfit.shirt.label == "Brown"
+        assert answer(state, SUN23, {}).outfit.shirt.label == "White"
 
 
 class TestTheOtherRotation:
     def test_staying_home_leaves_the_office_position_parked(
         self,
     ) -> None:
-        # Wednesday's black would have been lost; instead it is
-        # simply deferred to Friday, and Friday's lblue to the Monday
-        # after.
+        # Wednesday's Black would have been lost; instead it is
+        # simply deferred to Friday, and Friday's Light Blue to the
+        # Monday after.
         state = _with(WED26, DayType.HOME)
         worn = [
             answer(state, day, {}).outfit.shirt.label
             for day in (MON24, FRI28, MON31)
         ]
-        assert worn == ["white", "black", "lblue"]
+        assert worn == ["White", "Black", "Light Blue"]
 
     def test_going_in_advances_the_office_rotation_that_day(
         self,
@@ -77,7 +77,7 @@ class TestTheOtherRotation:
             answer(state, day, {}).outfit.shirt.label
             for day in (MON24, TUE25, WED26)
         ]
-        assert worn == ["white", "black", "lblue"]
+        assert worn == ["White", "Black", "Light Blue"]
 
     def test_staying_home_advances_the_home_rotation_that_day(
         self,
@@ -87,7 +87,7 @@ class TestTheOtherRotation:
             answer(state, day, {}).outfit.shirt.label
             for day in (TUE25, WED26, THU27)
         ]
-        assert worn == ["dgreen", "black", "purple"]
+        assert worn == ["Dark Green", "Black", "Purple"]
 
     def test_a_holiday_is_recorded_like_any_other_override(
         self,
@@ -96,7 +96,7 @@ class TestTheOtherRotation:
         # nothing else, so Monday's white reappears on the Wednesday.
         state = _with(MON24, DayType.HOME)
         assert answer(state, MON24, {}).day_type is DayType.HOME
-        assert answer(state, WED26, {}).outfit.shirt.label == "white"
+        assert answer(state, WED26, {}).outfit.shirt.label == "White"
 
 
 class TestLookAhead:
@@ -104,8 +104,10 @@ class TestLookAhead:
         self,
     ) -> None:
         state = _with(WED26, DayType.HOME)
-        assert answer(GIVEN, MON31, {}).outfit.shirt.label == "striped"
-        assert answer(state, MON31, {}).outfit.shirt.label == "lblue"
+        assert answer(GIVEN, MON31, {}).outfit.shirt.label == "Striped"
+        assert (
+            answer(state, MON31, {}).outfit.shirt.label == "Light Blue"
+        )
 
     def test_dates_before_the_override_are_untouched(self) -> None:
         state = _with(WED26, DayType.HOME)
@@ -152,7 +154,7 @@ class TestAFourthOfficeDay:
         # this one's.
         response = answer(_with(SAT29, DayType.OFFICE), SAT29, {})
         assert response.day_type is DayType.OFFICE
-        assert response.outfit.shirt.label == "striped"
+        assert response.outfit.shirt.label == "Striped"
 
 
 def _with(on: date, day_type: DayType) -> State:
