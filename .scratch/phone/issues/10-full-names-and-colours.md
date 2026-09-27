@@ -18,3 +18,7 @@ Label "the whole of what the tool prints at you". So:
 - What shows for a Label the table doesn't know: a neutral icon and the
   Label as written?
 - Does CONTEXT.md's Label entry change?
+- A pattern is a Label's too: per
+  [Drawing the garment icons on the phone](09-drawing-the-icons.md), an
+  icon is a `fill` plus an optional `pattern` with a `pattern_fill`
+  (today only `striped`: vertical bars). Where does that come from?

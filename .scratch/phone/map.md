@@ -39,6 +39,7 @@ where the State lives, and what the phone shows.
 - [Pages and forms for each command](issues/06-pages-and-forms.md) — three pages (Day at `/`, Closet, Settings); dates in the URL with prev/next and a date picker; writes POST-redirect with a notice; `when` folds into the Closet, the show commands into their set forms
 - [What becomes of the CLI](issues/07-what-becomes-of-the-cli.md) — deleted with its tests, script entry and `platformdirs`, as the last step once the State is hosted; the web shell owns the confirmation strings; the shell behaviours worth keeping become the web shell's test checklist
 - [The web shell on PythonAnywhere](issues/08-the-web-shell.md) — Flask in `web.py`; the token is the first URL segment (no login); today is America/New_York from `wardrobe.py`; notices ride `?notice=`; the widget reads `/<token>/day/YYYY-MM-DD.json`; deployed by git clone + `uv sync`
+- [Drawing the garment icons on the phone](issues/09-drawing-the-icons.md) — the Scriptable widget draws them with `DrawContext` from path strings in the JSON (shape, optional pattern, detail), the same data the Day page's SVG uses; stripes are vertical bars inside the torso, dashes become segments
 
 ## Not yet specified
 
