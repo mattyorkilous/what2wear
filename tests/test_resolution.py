@@ -63,10 +63,10 @@ HOLIDAY_WEEK = (
 # inside the Week -- at the office that would force a Fallback; at
 # home it is simply what the row says.
 HOME_WEEK = (
-    (date(2026, 9, 1), Outfit("beige", "blue", None, "black", "brown")),
-    (date(2026, 9, 3), Outfit("lblue", "black", "beige", "white")),
-    (date(2026, 9, 5), Outfit("lgreen", "tan", None, "black", "black")),
-    (date(2026, 9, 6), Outfit("white", "blue", "yellow", "black")),
+    (date(2026, 9, 1), ("beige", "blue", None, "black", "brown")),
+    (date(2026, 9, 3), ("lblue", "black", "beige", "white", None)),
+    (date(2026, 9, 5), ("lgreen", "tan", None, "black", "black")),
+    (date(2026, 9, 6), ("white", "blue", "yellow", "black", None)),
 )
 
 
@@ -83,8 +83,12 @@ class TestOfficeWeeks:
         sweater: str,
         shoes: str,
     ) -> None:
-        assert _outfit(on) == Outfit(
-            shirt=shirt, pants=pants, sweater=sweater, shoes=shoes
+        assert _get_labels(_outfit(on)) == (
+            shirt,
+            pants,
+            sweater,
+            shoes,
+            None,
         )
 
     @pytest.mark.parametrize("week", [*WEEK_SHAPES, HOLIDAY_WEEK])
@@ -98,7 +102,7 @@ class TestOfficeWeeks:
     def test_no_shoes_repeat_within_a_week(
         self, week: tuple[tuple[date, str, str, str, str], ...]
     ) -> None:
-        worn = [_outfit(day[0]).shoes for day in week]
+        worn = [_outfit(day[0]).shoes.label for day in week]
         assert len(set(worn)) == len(worn)
 
     def test_a_week_that_resolves_cleanly_flags_no_repeat(self) -> None:
@@ -136,8 +140,12 @@ class TestFourOfficeDays:
         sweater: str,
         shoes: str,
     ) -> None:
-        assert _outfit(on, self.STATE) == Outfit(
-            shirt=shirt, pants=pants, sweater=sweater, shoes=shoes
+        assert _get_labels(_outfit(on, self.STATE)) == (
+            shirt,
+            pants,
+            sweater,
+            shoes,
+            None,
         )
 
     def test_the_repeated_day_is_flagged(self) -> None:
@@ -159,9 +167,9 @@ class TestFourOfficeDays:
 class TestHome:
     @pytest.mark.parametrize(("on", "outfit"), HOME_WEEK)
     def test_outerwear_and_shoes_follow_the_pants(
-        self, on: date, outfit: Outfit
+        self, on: date, outfit: tuple[str | None, ...]
     ) -> None:
-        assert _outfit(on) == outfit
+        assert _get_labels(_outfit(on)) == outfit
 
     def test_a_home_day_is_never_flagged_as_a_repeat(self) -> None:
         assert not any(
@@ -175,3 +183,16 @@ def _outfit(on: date, state: State | None = None) -> Outfit:
 
 def _response(on: date, state: State | None = None) -> Response:
     return answer(state or get_default_state(TODAY), on, {})
+
+
+def _get_labels(outfit: Outfit) -> tuple[str | None, ...]:
+    return tuple(
+        None if garment is None else garment.label
+        for garment in (
+            outfit.shirt,
+            outfit.pants,
+            outfit.sweater,
+            outfit.shoes,
+            outfit.jacket,
+        )
+    )

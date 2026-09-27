@@ -441,10 +441,10 @@ def _render(
     return "\n".join(
         [
             f"{response.on:%a %d %b %Y} - {response.day_type} day",
-            f"  shirt    {response.outfit.shirt}",
-            f"  pants    {response.outfit.pants}",
+            f"  shirt    {response.outfit.shirt.label}",
+            f"  pants    {response.outfit.pants.label}",
             *_get_outerwear_lines(response),
-            f"  shoes    {response.outfit.shoes}",
+            f"  shoes    {response.outfit.shoes.label}",
             *_get_notes(response, confirmation, today, changed=changed),
         ]
     )
@@ -454,12 +454,12 @@ def _get_outerwear_lines(response: Response) -> tuple[str, ...]:
     outfit = response.outfit
     hedge = ", if it's cold" if response.cold is None else ""
     return tuple(
-        f"  {kind:<8} {label}{hedge}"
-        for kind, label in (
+        f"  {kind:<8} {garment.label}{hedge}"
+        for kind, garment in (
             ("sweater", outfit.sweater),
             ("jacket", outfit.jacket),
         )
-        if label is not None
+        if garment is not None
     )
 
 

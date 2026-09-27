@@ -1,10 +1,16 @@
+import re
 from collections import Counter
 from datetime import date
 
 import pytest
 
 from what2wear.model import Closet, DayType, Rotation
-from what2wear.wardrobe import CLOSETS, get_default_state
+from what2wear.wardrobe import (
+    CLOSETS,
+    build_default_colors,
+    build_default_labels,
+    get_default_state,
+)
 
 OFFICE = CLOSETS[DayType.OFFICE]
 HOME = CLOSETS[DayType.HOME]
@@ -42,6 +48,29 @@ class TestEveryCloset:
     ) -> None:
         worn = [row.pants for row in closet.rows]
         assert len(set(worn)) == len(worn)
+
+
+def test_every_given_garment_has_a_color() -> None:
+    colors = build_default_colors()
+    assert colors.keys() == build_default_labels().keys()
+    assert all(
+        re.fullmatch(r"#[0-9a-f]{6}", color)
+        for color, _ in colors.values()
+    )
+
+
+def test_only_the_striped_shirt_has_a_stripe_color() -> None:
+    labels = build_default_labels()
+    striped = {
+        key: stripe_color
+        for key, (_, stripe_color) in build_default_colors().items()
+        if stripe_color is not None
+    }
+    assert {labels[key] for key in striped} == {"striped"}
+    assert all(
+        re.fullmatch(r"#[0-9a-f]{6}", color)
+        for color in striped.values()
+    )
 
 
 def test_both_closets_wear_the_same_pants() -> None:

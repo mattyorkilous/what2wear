@@ -118,8 +118,12 @@ class TestEveryLaterDateFollows:
 
 class TestAMidWeekReset:
     def test_the_week_before_it_is_untouched(self) -> None:
-        assert answer(GIVEN, FRI_SEP4, {}).outfit == Outfit(
-            "white", "blue", "grey", "white"
+        assert _get_labels(answer(GIVEN, FRI_SEP4, {}).outfit) == (
+            "white",
+            "blue",
+            "grey",
+            "white",
+            None,
         )
 
     def test_it_moves_the_fallback_the_week_had_reached_for(
@@ -128,8 +132,12 @@ class TestAMidWeekReset:
         # The walk now reads Monday as tan rather than blue, so blue's
         # own beige is free on the Friday and the Fallback goes unused.
         state = _reset(WED_SEP2, "lblue")
-        assert answer(state, FRI_SEP4, {}).outfit == Outfit(
-            "striped", "blue", "beige", "brown"
+        assert _get_labels(answer(state, FRI_SEP4, {}).outfit) == (
+            "striped",
+            "blue",
+            "beige",
+            "brown",
+            None,
         )
 
 
@@ -204,10 +212,23 @@ def _reset(today: date, shirt: str) -> State:
 
 
 def _shirt(state: State, on: date) -> str:
-    return answer(state, on, {}).outfit.shirt
+    return answer(state, on, {}).outfit.shirt.label
 
 
 def _get_kind(state: State, on: date) -> str:
     return (
         "jacket" if answer(state, on, {}).outfit.jacket else "sweater"
+    )
+
+
+def _get_labels(outfit: Outfit) -> tuple[str | None, ...]:
+    return tuple(
+        None if garment is None else garment.label
+        for garment in (
+            outfit.shirt,
+            outfit.pants,
+            outfit.sweater,
+            outfit.shoes,
+            outfit.jacket,
+        )
     )

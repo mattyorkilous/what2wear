@@ -6,6 +6,7 @@ import pytest
 from what2wear.core import answer
 from what2wear.model import (
     DayType,
+    Garment,
     Response,
 )
 from what2wear.wardrobe import get_default_state
@@ -53,12 +54,14 @@ class TestRotation:
     def test_today_stands_at_the_top_of_its_closet(self) -> None:
         # Nothing recorded, so the Anchor is today at Position 0 and
         # a fresh installation opens on white.
-        assert _on(TODAY).outfit.shirt == "white"
+        assert _on(TODAY).outfit.shirt.label == "white"
 
     def test_the_office_rotation_advances_only_on_office_days(
         self,
     ) -> None:
-        worn = [_on(day).outfit.shirt for day in (MON24, WED26, FRI28)]
+        worn = [
+            _on(day).outfit.shirt.label for day in (MON24, WED26, FRI28)
+        ]
         assert worn == ["white", "black", "lblue"]
 
     def test_home_days_in_between_do_not_move_the_office_rotation(
@@ -66,20 +69,25 @@ class TestRotation:
     ) -> None:
         # Wed 26th follows Mon 24th in the office rotation despite
         # Tue 25th at home.
-        assert _on(WED26).outfit.shirt == "black"
+        assert _on(WED26).outfit.shirt.label == "black"
 
     def test_the_home_rotation_advances_only_on_home_days(self) -> None:
-        worn = [_on(day).outfit.shirt for day in (SAT22, SUN23, TUE25)]
+        worn = [
+            _on(day).outfit.shirt.label for day in (SAT22, SUN23, TUE25)
+        ]
         assert worn == ["white", "brown", "dgreen"]
 
     def test_each_rotation_wraps_at_the_end_of_its_closet(self) -> None:
         # Five office shirts, so the sixth office day since the anchor
         # comes back round to white.
-        assert _on(FRI_SEP4).outfit.shirt == "white"
+        assert _on(FRI_SEP4).outfit.shirt.label == "white"
 
     def test_pants_come_welded_to_the_shirt(self) -> None:
         outfit = _on(TUE25).outfit
-        assert (outfit.shirt, outfit.pants) == ("dgreen", "tan")
+        assert (outfit.shirt.label, outfit.pants.label) == (
+            "dgreen",
+            "tan",
+        )
 
     @pytest.mark.parametrize(
         ("day", "shirt"),
@@ -94,7 +102,7 @@ class TestRotation:
     def test_dates_years_out_resolve_by_the_same_rule(
         self, day: date, shirt: str
     ) -> None:
-        assert _on(day).outfit.shirt == shirt
+        assert _on(day).outfit.shirt.label == shirt
 
 
 class TestDatesBehindTheOneAsked:
@@ -106,7 +114,7 @@ class TestDatesBehindTheOneAsked:
         state = replace(
             get_default_state(TODAY), overrides={MON24: DayType.HOME}
         )
-        assert answer(state, WED26, {}).outfit.shirt == "white"
+        assert answer(state, WED26, {}).outfit.shirt.label == "white"
 
     def test_the_week_walk_still_resolves_earlier_office_days(
         self,
@@ -116,8 +124,15 @@ class TestDatesBehindTheOneAsked:
         # taken. Resolving them is what turns the answer into the grey
         # Fallback and the white shoes that come with it.
         outfit = _on(FRI_SEP4).outfit
-        assert (outfit.sweater, outfit.shoes) == ("grey", "white")
+        assert (_get_label(outfit.sweater), outfit.shoes.label) == (
+            "grey",
+            "white",
+        )
 
 
 def _on(day: date) -> Response:
     return answer(get_default_state(TODAY), day, {})
+
+
+def _get_label(garment: Garment | None) -> str | None:
+    return None if garment is None else garment.label

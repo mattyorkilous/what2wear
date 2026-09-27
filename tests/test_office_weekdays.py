@@ -9,7 +9,7 @@ from what2wear.core import (
     set_office_weekdays,
 )
 from what2wear.errors import What2wearError
-from what2wear.model import DayType, State
+from what2wear.model import DayType, Garment, State
 from what2wear.wardrobe import get_default_state
 
 MON, TUE, WED, THU, FRI, SAT, SUN = range(7)
@@ -115,8 +115,14 @@ class TestEveryRotationIsReAnchored:
         before, after = (
             answer(told, FRI_SEP4, {}).outfit for told in (GIVEN, state)
         )
-        assert before.shirt == after.shirt == "white"
-        assert (before.sweater, after.sweater) == ("grey", "beige")
+        assert before.shirt.label == after.shirt.label == "white"
+        assert (
+            _get_label(before.sweater),
+            _get_label(after.sweater),
+        ) == (
+            "grey",
+            "beige",
+        )
 
 
 class TestTheOverrides:
@@ -163,3 +169,7 @@ def _get_due(state: State, today: date) -> tuple[str, str, str]:
         get_due_shirt(state, DayType.HOME, today),
         "jacket" if outfit.jacket is not None else "sweater",
     )
+
+
+def _get_label(garment: Garment | None) -> str | None:
+    return None if garment is None else garment.label

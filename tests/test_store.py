@@ -12,6 +12,7 @@ from what2wear.store import read_state, write_state
 from what2wear.wardrobe import (
     DEFAULT_COLD_THRESHOLD,
     DEFAULT_OFFICE_WEEKDAYS,
+    build_default_colors,
     build_default_labels,
     get_default_state,
 )
@@ -22,6 +23,7 @@ WED26 = date(2026, 8, 26)
 
 TOLD = State(
     labels=build_default_labels(),
+    colors=build_default_colors(),
     anchors={
         Rotation.OFFICE: Anchor(TODAY, 3),
         Rotation.HOME: Anchor(WED26, 7),
@@ -105,7 +107,7 @@ class TestTheLabels:
         assert (
             answer(
                 read_state(_path(tmp_path), TODAY), TODAY, {}
-            ).outfit.pants
+            ).outfit.pants.label
             == "navy"
         )
 
@@ -118,6 +120,41 @@ class TestTheLabels:
         assert (
             read_state(_path(tmp_path), TODAY).labels
             == build_default_labels()
+        )
+
+
+class TestTheColors:
+    TOLD = replace(
+        get_default_state(TODAY),
+        colors={
+            **build_default_colors(),
+            "office.shirt.0": ("#fffdd0", None),
+            "home.shirt.0": ("#ffffff", "#ff0000"),
+        },
+    )
+
+    def test_a_told_color_outlives_the_file(
+        self, tmp_path: Path
+    ) -> None:
+        write_state(_path(tmp_path), self.TOLD)
+        assert read_state(_path(tmp_path), TODAY) == self.TOLD
+
+    def test_only_what_was_told_is_written_down(
+        self, tmp_path: Path
+    ) -> None:
+        write_state(_path(tmp_path), self.TOLD)
+        text = _path(tmp_path).read_text()
+        assert '"office.shirt.0"' in text
+        assert '"home.shirt.0"' in text
+        assert '"pants.0"' not in text
+
+    def test_a_file_without_colors_reads_the_given_ones(
+        self, tmp_path: Path
+    ) -> None:
+        _path(tmp_path).write_text(_document("{}"))
+        assert (
+            read_state(_path(tmp_path), TODAY).colors
+            == build_default_colors()
         )
 
 

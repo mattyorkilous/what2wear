@@ -3,7 +3,8 @@
 The Wardrobe's shape -- the closets, their shirts and the pants rows
 that dress them -- is given and absolute. Alongside it sit the
 starting values the state overlays when nothing has been told: the
-labels, the anchors, the office weekdays and the cold threshold.
+labels and their colors, the anchors, the office weekdays and the cold
+threshold.
 """
 
 from collections.abc import Mapping
@@ -45,6 +46,7 @@ def get_default_state(today: date) -> State:
             }
         ),
         labels=build_default_labels(),
+        colors=build_default_colors(),
         office_weekdays=DEFAULT_OFFICE_WEEKDAYS,
         cold_threshold=DEFAULT_COLD_THRESHOLD,
     )
@@ -65,6 +67,21 @@ def build_default_labels() -> Mapping[str, str]:
             f"{day_type}.{kind}.{place}": garment
             for day_type, closet in CLOSETS.items()
             for kind, place, garment, _ in get_garments(closet)
+        }
+    )
+
+
+def build_default_colors() -> Mapping[str, tuple[str, str | None]]:
+    """Build the colors a wearer starts from.
+
+    Returns:
+        Each garment's place mapped to the color its given name
+        says, and the color of its stripes, if it has any.
+    """
+    return MappingProxyType(
+        {
+            key: COLORS[label]
+            for key, label in build_default_labels().items()
         }
     )
 
@@ -175,6 +192,24 @@ CLOSETS: Mapping[DayType, Closet] = MappingProxyType(
     }
 )
 
+COLORS: Mapping[str, tuple[str, str | None]] = MappingProxyType(
+    {
+        "white": ("#f4f4f1", None),
+        "black": ("#26262a", None),
+        "grey": ("#8e8e93", None),
+        "brown": ("#6f4a2e", None),
+        "tan": ("#c9a878", None),
+        "beige": ("#e4d5b4", None),
+        "lblue": ("#9fc8ee", None),
+        "dblue": ("#23406e", None),
+        "blue": ("#3c67b4", None),
+        "yellow": ("#f2c84b", None),
+        "dgreen": ("#2e5e3b", None),
+        "lgreen": ("#a3d69c", None),
+        "purple": ("#7a4ea3", None),
+        "striped": ("#f4f4f1", "#3c67b4"),
+    }
+)
 
 KEYS: Mapping[str, str] = MappingProxyType(
     {

@@ -25,7 +25,7 @@ def test_two_shirts_sharing_pants_trade_labels() -> None:
     # names change hands rather than the Positions.
     told = _swapped(DayType.OFFICE, "white", "striped")
     assert [
-        answer(told, on, {}).outfit.shirt for on in (MON24, MON31)
+        answer(told, on, {}).outfit.shirt.label for on in (MON24, MON31)
     ] == [
         "striped",
         "white",
@@ -36,6 +36,15 @@ def test_no_outfit_differs_except_in_which_shirt_it_names() -> None:
     told = _swapped(DayType.HOME, "white", "black")
     assert [_but_the_shirt(told, on) for on in FORTNIGHT] == [
         _but_the_shirt(GIVEN, on) for on in FORTNIGHT
+    ]
+
+
+def test_colors_travel_with_labels() -> None:
+    told = _swapped(DayType.OFFICE, "white", "striped")
+    assert [
+        answer(state, MON31, {}).outfit.shirt for state in (GIVEN, told)
+    ] == [
+        answer(state, MON24, {}).outfit.shirt for state in (told, GIVEN)
     ]
 
 
