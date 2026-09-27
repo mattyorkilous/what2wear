@@ -16,3 +16,9 @@ that the only copy lives on a free host that expires if you don't
 renew it each month, how is it backed up: a download by hand, a
 scheduled task (if the free plan has one), a git commit, or not at
 all?
+
+The move also converts the Labels once: each short Label (`lblue`)
+becomes its full name ("Light Blue") and gains its Color, per
+[Full names and colours for Labels](10-full-names-and-colours.md).
+How, and where the conversion lives (a one-off script, or at first
+read on the server)?

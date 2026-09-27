@@ -40,6 +40,7 @@ where the State lives, and what the phone shows.
 - [What becomes of the CLI](issues/07-what-becomes-of-the-cli.md) — deleted with its tests, script entry and `platformdirs`, as the last step once the State is hosted; the web shell owns the confirmation strings; the shell behaviours worth keeping become the web shell's test checklist
 - [The web shell on PythonAnywhere](issues/08-the-web-shell.md) — Flask in `web.py`; the token is the first URL segment (no login); today is America/New_York from `wardrobe.py`; notices ride `?notice=`; the widget reads `/<token>/day/YYYY-MM-DD.json`; deployed by git clone + `uv sync`
 - [Drawing the garment icons on the phone](issues/09-drawing-the-icons.md) — the Scriptable widget draws them with `DrawContext` from path strings in the JSON (shape, optional pattern, detail), the same data the Day page's SVG uses; stripes are vertical bars inside the torso, dashes become segments
+- [Full names and colours for Labels](issues/10-full-names-and-colours.md) — the Label becomes the full name as typed ("Light Blue"); each Garment gains a told Color (and optional stripe Color) in the State, set by Replace's color picker and carried by Swap; old Labels convert once at the move
 
 ## Not yet specified
 

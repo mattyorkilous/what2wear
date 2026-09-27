@@ -51,3 +51,7 @@ become one?
 - **Writes** are POST → redirect back to the originating page with a
   one-line notice at the top, worded as the CLI's confirmation strings.
   Errors re-show the form with the message.
+
+Note (2026-09-27): `replace` now also takes a Color and an optional
+stripe Color, per
+[Full names and colours for Labels](10-full-names-and-colours.md).
