@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>{{ response.on.strftime("%a %d %b %Y") }}<br>
+  {{ response.day_type.title() }} Day</h1>
+<ul>
+  {% for garment in garments %}<li>{{ garment }}</li>
+  {% endfor %}
+</ul>
+{% if response.unavoidable_repeat %}
+<p class="note">The sweater was already worn this week: there's no free one left.</p>
+{% endif %}
+{% if past %}
+<p class="note">A past date: this is where the Rotation stands now, not what was worn.</p>
+{% endif %}
+<p class="step">
+  <a href="{{ url_for('show_day', iso_date=prev_day.isoformat()) }}">‹ prev</a>
+  <a href="{{ url_for('show_day', iso_date=next_day.isoformat()) }}">next ›</a>
+</p>
+<form action="{{ url_for('pick_day') }}">
+  <input type="date" name="on" value="{{ response.on.isoformat() }}" required>
+  <button>Go</button>
+</form>
+{% endblock %}

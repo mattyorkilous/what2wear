@@ -1,4 +1,10 @@
-"""The types the package passes between its modules."""
+"""The types the package passes between its modules.
+
+Each type is defined below the types that name it, which Python 3.13
+allows only with annotations deferred.
+"""
+
+from __future__ import annotations
 
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass

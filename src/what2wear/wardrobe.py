@@ -10,6 +10,7 @@ threshold.
 from collections.abc import Mapping
 from datetime import date
 from types import MappingProxyType
+from zoneinfo import ZoneInfo
 
 from what2wear.model import (
     Anchor,
@@ -26,6 +27,7 @@ MON, WED, FRI = 0, 2, 4
 DEFAULT_OFFICE_WEEKDAYS = frozenset({MON, WED, FRI})
 DEFAULT_COLD_THRESHOLD = 50  # degrees Fahrenheit
 LATITUDE, LONGITUDE = 38.9, -77.04  # Washington, DC.
+TIMEZONE = ZoneInfo("America/New_York")
 HOME_OUTERWEAR = ("jacket", "sweater")
 
 

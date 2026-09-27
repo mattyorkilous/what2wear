@@ -77,6 +77,29 @@ Each of the two takes a showing command and a setting one, rather than one comma
 
 `replace` covers a worn-out garment and a mislabeled one alike — no garment's history is kept, so they are the same event. Nothing is keyed by a label, so neither a replace nor a swap can move a rotation.
 
+## On the phone
+
+A small Flask app, `what2wear.web`, serves the Day page from PythonAnywhere's free plan. Every URL starts with a secret token, so the bookmarked URL is the login; anything else is a plain 404. `/` is today in New York, `/day/YYYY-MM-DD` any other date.
+
+To deploy, in a PythonAnywhere bash console:
+
+```
+git clone <this repo> what2wear && cd what2wear
+pip install --user uv
+uv sync --frozen --no-dev --python python3.13
+```
+
+Add a manual web app on Python 3.13, set its virtualenv to `~/what2wear/.venv`, and make its WSGI file:
+
+```python
+from pathlib import Path
+from what2wear import web
+
+application = web.app(Path.home() / "state.json", "<a long random token>")
+```
+
+Reload, open `https://<user>.pythonanywhere.com/<token>/` in Safari on the phone, and Share → Add to Home Screen. An update is `git pull`, `uv sync --frozen --no-dev`, then Reload. Click "renew" on the Web tab once a month, and download `state.json` from the Files tab while you're there.
+
 ## The wardrobe is given
 
 There is no configuration. Both closets, the pants they share, the forecast coordinates, and the starting values the state overlays — the labels, the anchors, the office weekdays and the cold threshold a fresh install starts from — all live in [`src/what2wear/wardrobe.py`](src/what2wear/wardrobe.py), because the rules only mean anything against this wardrobe's shape — office sweaters one-to-one with office shoes, a fallback that is always another row's sweater, closet sizes coprime with the office and home days in a week. A stranger's closet satisfying a schema and none of that would produce confident nonsense, and no amount of validation would catch it. See [ADR-0005](docs/adr/0005-what2wear-dresses-one-person-from-a-given-wardrobe.md).
