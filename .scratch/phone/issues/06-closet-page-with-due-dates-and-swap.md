@@ -6,10 +6,10 @@ a command. See `.scratch/phone/spec.md`.
 
 **Blocked by:** 04 — Day page actions.
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Both Closets grouped by Pants Row
-- [ ] Each Shirt shows its next due date, linking to that Day page
-- [ ] A "Swap with…" `<select>` on each Shirt lists only Shirts
+- [x] Both Closets grouped by Pants Row
+- [x] Each Shirt shows its next due date, linking to that Day page
+- [x] A "Swap with…" `<select>` on each Shirt lists only Shirts
       sharing its Pants, so a refused Swap is never offered
-- [ ] A Swap uses the notice flow and carries Colors with Labels
+- [x] A Swap uses the notice flow and carries Colors with Labels
