@@ -2,6 +2,7 @@ import html
 from datetime import UTC, date, datetime, timedelta, tzinfo
 from pathlib import Path
 from typing import Self
+from urllib.parse import parse_qs, urlsplit
 
 import pytest
 from flask.testing import FlaskClient
@@ -226,6 +227,150 @@ def test_a_fresh_install_answers_and_writes_nothing(
     client = web.app(absent, TOKEN, fetch_weather=dict).test_client()
     assert "Shirt" in _get_text(client, f"/{TOKEN}/")
     assert not absent.parent.exists()
+
+
+def test_the_day_type_button_offers_the_other_type(
+    client: FlaskClient,
+) -> None:
+    page = _get_text(client, f"/{TOKEN}/day/{_get_next(SAT)}")
+    assert "Make this an Office Day" in page
+    assert "Make this a Home Day" not in page
+
+
+def test_a_day_type_write_answers_303_with_the_notice(
+    client: FlaskClient, state_path: Path
+) -> None:
+    saturday = _get_next(SAT)
+    reply = client.post(
+        f"/{TOKEN}/day/{saturday}/day-type", data={"day_type": "office"}
+    )
+    assert reply.status_code == 303
+    location = urlsplit(reply.headers["Location"])
+    assert location.path == f"/{TOKEN}/day/{saturday}"
+    assert parse_qs(location.query)["notice"] == [
+        "Recorded: an Office Day"
+    ]
+    page = _get_text(client, reply.headers["Location"])
+    assert "Recorded: an Office Day" in page
+    assert "Make this a Home Day" in page
+    assert state_path.exists()
+
+
+def test_a_write_already_the_case_says_so_and_writes_nothing(
+    client: FlaskClient, state_path: Path
+) -> None:
+    page = _post_text(
+        client,
+        f"/{TOKEN}/day/{_get_next(SAT)}/day-type",
+        {"day_type": "home"},
+    )
+    assert "Already: a Home Day" in page
+    assert not state_path.exists()
+
+
+def test_an_unknown_day_type_is_a_bad_request(
+    client: FlaskClient,
+) -> None:
+    reply = client.post(
+        f"/{TOKEN}/day/{_get_next(SAT)}/day-type",
+        data={"day_type": "gala"},
+    )
+    assert reply.status_code == 400
+
+
+def test_the_shirt_list_holds_the_dates_closets_shirts(
+    client: FlaskClient,
+) -> None:
+    page = _get_text(client, f"/{TOKEN}/day/{_get_next(SAT)}")
+    labels = get_default_state(_get_today()).labels
+    assert all(
+        f">{label}</option>" in page
+        for key, label in labels.items()
+        if key.startswith("home.shirt.")
+    )
+
+
+def test_wearing_a_different_shirt_resets_to_it(
+    client: FlaskClient,
+) -> None:
+    saturday = _get_next(SAT)
+    labels = get_default_state(_get_today()).labels
+    shirts = [
+        label
+        for key, label in labels.items()
+        if key.startswith("home.shirt.")
+    ]
+    page = _get_text(client, f"/{TOKEN}/day/{saturday}")
+    other = next(
+        shirt for shirt in shirts if f"{shirt} Shirt" not in page
+    )
+    page = _post_text(
+        client, f"/{TOKEN}/day/{saturday}/shirt", {"shirt": other}
+    )
+    assert f"Recorded: the Shirt Rotation reset to {other}" in page
+    assert f"{other} Shirt" in page
+
+
+def test_a_refusal_reshows_the_page_with_the_message(
+    client: FlaskClient, state_path: Path
+) -> None:
+    saturday = _get_next(SAT)
+    reply = client.post(
+        f"/{TOKEN}/day/{saturday}/shirt", data={"shirt": "Nope"}
+    )
+    assert reply.status_code == 422
+    page = html.unescape(reply.get_data(as_text=True))
+    assert "no home shirt named 'Nope'" in page
+    assert f"{saturday:%a %d %b %Y}" in page
+    assert not state_path.exists()
+
+
+def test_the_outerwear_switch_shows_only_today_on_a_home_day(
+    client: FlaskClient, state_path: Path
+) -> None:
+    today = _get_today()
+    tomorrow = today + timedelta(days=1)
+    home = record_override(
+        record_override(get_default_state(today), today, DayType.HOME),
+        tomorrow,
+        DayType.HOME,
+    )
+    write_state(state_path, home)
+    assert "Switch to the" in _get_text(client, f"/{TOKEN}/")
+    assert "Switch to the" not in _get_text(
+        client, f"/{TOKEN}/day/{tomorrow}"
+    )
+    write_state(
+        state_path, record_override(home, today, DayType.OFFICE)
+    )
+    assert "Switch to the" not in _get_text(client, f"/{TOKEN}/")
+
+
+def test_switching_outerwear_offers_the_other_kind(
+    client: FlaskClient, state_path: Path
+) -> None:
+    today = _get_today()
+    write_state(
+        state_path,
+        record_override(get_default_state(today), today, DayType.HOME),
+    )
+    before = _get_text(client, f"/{TOKEN}/")
+    reply = client.post(f"/{TOKEN}/outerwear")
+    assert reply.status_code == 303
+    assert urlsplit(reply.headers["Location"]).path == f"/{TOKEN}/"
+    after = _get_text(client, reply.headers["Location"])
+    assert "Recorded: the Home Outerwear Rotation reset" in after
+    assert ("Switch to the jacket" in before) == (
+        "Switch to the sweater" in after
+    )
+
+
+def _post_text(
+    client: FlaskClient, url: str, data: dict[str, str]
+) -> str:
+    reply = client.post(url, data=data, follow_redirects=True)
+    assert reply.status_code == 200
+    return html.unescape(reply.get_data(as_text=True))
 
 
 def _get_text(client: FlaskClient, url: str) -> str:

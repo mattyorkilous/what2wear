@@ -12,6 +12,23 @@
 {% if past %}
 <p class="note">A past date: this is where the Rotation stands now, not what was worn.</p>
 {% endif %}
+<form method="post" action="{{ url_for('set_day_type', iso_date=response.on.isoformat()) }}">
+  <button name="day_type" value="{{ other_day_type }}">Make this {{ other_article }} {{ other_day_type.title() }} Day</button>
+</form>
+<form method="post" action="{{ url_for('set_shirt', iso_date=response.on.isoformat()) }}">
+  <label>Wear a different shirt
+    <select name="shirt">
+      {% for shirt in shirts %}<option{% if shirt == response.outfit.shirt.label %} selected{% endif %}>{{ shirt }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <button>Wear</button>
+</form>
+{% if other_outerwear %}
+<form method="post" action="{{ url_for('switch_outerwear') }}">
+  <button>Switch to the {{ other_outerwear }}</button>
+</form>
+{% endif %}
 <p class="step">
   <a href="{{ url_for('show_day', iso_date=prev_day.isoformat()) }}">‹ prev</a>
   <a href="{{ url_for('show_day', iso_date=next_day.isoformat()) }}">next ›</a>

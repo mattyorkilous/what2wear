@@ -49,6 +49,9 @@ convention = "google"
 # The CLI is the one place that prints, and its two matches carry
 # one arm per subcommand (ADR-0009).
 "src/what2wear/cli.py" = ["T201", "PLR0911"]
+# The app factory closes over the state path, so every route is a
+# nested function, and ruff counts each one's branches as the factory's.
+"src/what2wear/web.py" = ["C901"]
 
 # Tests assert, are not a package, and say 2 when they mean exit 2.
 # A test's name is its documentation, so no docstring per case.
