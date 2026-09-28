@@ -232,7 +232,6 @@ def _get_today() -> date:
 
 
 def _parse_date(text: str) -> date:
-    """Parse a date spelled YYYY-MM-DD, so each date has one URL."""
     try:
         on = date.fromisoformat(text)
     except ValueError:

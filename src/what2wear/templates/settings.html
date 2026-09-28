@@ -6,7 +6,7 @@
     <legend>Office Weekdays</legend>
     {% for weekday in weekdays %}<label><input type="checkbox" name="weekday" value="{{ loop.index0 }}"{% if loop.index0 in office_weekdays %} checked{% endif %}> {{ weekday.title() }}</label>
     {% endfor %}
-    <p class="note">Tick exactly three. Changing them re-anchors every Rotation to today, so no Position moves.</p>
+    <p class="note">Tick exactly three.</p>
   </fieldset>
   <button>Save</button>
 </form>
