@@ -1,4 +1,5 @@
 import html
+import re
 from datetime import UTC, date, datetime, timedelta, tzinfo
 from pathlib import Path
 from typing import Self
@@ -6,6 +7,7 @@ from urllib.parse import parse_qs, urlsplit
 
 import pytest
 from flask.testing import FlaskClient
+from werkzeug.test import TestResponse
 
 from what2wear import web
 from what2wear.core import get_due_date, record_override
@@ -591,6 +593,144 @@ def test_an_unknown_closet_is_not_found(client: FlaskClient) -> None:
         data={"first": "White", "second": "Striped"},
     )
     assert reply.status_code == 404
+
+
+def test_each_garment_opens_a_prefilled_replace_form(
+    client: FlaskClient,
+) -> None:
+    page = _open_replace_form(client, "White Shirt")
+    assert 'name="label" value="White"' in page
+    assert 'type="color" name="color" value="#f4f4f1"' in page
+    assert 'type="checkbox" name="striped" checked' not in page
+
+
+def test_a_striped_garments_form_ticks_striped(
+    client: FlaskClient,
+) -> None:
+    page = _open_replace_form(client, "Striped Shirt")
+    assert 'type="checkbox" name="striped" checked' in page
+    assert 'name="stripe_color" value="#3c67b4"' in page
+
+
+def test_pants_and_the_rest_of_a_row_open_replace_forms_too(
+    client: FlaskClient,
+) -> None:
+    assert 'name="label" value="Blue"' in _open_replace_form(
+        client, "Blue Pants"
+    )
+    assert 'name="label" value="Beige"' in _open_replace_form(
+        client, "Beige Sweater"
+    )
+
+
+def test_a_replace_records_the_label_and_colors(
+    client: FlaskClient, state_path: Path
+) -> None:
+    reply = _post_replace(
+        client,
+        "White Shirt",
+        {
+            "label": "Pinstripe",
+            "color": "#ffffff",
+            "striped": "on",
+            "stripe_color": "#000080",
+        },
+    )
+    assert reply.status_code == 303
+    location = reply.headers["Location"]
+    assert urlsplit(location).path == f"/{TOKEN}/closet"
+    page = _get_text(client, location)
+    assert (
+        "Recorded: the Office White Shirt replaced with Pinstripe"
+        in page
+    )
+    assert "Pinstripe Shirt" in page
+    state = read_state(state_path, _get_today())
+    assert state.colors["office.shirt.0"] == ("#ffffff", "#000080")
+
+
+def test_an_unticked_striped_ignores_the_stripe_color(
+    client: FlaskClient, state_path: Path
+) -> None:
+    _post_replace(
+        client,
+        "Striped Shirt",
+        {
+            "label": "Plain",
+            "color": "#ffffff",
+            "stripe_color": "#3c67b4",
+        },
+    )
+    state = read_state(state_path, _get_today())
+    assert state.colors["office.shirt.3"] == ("#ffffff", None)
+
+
+def test_restating_a_garment_is_already_the_case(
+    client: FlaskClient, state_path: Path
+) -> None:
+    reply = _post_replace(
+        client, "Blue Pants", {"label": "Blue", "color": "#3c67b4"}
+    )
+    page = _get_text(client, reply.headers["Location"])
+    assert "Already: the Blue Pants replaced with Blue" in page
+    assert not state_path.exists()
+
+
+@pytest.mark.parametrize(
+    ("label", "message"),
+    [
+        ("St. Patrick", "cannot contain '.'"),
+        ("Black", "already has a 'Black'"),
+    ],
+)
+def test_a_refused_replace_reshows_the_form_with_the_message(
+    client: FlaskClient, state_path: Path, label: str, message: str
+) -> None:
+    reply = _post_replace(
+        client, "White Shirt", {"label": label, "color": "#ffffff"}
+    )
+    assert reply.status_code == 422
+    page = html.unescape(reply.get_data(as_text=True))
+    assert message in page
+    assert f'name="label" value="{label}"' in page
+    assert not state_path.exists()
+
+
+def test_a_color_that_is_no_color_is_a_bad_request(
+    client: FlaskClient,
+) -> None:
+    reply = _post_replace(
+        client, "White Shirt", {"label": "White", "color": "red"}
+    )
+    assert reply.status_code == 400
+
+
+def test_an_unknown_garment_has_no_replace_form(
+    client: FlaskClient,
+) -> None:
+    for url in (
+        f"/{TOKEN}/closet/office.shirt.99",
+        f"/{TOKEN}/closet/nothing",
+    ):
+        assert client.get(url).status_code == 404
+
+
+def _open_replace_form(client: FlaskClient, name: str) -> str:
+    return _get_text(client, _get_replace_url(client, name))
+
+
+def _post_replace(
+    client: FlaskClient, name: str, data: dict[str, str]
+) -> TestResponse:
+    return client.post(_get_replace_url(client, name), data=data)
+
+
+def _get_replace_url(client: FlaskClient, name: str) -> str:
+    """Follow the Office Closet's link on the Garment called `name`."""
+    office = _get_office_closet(_get_text(client, f"/{TOKEN}/closet"))
+    match = re.search(f'<a href="([^"]+)">{name}</a>', office)
+    assert match is not None
+    return match[1]
 
 
 def _get_office_closet(page: str) -> str:

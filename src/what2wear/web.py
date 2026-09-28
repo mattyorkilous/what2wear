@@ -1,6 +1,7 @@
 """The web shell: the pages the wearer opens on the phone."""
 
 import hmac
+import re
 from collections.abc import Callable, Mapping
 from datetime import date, datetime, timedelta
 from functools import partial
@@ -21,6 +22,7 @@ from what2wear.core import (
     answer,
     get_due_date,
     record_override,
+    replace_,
     reset,
     reset_outerwear,
     set_cold_threshold,
@@ -155,6 +157,52 @@ def app(
             lambda notice: url_for("show_closet", notice=notice),
         )
 
+    @web.get("/<token>/closet/<key>")
+    def show_garment(key: str) -> str:
+        state = read_state(state_path, _get_today())
+        if key not in state.labels:
+            abort(404)
+        color, stripe_color = state.colors[key]
+        return render_garment(
+            key,
+            "",
+            {
+                "label": state.labels[key],
+                "color": color,
+                "stripe_color": stripe_color or color,
+            }
+            | ({"striped": "on"} if stripe_color else {}),
+        )
+
+    @web.post("/<token>/closet/<key>")
+    def replace_garment(key: str) -> Reply | tuple[str, int]:
+        state = read_state(state_path, _get_today())
+        if key not in state.labels:
+            abort(404)
+        scope = key.rpartition(".")[0]
+        label = request.form["label"]
+        striped = "striped" in request.form
+        color = _parse_color(request.form["color"])
+        stripe_color = (
+            _parse_color(request.form["stripe_color"])
+            if striped
+            else None
+        )
+        current = state.labels[key]
+        name = _get_garment_name(key, current)
+        return record(
+            partial(
+                replace_,
+                garment=f"{scope}.{current}",
+                label=label,
+                color=color,
+                stripe_color=stripe_color,
+            ),
+            f"the {name} replaced with {label}",
+            lambda notice: render_garment(key, notice, request.form),
+            lambda notice: url_for("show_closet", notice=notice),
+        )
+
     @web.get("/<token>/settings")
     def show_settings() -> str:
         return render_settings(request.args.get("notice", ""))
@@ -241,6 +289,19 @@ def app(
                 day_type: _get_closet_rows(state, day_type, today)
                 for day_type in DayType
             },
+        )
+
+    def render_garment(
+        key: str, notice: str, form: Mapping[str, str]
+    ) -> str:
+        """Render a Garment's Replace form, filled in as `form`."""
+        state = read_state(state_path, _get_today())
+        return render_template(
+            "garment.html",
+            notice=notice,
+            key=key,
+            garment=_get_garment_name(key, state.labels[key]),
+            form=form,
         )
 
     def render_settings(notice: str) -> str:
@@ -354,6 +415,19 @@ def _get_other_outerwear(response: Response) -> str:
     )
 
 
+def _parse_color(text: str) -> str:
+    """Parse a color as an `<input type="color">` posts it."""
+    if re.fullmatch(r"#[0-9a-fA-F]{6}", text) is None:
+        abort(400)
+    return text.lower()
+
+
+def _get_garment_name(key: str, label: str) -> str:
+    """Name a Garment as the wearer reads it: Office White Shirt."""
+    closet, _, kind = key.rpartition(".")[0].rpartition(".")
+    return f"{closet.title()} {label} {kind.title()}".lstrip()
+
+
 def _parse_weekdays(texts: list[str]) -> tuple[int, ...]:
     """Parse ticked weekdays, Monday 0, each one a day of the week."""
     try:
@@ -389,19 +463,25 @@ def _get_closet_rows(
     return tuple(
         {
             "pants": state.labels[KEYS[f"pants.{row.pants}"]],
+            "pants_key": KEYS[f"pants.{row.pants}"],
             "shirts": _get_row_shirts(
                 state,
                 day_type,
                 tuple(
-                    state.labels[f"{day_type}.shirt.{place}"]
+                    f"{day_type}.shirt.{place}"
                     for kind, place, _, pants in garments
                     if kind == "shirt" and pants == row.pants
                 ),
                 today,
             ),
             "others": tuple(
-                f"{state.labels[f'{day_type}.{kind}.{place}']} "
-                f"{kind.title()}"
+                (
+                    f"{day_type}.{kind}.{place}",
+                    (
+                        f"{state.labels[f'{day_type}.{kind}.{place}']} "
+                        f"{kind.title()}"
+                    ),
+                )
                 for kind, place, _, pants in garments
                 if kind != "shirt" and pants == row.pants
             ),
@@ -413,16 +493,18 @@ def _get_closet_rows(
 def _get_row_shirts(
     state: State,
     day_type: DayType,
-    labels: tuple[str, ...],
+    keys: tuple[str, ...],
     today: date,
 ) -> tuple[dict[str, Any], ...]:
+    labels = tuple(state.labels[key] for key in keys)
     return tuple(
         {
+            "key": key,
             "label": label,
             "due": get_due_date(state, day_type, label, today),
             "partners": tuple(
                 other for other in labels if other != label
             ),
         }
-        for label in labels
+        for key, label in zip(keys, labels, strict=True)
     )

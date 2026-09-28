@@ -3,10 +3,10 @@
 {% for day_type, rows in closets.items() %}
 <h1>{{ day_type.title() }} Closet</h1>
 {% for row in rows %}
-<h2>{{ row.pants }} Pants</h2>
-<p class="note">{{ row.others | join(", ") }}</p>
+<h2><a href="{{ url_for('show_garment', key=row.pants_key) }}">{{ row.pants }} Pants</a></h2>
+<p class="note">{% for key, name in row.others %}<a href="{{ url_for('show_garment', key=key) }}">{{ name }}</a>{% if not loop.last %}, {% endif %}{% endfor %}</p>
 <ul>
-  {% for shirt in row.shirts %}<li>{{ shirt.label }} Shirt,
+  {% for shirt in row.shirts %}<li><a href="{{ url_for('show_garment', key=shirt.key) }}">{{ shirt.label }} Shirt</a>,
     {% if shirt.due %}next due <a href="{{ url_for('show_day', iso_date=shirt.due.isoformat()) }}">{{ shirt.due.strftime("%a %d %b") }}</a>{% else %}not due in the next year{% endif %}
     {% if shirt.partners %}
     <form method="post" action="{{ url_for('swap_shirts', closet=day_type) }}">

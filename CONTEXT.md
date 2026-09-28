@@ -214,7 +214,7 @@ after this one and reads better said that way.
 _Avoid_: skip, reroll, shuffle, override, re-anchor
 
 **Replace**:
-The act of giving a Garment a new Label, because you replaced it or
+The act of giving a Garment a new Label and Color, because you replaced it or
 because it was called the wrong thing. Nothing distinguishes those two:
 no Garment's history is kept, so a new sweater in the same Pants Row
 and a corrected name for the old one are the same event.

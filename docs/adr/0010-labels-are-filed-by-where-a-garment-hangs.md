@@ -30,7 +30,9 @@ it is called now.
   has. Numbering by row instead would have quietly split the pair.
 - **The wearer sees no change.** `show-closet` prints the same lines it
   did before — a Garment's Closet, what it is, and its Label today. The
-  key appears nowhere but the file.
+  key appears nowhere but the file. (Since the phone's Closet page, it
+  also names a Garment's Replace form in the URL, the one address that
+  stays put while the wearer retypes its Label.)
 - **"Address" went with the Slot.** It had earned its own entry by
   contrast: half its definition said how it differed from a Slot. With
   nothing left to contrast against, what remained was a spelling rule,

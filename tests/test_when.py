@@ -96,7 +96,7 @@ class TestWhatMovesTheDate:
         assert _get_due(state, DayType.OFFICE, "Dark Blue") == WED26
 
     def test_a_replace_changes_which_label_answers(self) -> None:
-        state = replace_(GIVEN, "office.shirt.White", "ecru")
+        state = replace_(GIVEN, "office.shirt.White", "ecru", "#f0ead6")
         assert _get_due(state, DayType.OFFICE, "ecru") == MON24
         with pytest.raises(What2wearError, match="White"):
             _get_due(state, DayType.OFFICE, "White")

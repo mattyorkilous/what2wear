@@ -100,22 +100,35 @@ def reset_outerwear(state: State, today: date) -> State:
     return _move_anchor(state, rotation, Anchor(today, position))
 
 
-def replace_(state: State, garment: str, label: str) -> State:
-    """Give a garment a new label.
+def replace_(
+    state: State,
+    garment: str,
+    label: str,
+    color: str,
+    stripe_color: str | None = None,
+) -> State:
+    """Give a garment a new label and color.
 
     Args:
         state: The state to replace_ in.
-        garment: The garment, as show-closet prints it: its closet,
-            what it is, and its label today.
+        garment: The garment: its closet, what it is, and its label
+            today.
         label: What it is called now.
+        color: The color it is drawn in, as `#rrggbb`.
+        stripe_color: Its stripes' color, or None if it has none.
 
     Returns:
-        The state with the new label recorded.
+        The state with the new label and color recorded.
 
     Raises:
-        What2wearError: If the closet holds no such garment, or
-            another of its kind already has the label.
+        What2wearError: If the label holds a `.`, the closet holds no
+            such garment, or another of its kind already has the label.
     """
+    if "." in label:
+        message = (
+            f"a label cannot contain '.', so {label!r} will not do"
+        )
+        raise What2wearError(message)
     scope, _, current_label = garment.rpartition(".")
     keys_by_label = _get_keys_by_label(state, scope)
     key = keys_by_label.get(current_label)
@@ -136,6 +149,9 @@ def replace_(state: State, garment: str, label: str) -> State:
     return replace(
         state,
         labels=MappingProxyType({**state.labels, key: label}),
+        colors=MappingProxyType(
+            {**state.colors, key: (color, stripe_color)}
+        ),
     )
 
 

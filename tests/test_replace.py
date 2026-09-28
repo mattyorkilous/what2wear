@@ -18,7 +18,7 @@ GIVEN = get_default_state(TODAY)
 
 
 def _replaced(garment: str, label: str) -> State:
-    return replace_(GIVEN, garment, label)
+    return replace_(GIVEN, garment, label, "#123456")
 
 
 def test_a_replaced_garment_is_named_by_its_new_label() -> None:
@@ -40,7 +40,7 @@ def test_a_garment_is_replaced_again_by_its_new_label() -> None:
     # How a Garment is named moves with the Label, because the Label
     # is the whole of what the wearer has to go on.
     once = _replaced("home.shirt.White", "cream")
-    twice = replace_(once, "home.shirt.cream", "ecru")
+    twice = replace_(once, "home.shirt.cream", "ecru", "#123456")
     assert answer(twice, SAT22, {}).outfit.shirt.label == "ecru"
 
 
@@ -76,7 +76,39 @@ def test_the_same_label_in_the_two_closets_stays_legal() -> None:
     )
 
 
+def test_a_replace_records_the_color_with_the_label() -> None:
+    told = replace_(GIVEN, "office.shirt.White", "Plaid", "#aa0000")
+    assert answer(told, MON24, {}).outfit.shirt == Garment(
+        "Plaid", "#aa0000"
+    )
+
+
+def test_a_replace_records_a_stripe_color() -> None:
+    told = replace_(
+        GIVEN, "office.shirt.White", "Pinstripe", "#ffffff", "#000080"
+    )
+    assert answer(told, MON24, {}).outfit.shirt == Garment(
+        "Pinstripe", "#ffffff", "#000080"
+    )
+
+
+def test_a_replace_without_a_stripe_color_drops_the_stripe() -> None:
+    told = replace_(GIVEN, "office.shirt.Striped", "Plain", "#ffffff")
+    assert told.colors["office.shirt.3"] == ("#ffffff", None)
+
+
+def test_restating_a_label_with_a_new_color_records_it() -> None:
+    told = replace_(GIVEN, "office.shirt.White", "White", "#fffff0")
+    assert answer(told, MON24, {}).outfit.shirt.color == "#fffff0"
+
+
 class TestARefusedReplace:
+    def test_a_label_with_a_dot_is_refused(self) -> None:
+        # The Garment would no longer be addressable, since its address
+        # splits on the last dot.
+        with pytest.raises(What2wearError, match=r"\."):
+            _replaced("office.shirt.White", "St. Patrick")
+
     def test_a_label_another_garment_of_that_kind_has_is_refused(
         self,
     ) -> None:
@@ -85,10 +117,12 @@ class TestARefusedReplace:
         with pytest.raises(What2wearError, match="Black"):
             _replaced("office.shoes.Brown", "Black")
 
-    def test_restating_the_label_a_garment_already_has_is_not(
-        self,
-    ) -> None:
-        assert _replaced("office.shoes.Brown", "Brown") == GIVEN
+    def test_restating_the_label_and_color_is_not(self) -> None:
+        brown = GIVEN.colors["office.shoes.0"]
+        assert (
+            replace_(GIVEN, "office.shoes.Brown", "Brown", *brown)
+            == GIVEN
+        )
 
     def test_a_label_naming_no_garment_is_refused(self) -> None:
         with pytest.raises(

@@ -469,7 +469,11 @@ class TestShowingTheCloset:
         assert run(["show-closet"], state_dir=tmp_path) == 0
         garment = _get_columns(capsys.readouterr().out, "Striped")[3]
         assert (
-            run(["replace", garment, "check"], state_dir=tmp_path) == 0
+            run(
+                ["replace", garment, "check", "#000000"],
+                state_dir=tmp_path,
+            )
+            == 0
         )
         capsys.readouterr()
         assert run(["show-closet"], state_dir=tmp_path) == 0
@@ -524,7 +528,10 @@ class TestReplacingAGarment:
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
         assert (
-            run(["replace", "pants.Blue", "navy"], state_dir=tmp_path)
+            run(
+                ["replace", "pants.Blue", "navy", "#1f2a44"],
+                state_dir=tmp_path,
+            )
             == 0
         )
         assert "navy" in capsys.readouterr().out
@@ -536,7 +543,7 @@ class TestReplacingAGarment:
     ) -> None:
         assert (
             run(
-                ["replace", "home.shoes.Black", "oxblood"],
+                ["replace", "home.shoes.Black", "oxblood", "#4a0000"],
                 state_dir=tmp_path,
             )
             == 0
@@ -549,7 +556,10 @@ class TestReplacingAGarment:
         # A no-op rather than a refusal, so it is not an error -- but
         # nothing was written, so nothing says it was.
         assert (
-            run(["replace", "pants.Blue", "Blue"], state_dir=tmp_path)
+            run(
+                ["replace", "pants.Blue", "Blue", "#3c67b4"],
+                state_dir=tmp_path,
+            )
             == 0
         )
         assert "recorded" not in capsys.readouterr().out
@@ -560,7 +570,7 @@ class TestReplacingAGarment:
     ) -> None:
         assert (
             run(
-                ["replace", "office.shoes.Brown", "Black"],
+                ["replace", "office.shoes.Brown", "Black", "#000000"],
                 state_dir=tmp_path,
             )
             == 2

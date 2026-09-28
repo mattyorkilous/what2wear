@@ -86,7 +86,10 @@ class TestOfficeOuterwear:
 
     def test_a_cold_day_names_the_sweater_by_its_label(self) -> None:
         state = replace_(
-            get_default_state(TODAY), "office.sweater.Beige", "oatmeal"
+            get_default_state(TODAY),
+            "office.sweater.Beige",
+            "oatmeal",
+            "#e0dccc",
         )
         assert (
             _get_label(answer(state, MON, {MON: COLD}).outfit.sweater)
@@ -187,7 +190,10 @@ class TestHomeOuterwear:
 
     def test_a_jacket_is_named_by_its_label(self) -> None:
         state = replace_(
-            get_default_state(TODAY), "home.jacket.Black", "navy"
+            get_default_state(TODAY),
+            "home.jacket.Black",
+            "navy",
+            "#1f2a44",
         )
         assert (
             _get_label(answer(state, SAT, {SAT: COLD}).outfit.jacket)

@@ -126,6 +126,9 @@ def _get_parser(today: date) -> argparse.ArgumentParser:
     replace_parser.add_argument(
         "label", metavar="LABEL", help="what it is called now"
     )
+    replace_parser.add_argument(
+        "color", metavar="COLOR", help="its color, as #rrggbb"
+    )
     swap_parser = subparsers.add_parser(
         "swap",
         help="exchange two shirts' labels, if they share pants",
@@ -344,7 +347,10 @@ def _choose_update_function(
             return partial(reset_outerwear, today=today)
         case "replace":
             return partial(
-                replace_, garment=args.garment, label=args.label
+                replace_,
+                garment=args.garment,
+                label=args.label,
+                color=args.color,
             )
         case "swap":
             return partial(
