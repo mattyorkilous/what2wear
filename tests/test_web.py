@@ -346,6 +346,22 @@ def test_the_outerwear_switch_shows_only_today_on_a_home_day(
     assert "Switch to the" not in _get_text(client, f"/{TOKEN}/")
 
 
+def test_a_warm_day_offers_no_outerwear_switch(
+    state_path: Path,
+) -> None:
+    today = _get_today()
+    write_state(
+        state_path,
+        record_override(get_default_state(today), today, DayType.HOME),
+    )
+    client = web.app(
+        state_path,
+        TOKEN,
+        fetch_weather=lambda: {today: DEFAULT_COLD_THRESHOLD},
+    ).test_client()
+    assert "Switch to the" not in _get_text(client, f"/{TOKEN}/")
+
+
 def test_switching_outerwear_offers_the_other_kind(
     client: FlaskClient, state_path: Path
 ) -> None:

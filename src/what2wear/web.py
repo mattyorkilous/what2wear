@@ -216,8 +216,10 @@ def _render_day(
         other_day_type=other_day_type,
         other_article=_get_article(other_day_type),
         shirts=_get_shirt_labels(state, response.day_type),
-        other_outerwear=_get_other_outerwear(state, today)
-        if on == today and response.day_type is DayType.HOME
+        other_outerwear=_get_other_outerwear(response)
+        if on == today
+        and response.day_type is DayType.HOME
+        and response.cold is not False
         else None,
     )
 
@@ -249,6 +251,7 @@ def _get_shirt_labels(
     )
 
 
-def _get_other_outerwear(state: State, today: date) -> str:
-    due_outfit = answer(state, today, {}).outfit
-    return "jacket" if due_outfit.sweater is not None else "sweater"
+def _get_other_outerwear(response: Response) -> str:
+    return (
+        "jacket" if response.outfit.sweater is not None else "sweater"
+    )
