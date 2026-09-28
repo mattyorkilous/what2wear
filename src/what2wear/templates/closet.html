@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+{% for day_type, rows in closets.items() %}
+<h1>{{ day_type.title() }} Closet</h1>
+{% for row in rows %}
+<h2>{{ row.pants }} Pants</h2>
+<p class="note">{{ row.others | join(", ") }}</p>
+<ul>
+  {% for shirt in row.shirts %}<li>{{ shirt.label }} Shirt,
+    {% if shirt.due %}next due <a href="{{ url_for('show_day', iso_date=shirt.due.isoformat()) }}">{{ shirt.due.strftime("%a %d %b") }}</a>{% else %}not due in the next year{% endif %}
+    {% if shirt.partners %}
+    <form method="post" action="{{ url_for('swap_shirts', closet=day_type) }}">
+      <input type="hidden" name="first" value="{{ shirt.label }}">
+      <label>Swap with…
+        <select name="second">
+          {% for partner in shirt.partners %}<option>{{ partner }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <button>Swap</button>
+    </form>
+    {% endif %}
+  </li>
+  {% endfor %}
+</ul>
+{% endfor %}
+{% endfor %}
+{% endblock %}

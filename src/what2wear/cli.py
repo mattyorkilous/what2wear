@@ -11,7 +11,6 @@ from platformdirs import user_config_path
 
 from what2wear.core import (
     answer,
-    get_due_date,
     get_due_shirt,
     record_override,
     replace_,
@@ -75,12 +74,8 @@ def run(
         changed = updated_state != state
         if changed:
             write_state(path, updated_state)
-        on = _get_date(args, updated_state, today)
-        if on is None:
-            print(_get_nothing_due(args))
-            return 0
         weather = fetch_weather()
-        response = answer(updated_state, on, weather)
+        response = answer(updated_state, args.on, weather)
     except What2wearError as error:
         print(error, file=sys.stderr)
         return 2
@@ -144,15 +139,6 @@ def _get_parser(today: date) -> argparse.ArgumentParser:
     )
     swap_parser.add_argument("first", metavar="LABEL")
     swap_parser.add_argument("second", metavar="LABEL")
-    when_parser = subparsers.add_parser(
-        "when",
-        help="name the next date a shirt is due",
-    )
-    when_parser.add_argument(
-        "garment",
-        metavar="SHIRT",
-        help="the shirt, as show-closet prints it",
-    )
     subparsers.add_parser(
         "show-closet",
         help="list every garment and how to name it",
@@ -342,7 +328,7 @@ def _choose_update_function(
         was given if nothing was typed.
     """
     match args.action:
-        case None | "when":
+        case None:
             return lambda state: state
         case "stay-home":
             return partial(
@@ -379,36 +365,10 @@ def _choose_update_function(
             raise AssertionError(args.action)
 
 
-def _get_date(
-    args: argparse.Namespace, state: State, today: date
-) -> date | None:
-    if args.action != "when":
-        return args.on
-    day_type, label = _get_named_shirt(args.garment)
-    return get_due_date(state, day_type, label, today)
-
-
-def _get_named_shirt(garment: str) -> tuple[DayType, str]:
-    closet, _, label = garment.partition(".shirt.")
-    if not label or closet not in tuple(DayType):
-        message = (
-            f"when asks about shirts, and {garment!r} is not one: name "
-            "a shirt the way show-closet prints it, such as "
-            "office.shirt.white"
-        )
-        raise What2wearError(message)
-    return DayType(closet), label
-
-
-def _get_nothing_due(args: argparse.Namespace) -> str:
-    closet, label = _get_named_shirt(args.garment)
-    return f"no {closet} day in the next year wears {label}"
-
-
 def _get_confirmation(args: argparse.Namespace) -> str:
     """Return the line describing what was typed, or "" if none."""
     match args.action:
-        case None | "when":
+        case None:
             return ""
         case "stay-home":
             return f"{args.on} - {DayType.HOME} day"

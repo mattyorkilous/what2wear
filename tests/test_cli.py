@@ -6,7 +6,6 @@ from pathlib import Path
 import pytest
 
 from what2wear import cli
-from what2wear.core import HORIZON_DAYS
 from what2wear.wardrobe import (
     DEFAULT_COLD_THRESHOLD,
     DEFAULT_OFFICE_WEEKDAYS,
@@ -735,131 +734,6 @@ class TestShowingWhatIsTold:
     def test_neither_takes_a_value_to_set(self, tmp_path: Path) -> None:
         with pytest.raises(SystemExit):
             run(["cold-threshold", "55"], state_dir=tmp_path)
-
-
-class TestAskingWhenAShirtIsNextDue:
-    def test_it_prints_the_found_dates_whole_outfit(
-        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
-    ) -> None:
-        assert _when("office.shirt.White", tmp_path) == 0
-        found = capsys.readouterr().out
-        assert _ask(_dated(found), tmp_path) == 0
-        assert capsys.readouterr().out == found
-
-    def test_a_shirt_due_today_prints_today(
-        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
-    ) -> None:
-        # A fresh installation anchors today at the top of its closet.
-        closet = _todays_closet()
-        assert _when(f"{closet}.shirt.White", tmp_path) == 0
-        assert _dated(capsys.readouterr().out) == _today()
-
-    def test_each_closets_white_is_a_different_shirt(
-        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
-    ) -> None:
-        assert _when("office.shirt.White", tmp_path) == 0
-        at_the_office = _dated(capsys.readouterr().out)
-        assert _when("home.shirt.White", tmp_path) == 0
-        assert _dated(capsys.readouterr().out) != at_the_office
-
-    @pytest.mark.parametrize(
-        "garment",
-        ["office.sweater.Beige", "home.shoes.Black", "pants.Blue"],
-    )
-    def test_anything_but_a_shirt_is_refused(
-        self,
-        garment: str,
-        tmp_path: Path,
-        capsys: pytest.CaptureFixture[str],
-    ) -> None:
-        # Sweaters, shoes and jackets follow from pants during
-        # Resolution rather than being picked by a Rotation.
-        assert _when(garment, tmp_path) == 2
-        assert "shirts" in capsys.readouterr().err
-
-    def test_a_label_the_closet_does_not_have_is_refused(
-        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
-    ) -> None:
-        assert _when("office.shirt.ecru", tmp_path) == 2
-        assert "ecru" in capsys.readouterr().err
-
-    def test_a_shirt_the_year_ahead_never_wears_is_said_plainly(
-        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
-    ) -> None:
-        # Only a deliberate stretch of Overrides can exhaust the year.
-        assert {
-            _run(
-                "stay-home", _today() + timedelta(days=offset), tmp_path
-            )
-            for offset in range(HORIZON_DAYS)
-        } == {0}
-        capsys.readouterr()
-        assert _when("office.shirt.White", tmp_path) == 0
-        assert (
-            capsys.readouterr().out
-            == "no office day in the next year wears White\n"
-        )
-
-    def test_it_takes_no_date(self, tmp_path: Path) -> None:
-        with pytest.raises(SystemExit):
-            run(
-                [
-                    "when",
-                    "office.shirt.White",
-                    "--on",
-                    _today().isoformat(),
-                ],
-                state_dir=tmp_path,
-            )
-
-    def test_a_date_ahead_of_the_command_is_ignored(
-        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
-    ) -> None:
-        # ADR-0008's ordering caveat, on a command that produces a date
-        # rather than acting on one: the root parser's --on parses and
-        # the search still runs from today.
-        assert _when("office.shirt.White", tmp_path) == 0
-        found = _dated(capsys.readouterr().out)
-        assert (
-            run(
-                ["--on", "2027-01-05", "when", "office.shirt.White"],
-                state_dir=tmp_path,
-            )
-            == 0
-        )
-        assert _dated(capsys.readouterr().out) == found
-
-    def test_asking_records_nothing(
-        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
-    ) -> None:
-        absent = tmp_path / "absent"
-        assert _when("office.shirt.White", absent) == 0
-        assert "shirt" in capsys.readouterr().out
-        assert not absent.exists()
-
-    def test_the_found_dates_outerwear_hedges_until_forecast(
-        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
-    ) -> None:
-        assert _when("office.shirt.White", tmp_path) == 0
-        out = capsys.readouterr().out
-        assert _get_outerwear_line(out).endswith("if it's cold")
-        assert (
-            cli.run(
-                ["when", "office.shirt.White"],
-                state_dir=tmp_path,
-                fetch_weather=lambda: {
-                    _dated(out): DEFAULT_COLD_THRESHOLD - 10
-                },
-            )
-            == 0
-        )
-        assert not _get_outerwear_line(
-            capsys.readouterr().out
-        ).endswith("if it's cold")
-
-
-def _when(shirt: str, state_dir: Path) -> int:
-    return run(["when", shirt], state_dir=state_dir)
 
 
 def _set_weekdays(weekdays: list[str], state_dir: Path) -> int:

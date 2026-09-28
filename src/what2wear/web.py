@@ -19,11 +19,13 @@ from werkzeug import Response as Reply
 
 from what2wear.core import (
     answer,
+    get_due_date,
     record_override,
     reset,
     reset_outerwear,
     set_cold_threshold,
     set_office_weekdays,
+    swap,
 )
 from what2wear.errors import What2wearError
 from what2wear.forecast import fetch_forecast
@@ -34,7 +36,13 @@ from what2wear.model import (
     UpdateFunction,
 )
 from what2wear.store import read_state, write_state
-from what2wear.wardrobe import CLOSETS, TIMEZONE, WEEKDAYS
+from what2wear.wardrobe import (
+    CLOSETS,
+    KEYS,
+    TIMEZONE,
+    WEEKDAYS,
+    get_garments,
+)
 
 
 def app(
@@ -128,6 +136,25 @@ def app(
             "the Home Outerwear Rotation reset",
         )
 
+    @web.get("/<token>/closet")
+    def show_closet() -> str:
+        return render_closet(request.args.get("notice", ""))
+
+    @web.post("/<token>/closet/<closet>/swap")
+    def swap_shirts(closet: str) -> Reply | tuple[str, int]:
+        try:
+            day_type = DayType(closet)
+        except ValueError:
+            abort(404)
+        first, second = request.form["first"], request.form["second"]
+        return record(
+            partial(swap, closet=day_type, first=first, second=second),
+            f"the {day_type.title()} {first} and {second} Shirts "
+            "swapped",
+            render_closet,
+            lambda notice: url_for("show_closet", notice=notice),
+        )
+
     @web.get("/<token>/settings")
     def show_settings() -> str:
         return render_settings(request.args.get("notice", ""))
@@ -203,6 +230,18 @@ def app(
             write_state(state_path, updated_state)
         outcome = "Recorded" if state_changed else "Already"
         return redirect(get_url(f"{outcome}: {confirmation}"), code=303)
+
+    def render_closet(notice: str) -> str:
+        today = _get_today()
+        state = read_state(state_path, today)
+        return render_template(
+            "closet.html",
+            notice=notice,
+            closets={
+                day_type: _get_closet_rows(state, day_type, today)
+                for day_type in DayType
+            },
+        )
 
     def render_settings(notice: str) -> str:
         state = read_state(state_path, _get_today())
@@ -336,3 +375,54 @@ def _parse_threshold(text: str) -> float:
 def _render_degrees(degrees: float) -> str:
     """Render degrees exactly, without a trailing `.0`."""
     return str(degrees).removesuffix(".0")
+
+
+def _get_closet_rows(
+    state: State, day_type: DayType, today: date
+) -> tuple[dict[str, Any], ...]:
+    """Each Pants Row: its Pants, its Shirts and what else it wears.
+
+    A Shirt carries its next due date and the Shirts it may Swap
+    with, which are those sharing its Pants.
+    """
+    garments = get_garments(CLOSETS[day_type])
+    return tuple(
+        {
+            "pants": state.labels[KEYS[f"pants.{row.pants}"]],
+            "shirts": _get_row_shirts(
+                state,
+                day_type,
+                tuple(
+                    state.labels[f"{day_type}.shirt.{place}"]
+                    for kind, place, _, pants in garments
+                    if kind == "shirt" and pants == row.pants
+                ),
+                today,
+            ),
+            "others": tuple(
+                f"{state.labels[f'{day_type}.{kind}.{place}']} "
+                f"{kind.title()}"
+                for kind, place, _, pants in garments
+                if kind != "shirt" and pants == row.pants
+            ),
+        }
+        for row in CLOSETS[day_type].rows
+    )
+
+
+def _get_row_shirts(
+    state: State,
+    day_type: DayType,
+    labels: tuple[str, ...],
+    today: date,
+) -> tuple[dict[str, Any], ...]:
+    return tuple(
+        {
+            "label": label,
+            "due": get_due_date(state, day_type, label, today),
+            "partners": tuple(
+                other for other in labels if other != label
+            ),
+        }
+        for label in labels
+    )

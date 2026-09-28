@@ -8,9 +8,9 @@ import pytest
 from flask.testing import FlaskClient
 
 from what2wear import web
-from what2wear.core import record_override
+from what2wear.core import get_due_date, record_override
 from what2wear.model import DayType
-from what2wear.store import write_state
+from what2wear.store import read_state, write_state
 from what2wear.wardrobe import (
     DEFAULT_COLD_THRESHOLD,
     TIMEZONE,
@@ -500,6 +500,102 @@ def test_a_setting_that_is_no_number_is_a_bad_request(
 ) -> None:
     reply = client.post(f"/{TOKEN}/settings/{url}", data=data)
     assert reply.status_code == 400
+
+
+def test_the_closet_page_groups_each_closet_by_pants(
+    client: FlaskClient,
+) -> None:
+    page = _get_text(client, f"/{TOKEN}/closet")
+    assert "Office Closet" in page
+    assert "Home Closet" in page
+    # The office closet's Blue Pants hang White and Striped, and
+    # nothing hangs between them but those.
+    office = _get_office_closet(page)
+    blue = office[
+        office.index("Blue Pants") : office.index("Tan Pants")
+    ]
+    assert "White Shirt" in blue
+    assert "Striped Shirt" in blue
+    assert "Black Shirt" not in blue
+
+
+def test_each_shirt_links_to_the_day_it_is_next_due(
+    client: FlaskClient,
+) -> None:
+    today = _get_today()
+    due = get_due_date(
+        get_default_state(today), DayType.OFFICE, "Striped", today
+    )
+    page = _get_text(client, f"/{TOKEN}/closet")
+    assert f'href="/{TOKEN}/day/{due}">{due:%a %d %b}</a>' in page
+
+
+def test_swap_offers_only_shirts_sharing_pants(
+    client: FlaskClient,
+) -> None:
+    page = _get_text(client, f"/{TOKEN}/closet")
+    office = _get_office_closet(page)
+    white = office[
+        office.index("White Shirt") : office.index("Striped Shirt")
+    ]
+    assert ">Striped</option>" in white
+    assert ">Dark Blue</option>" not in white
+    assert ">White</option>" not in white
+
+
+def test_a_swap_carries_colors_with_labels(
+    client: FlaskClient, state_path: Path
+) -> None:
+    page = _post_text(
+        client,
+        f"/{TOKEN}/closet/office/swap",
+        {"first": "White", "second": "Striped"},
+    )
+    assert "Recorded: the Office White and Striped Shirts swapped" in (
+        page
+    )
+    state = read_state(state_path, _get_today())
+    colors = get_default_state(_get_today()).colors
+    assert (
+        state.labels["office.shirt.0"],
+        state.colors["office.shirt.0"],
+    ) == (
+        "Striped",
+        colors["office.shirt.3"],
+    )
+    assert (
+        state.labels["office.shirt.3"],
+        state.colors["office.shirt.3"],
+    ) == (
+        "White",
+        colors["office.shirt.0"],
+    )
+
+
+def test_a_refused_swap_reshows_the_closet_with_the_message(
+    client: FlaskClient, state_path: Path
+) -> None:
+    reply = client.post(
+        f"/{TOKEN}/closet/office/swap",
+        data={"first": "White", "second": "Black"},
+    )
+    assert reply.status_code == 422
+    page = html.unescape(reply.get_data(as_text=True))
+    assert "do not share pants" in page
+    assert "Office Closet" in page
+    assert not state_path.exists()
+
+
+def test_an_unknown_closet_is_not_found(client: FlaskClient) -> None:
+    reply = client.post(
+        f"/{TOKEN}/closet/gala/swap",
+        data={"first": "White", "second": "Striped"},
+    )
+    assert reply.status_code == 404
+
+
+def _get_office_closet(page: str) -> str:
+    return page[page.index("Office Closet") : page.index("Home Closet")]
 
 
 def _post_text(

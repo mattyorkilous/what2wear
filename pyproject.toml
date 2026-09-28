@@ -50,8 +50,9 @@ convention = "google"
 # one arm per subcommand (ADR-0009).
 "src/what2wear/cli.py" = ["T201", "PLR0911"]
 # The app factory closes over the state path, so every route is a
-# nested function, and ruff counts each one's branches as the factory's.
-"src/what2wear/web.py" = ["C901"]
+# nested function, and ruff counts each one's branches and statements
+# as the factory's.
+"src/what2wear/web.py" = ["C901", "PLR0915"]
 
 # Tests assert, are not a package, and say 2 when they mean exit 2.
 # A test's name is its documentation, so no docstring per case.
