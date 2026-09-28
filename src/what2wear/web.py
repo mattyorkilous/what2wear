@@ -31,6 +31,7 @@ from what2wear.core import (
 )
 from what2wear.errors import What2wearError
 from what2wear.forecast import fetch_forecast
+from what2wear.icons import get_icon
 from what2wear.model import (
     DayType,
     Response,
@@ -367,7 +368,7 @@ def _render_day(
         "day.html",
         notice=notice,
         response=response,
-        garments=_get_garment_names(response),
+        garments=_get_drawn_garments(response),
         past=on < today,
         prev_day=prev_day,
         next_day=next_day,
@@ -382,21 +383,30 @@ def _render_day(
     )
 
 
-def _get_garment_names(response: Response) -> tuple[str, ...]:
+def _get_drawn_garments(
+    response: Response,
+) -> tuple[dict[str, Any], ...]:
+    """Each Garment worn: its name, its icon, and whether it's dimmed.
+
+    Outerwear worn only if it's cold is dimmed and says so.
+    """
     outfit = response.outfit
-    hedge = ", if it's cold" if response.cold is None else ""
-    return (
-        f"{outfit.shirt.label} Shirt",
-        f"{outfit.pants.label} Pants",
-        *(
-            f"{garment.label} {kind}{hedge}"
-            for kind, garment in (
-                ("Sweater", outfit.sweater),
-                ("Jacket", outfit.jacket),
-            )
-            if garment is not None
-        ),
-        f"{outfit.shoes.label} Shoes",
+    cold_unknown = response.cold is None
+    return tuple(
+        {
+            "name": f"{garment.label} {kind.title()}"
+            + (", if it's cold" if dim else ""),
+            "icon": get_icon(kind, garment),
+            "dim": dim,
+        }
+        for kind, garment, dim in (
+            ("shirt", outfit.shirt, False),
+            ("pants", outfit.pants, False),
+            ("sweater", outfit.sweater, cold_unknown),
+            ("jacket", outfit.jacket, cold_unknown),
+            ("shoes", outfit.shoes, False),
+        )
+        if garment is not None
     )
 
 

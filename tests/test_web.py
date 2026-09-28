@@ -14,6 +14,7 @@ from what2wear.core import get_due_date, record_override
 from what2wear.model import DayType
 from what2wear.store import read_state, write_state
 from what2wear.wardrobe import (
+    COLORS,
     DEFAULT_COLD_THRESHOLD,
     TIMEZONE,
     get_default_state,
@@ -187,6 +188,81 @@ def test_a_warm_day_names_no_outerwear(state_path: Path) -> None:
     page = _get_text(client, f"/{TOKEN}/")
     assert "Sweater" not in page
     assert "Jacket" not in page
+
+
+def test_each_garment_is_drawn_in_its_color(
+    client: FlaskClient,
+) -> None:
+    page = _get_text(client, f"/{TOKEN}/day/{_get_next(SAT)}")
+    rows = _get_drawn_garments(page)
+    assert {name.rpartition(" ")[2] for _, name, _ in rows} >= {
+        "Shirt",
+        "Pants",
+        "Shoes",
+    }
+    for paths, name, _ in rows:
+        label = name.removesuffix(", if it's cold").rpartition(" ")[0]
+        assert paths[0][1] == COLORS[label][0]
+
+
+def test_a_striped_shirt_is_drawn_with_stripes_in_its_stripe_color(
+    client: FlaskClient,
+) -> None:
+    saturday = _get_next(SAT)
+    _post_text(
+        client,
+        f"/{TOKEN}/day/{saturday}/day-type",
+        {"day_type": "office"},
+    )
+    page = _post_text(
+        client, f"/{TOKEN}/day/{saturday}/shirt", {"shirt": "Striped"}
+    )
+    shirt = next(
+        paths
+        for paths, name, _ in _get_drawn_garments(page)
+        if name == "Striped Shirt"
+    )
+    color, stripe_color = COLORS["Striped"]
+    assert [fill for _, fill in shirt] == [color, stripe_color, "none"]
+    plain = [
+        paths
+        for paths, name, _ in _get_drawn_garments(page)
+        if name != "Striped Shirt"
+    ]
+    assert all(len(paths) == 2 for paths in plain)
+
+
+def test_icons_are_drawn_with_only_lines_and_curves(
+    client: FlaskClient,
+) -> None:
+    page = _get_text(client, f"/{TOKEN}/")
+    paths = re.findall(r' d="([^"]*)"', page)
+    assert paths
+    assert all(re.fullmatch(r"[MLQZ\d. ]+", path) for path in paths)
+    assert "dasharray" not in page
+
+
+def test_outerwear_worn_only_if_its_cold_is_dimmed(
+    client: FlaskClient,
+) -> None:
+    rows = _get_drawn_garments(_get_text(client, f"/{TOKEN}/"))
+    dimmed = [name for _, name, dim in rows if dim]
+    assert len(dimmed) == 1
+    assert dimmed[0].endswith(", if it's cold")
+
+
+def test_outerwear_on_a_cold_day_is_not_dimmed(
+    state_path: Path,
+) -> None:
+    today = _get_today()
+    client = web.app(
+        state_path,
+        TOKEN,
+        fetch_weather=lambda: {today: DEFAULT_COLD_THRESHOLD - 10},
+    ).test_client()
+    rows = _get_drawn_garments(_get_text(client, f"/{TOKEN}/"))
+    assert len(rows) == 4
+    assert not any(dim for _, _, dim in rows)
 
 
 @pytest.mark.parametrize(
@@ -743,6 +819,24 @@ def _post_text(
     reply = client.post(url, data=data, follow_redirects=True)
     assert reply.status_code == 200
     return html.unescape(reply.get_data(as_text=True))
+
+
+def _get_drawn_garments(
+    page: str,
+) -> list[tuple[list[tuple[str, str]], str, bool]]:
+    """Each drawn Garment: its paths' `d` and fill, name, dimming."""
+    return [
+        (
+            re.findall(r'<path d="([^"]*)" fill="([^"]*)"', svg),
+            name.strip(),
+            "dim" in attrs,
+        )
+        for attrs, svg, name in re.findall(
+            r"<li([^>]*)>\s*<svg[^>]*>(.*?)</svg>(.*?)</li>",
+            page,
+            re.DOTALL,
+        )
+    ]
 
 
 def _get_text(client: FlaskClient, url: str) -> str:

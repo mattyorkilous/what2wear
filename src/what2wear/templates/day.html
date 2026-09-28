@@ -2,8 +2,10 @@
 {% block content %}
 <h1>{{ response.on.strftime("%a %d %b %Y") }}<br>
   {{ response.day_type.title() }} Day</h1>
-<ul>
-  {% for garment in garments %}<li>{{ garment }}</li>
+<ul class="outfit">
+  {% for garment in garments %}{% set icon = garment.icon %}<li{% if garment.dim %} class="dim"{% endif %}>
+    <svg viewBox="0 0 32 32" width="32" height="32" aria-hidden="true"><path d="{{ icon.shape }}" fill="{{ icon.fill }}"/>{% if icon.pattern %}<path d="{{ icon.pattern }}" fill="{{ icon.pattern_fill }}"/>{% endif %}<path d="{{ icon.detail }}" fill="none" stroke="#ffffffaa" stroke-width="1.2" stroke-linejoin="round"/></svg>
+    {{ garment.name }}</li>
   {% endfor %}
 </ul>
 {% if response.unavoidable_repeat %}
