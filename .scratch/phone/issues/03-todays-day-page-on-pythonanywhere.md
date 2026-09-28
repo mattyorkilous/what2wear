@@ -8,25 +8,25 @@ garment reads as its Label and kind. See `.scratch/phone/spec.md`.
 
 **Blocked by:** 01 — Outfits carry Garments with a told Color.
 
-**Status:** ready-for-agent (the deploy steps are HITL)
+**Status:** done
 
-- [ ] Core runs on 3.13: `requires-python = ">=3.13"`,
+- [x] Core runs on 3.13: `requires-python = ">=3.13"`,
       `.python-version` 3.13, the `except` in `forecast` parenthesised
-- [ ] Flask is a dependency; `web.app(state_path, token, fetch_weather)`
+- [x] Flask is a dependency; `web.app(state_path, token, fetch_weather)`
       builds the app, and tests pass a temp path and a weather stub
-- [ ] The token is the first path segment, checked once with
+- [x] The token is the first path segment, checked once with
       `hmac.compare_digest`; a wrong one is a plain 404
-- [ ] `TIMEZONE = ZoneInfo("America/New_York")` in `wardrobe`; `/` is
+- [x] `TIMEZONE = ZoneInfo("America/New_York")` in `wardrobe`; `/` is
       today there, `/day/YYYY-MM-DD` any date
-- [ ] The Day page shows Office/Home Day, the Outfit, ‹ prev / next ›
+- [x] The Day page shows Office/Home Day, the Outfit, ‹ prev / next ›
       by one calendar day, a GET date picker, and nav to Day, Closet
       and Settings
-- [ ] The past-date note, the unavoidable-repeat note, and the
+- [x] The past-date note, the unavoidable-repeat note, and the
       ", if it's cold" hedge while the forecast is unknown
-- [ ] Every response is `Cache-Control: no-store`
-- [ ] An unreadable State is a 500 page with the message and the nav
-- [ ] A fresh install answers and writes nothing
-- [ ] Tested through Flask's `test_client()`
-- [ ] Deployed: git clone, `uv sync --frozen --no-dev --python
+- [x] Every response is `Cache-Control: no-store`
+- [x] An unreadable State is a 500 page with the message and the nav
+- [x] A fresh install answers and writes nothing
+- [x] Tested through Flask's `test_client()`
+- [x] Deployed: git clone, `uv sync --frozen --no-dev --python
       python3.13`, WSGI file calling `web.app(...)`; the page opens on
       the phone and is saved to the Home Screen
