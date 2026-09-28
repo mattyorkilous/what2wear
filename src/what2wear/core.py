@@ -196,6 +196,7 @@ def set_office_weekdays(
     pattern would reclassify the past and move every rotation. Each
     anchor is therefore moved to `today`, at the position it held
     there under the old pattern. Recorded overrides are left alone.
+    Restating the current weekdays changes nothing, anchors included.
 
     Args:
         state: The state to set them in.
@@ -216,6 +217,8 @@ def set_office_weekdays(
             "the count is a change to the source"
         )
         raise What2wearError(message)
+    if frozenset(weekdays) == state.office_weekdays:
+        return state
     return replace(
         state,
         office_weekdays=frozenset(weekdays),

@@ -381,8 +381,129 @@ def test_switching_outerwear_offers_the_other_kind(
     )
 
 
+def test_settings_tick_the_current_office_weekdays(
+    client: FlaskClient,
+) -> None:
+    page = _get_text(client, f"/{TOKEN}/settings")
+    assert page.count('type="checkbox"') == 7
+    assert page.count("checked") == 3
+    assert "re-anchors every Rotation" in page
+
+
+def test_setting_office_weekdays_records_them(
+    client: FlaskClient, state_path: Path
+) -> None:
+    reply = client.post(
+        f"/{TOKEN}/settings/office-weekdays",
+        data={"weekday": ["1", "3", "5"]},
+    )
+    assert reply.status_code == 303
+    location = urlsplit(reply.headers["Location"])
+    assert location.path == f"/{TOKEN}/settings"
+    after = _get_text(client, reply.headers["Location"])
+    assert "Recorded: Office Weekdays Tue, Thu, Sat" in after
+    assert state_path.exists()
+
+
+def test_restating_office_weekdays_is_already_the_case(
+    client: FlaskClient, state_path: Path
+) -> None:
+    page = _post_text(
+        client,
+        f"/{TOKEN}/settings/office-weekdays",
+        {"weekday": ["0", "2", "4"]},
+    )
+    assert "Already: Office Weekdays Mon, Wed, Fri" in page
+    assert not state_path.exists()
+
+
+def test_other_than_three_weekdays_is_refused(
+    client: FlaskClient, state_path: Path
+) -> None:
+    reply = client.post(
+        f"/{TOKEN}/settings/office-weekdays", data={"weekday": ["0"]}
+    )
+    assert reply.status_code == 422
+    page = html.unescape(reply.get_data(as_text=True))
+    assert "exactly 3 different days" in page
+    assert page.count('type="checkbox"') == 7
+    assert not state_path.exists()
+
+
+def test_settings_prefill_the_cold_threshold(
+    client: FlaskClient,
+) -> None:
+    page = _get_text(client, f"/{TOKEN}/settings")
+    assert 'type="number" step="any"' in page
+    assert f'value="{DEFAULT_COLD_THRESHOLD:g}"' in page
+
+
+def test_setting_the_cold_threshold_records_it(
+    client: FlaskClient,
+) -> None:
+    page = _post_text(
+        client,
+        f"/{TOKEN}/settings/cold-threshold",
+        {"threshold": "42.5"},
+    )
+    assert "Recorded: a Cold Threshold of 42.5°F" in page
+    assert 'value="42.5"' in page
+
+
+def test_the_cold_threshold_is_prefilled_exactly(
+    client: FlaskClient,
+) -> None:
+    page = _post_text(
+        client,
+        f"/{TOKEN}/settings/cold-threshold",
+        {"threshold": "50.123456"},
+    )
+    assert "Recorded: a Cold Threshold of 50.123456°F" in page
+    assert 'value="50.123456"' in page
+
+
+def test_restating_the_cold_threshold_is_already_the_case(
+    client: FlaskClient, state_path: Path
+) -> None:
+    page = _post_text(
+        client,
+        f"/{TOKEN}/settings/cold-threshold",
+        {"threshold": f"{DEFAULT_COLD_THRESHOLD}"},
+    )
+    assert (
+        f"Already: a Cold Threshold of {DEFAULT_COLD_THRESHOLD:g}°F"
+        in page
+    )
+    assert not state_path.exists()
+
+
+def test_a_threshold_that_is_no_temperature_is_refused(
+    client: FlaskClient,
+) -> None:
+    reply = client.post(
+        f"/{TOKEN}/settings/cold-threshold", data={"threshold": "nan"}
+    )
+    assert reply.status_code == 422
+    assert "is not a temperature" in reply.get_data(as_text=True)
+
+
+@pytest.mark.parametrize(
+    ("url", "data"),
+    [
+        ("office-weekdays", {"weekday": ["mon", "1", "2"]}),
+        ("office-weekdays", {"weekday": ["7", "1", "2"]}),
+        ("cold-threshold", {"threshold": "warm"}),
+    ],
+)
+def test_a_setting_that_is_no_number_is_a_bad_request(
+    client: FlaskClient, url: str, data: dict[str, object]
+) -> None:
+    reply = client.post(f"/{TOKEN}/settings/{url}", data=data)
+    assert reply.status_code == 400
+
+
 def _post_text(
-    client: FlaskClient, url: str, data: dict[str, str]
+    client: FlaskClient, url: str, data: dict[str, str | list[str]]
 ) -> str:
     reply = client.post(url, data=data, follow_redirects=True)
     assert reply.status_code == 200

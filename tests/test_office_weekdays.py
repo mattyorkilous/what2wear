@@ -87,6 +87,15 @@ class TestEveryRotationIsReAnchored:
         state = set_office_weekdays(TOLD, weekdays, today)
         assert _get_due(state, today) == _get_due(TOLD, today)
 
+    def test_restating_them_changes_nothing(self) -> None:
+        # So a restatement reads as already the case, not as recorded.
+        assert (
+            set_office_weekdays(
+                TOLD, frozenset({MON, WED, FRI}), WED_SEP16
+            )
+            == TOLD
+        )
+
     def test_restating_them_changes_no_answer_for_any_date(
         self,
     ) -> None:

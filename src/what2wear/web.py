@@ -22,6 +22,8 @@ from what2wear.core import (
     record_override,
     reset,
     reset_outerwear,
+    set_cold_threshold,
+    set_office_weekdays,
 )
 from what2wear.errors import What2wearError
 from what2wear.forecast import fetch_forecast
@@ -32,7 +34,7 @@ from what2wear.model import (
     UpdateFunction,
 )
 from what2wear.store import read_state, write_state
-from what2wear.wardrobe import CLOSETS, TIMEZONE
+from what2wear.wardrobe import CLOSETS, TIMEZONE, WEEKDAYS
 
 
 def app(
@@ -101,7 +103,7 @@ def app(
             day_type = DayType(request.form["day_type"])
         except ValueError:
             abort(400)
-        return record(
+        return record_day(
             partial(record_override, on=on, day_type=day_type),
             on,
             f"{_get_article(day_type)} {day_type.title()} Day",
@@ -111,7 +113,7 @@ def app(
     def set_shirt(iso_date: str) -> Reply | tuple[str, int]:
         on = _parse_date(iso_date)
         shirt = request.form["shirt"]
-        return record(
+        return record_day(
             partial(reset, shirt=shirt, on=on),
             on,
             f"the Shirt Rotation reset to {shirt}",
@@ -120,10 +122,37 @@ def app(
     @web.post("/<token>/outerwear")
     def switch_outerwear() -> Reply | tuple[str, int]:
         today = _get_today()
-        return record(
+        return record_day(
             partial(reset_outerwear, today=today),
             today,
             "the Home Outerwear Rotation reset",
+        )
+
+    @web.get("/<token>/settings")
+    def show_settings() -> str:
+        return render_settings(request.args.get("notice", ""))
+
+    @web.post("/<token>/settings/office-weekdays")
+    def save_office_weekdays() -> Reply | tuple[str, int]:
+        weekdays = _parse_weekdays(request.form.getlist("weekday"))
+        return record_settings(
+            partial(
+                set_office_weekdays,
+                weekdays=weekdays,
+                today=_get_today(),
+            ),
+            "Office Weekdays "
+            + ", ".join(
+                WEEKDAYS[weekday].title() for weekday in weekdays
+            ),
+        )
+
+    @web.post("/<token>/settings/cold-threshold")
+    def save_cold_threshold() -> Reply | tuple[str, int]:
+        threshold = _parse_threshold(request.form["threshold"])
+        return record_settings(
+            partial(set_cold_threshold, threshold=threshold),
+            f"a Cold Threshold of {_render_degrees(threshold)}°F",
         )
 
     def render_day(on: date, notice: str) -> str:
@@ -137,33 +166,63 @@ def app(
             notice,
         )
 
-    def record(
+    def record_day(
         update: UpdateFunction, on: date, confirmation: str
     ) -> Reply | tuple[str, int]:
-        """Record a write, then send the wearer back to its Day page.
+        return record(
+            update,
+            confirmation,
+            partial(render_day, on),
+            lambda notice: (
+                url_for("show_today", notice=notice)
+                if on == _get_today()
+                else url_for(
+                    "show_day", iso_date=on.isoformat(), notice=notice
+                )
+            ),
+        )
+
+    def record(
+        update: UpdateFunction,
+        confirmation: str,
+        render_page: Callable[[str], str],
+        get_url: Callable[[str], str],
+    ) -> Reply | tuple[str, int]:
+        """Record a write, then send the wearer back to its page.
 
         The State is written only if it changed, and the notice says
         which. A refusal re-shows the page with its message instead.
         """
-        today = _get_today()
-        state = read_state(state_path, today)
+        state = read_state(state_path, _get_today())
         try:
             updated_state = update(state)
         except What2wearError as error:
-            return render_day(on, str(error)), 422
+            return render_page(str(error)), 422
         state_changed = updated_state != state
         if state_changed:
             write_state(state_path, updated_state)
         outcome = "Recorded" if state_changed else "Already"
-        notice = f"{outcome}: {confirmation}"
-        destination = (
-            url_for("show_today", notice=notice)
-            if on == today
-            else url_for(
-                "show_day", iso_date=on.isoformat(), notice=notice
-            )
+        return redirect(get_url(f"{outcome}: {confirmation}"), code=303)
+
+    def render_settings(notice: str) -> str:
+        state = read_state(state_path, _get_today())
+        return render_template(
+            "settings.html",
+            notice=notice,
+            weekdays=WEEKDAYS,
+            office_weekdays=state.office_weekdays,
+            threshold=_render_degrees(state.cold_threshold),
         )
-        return redirect(destination, code=303)
+
+    def record_settings(
+        update: UpdateFunction, confirmation: str
+    ) -> Reply | tuple[str, int]:
+        return record(
+            update,
+            confirmation,
+            render_settings,
+            lambda notice: url_for("show_settings", notice=notice),
+        )
 
     return web
 
@@ -255,3 +314,26 @@ def _get_other_outerwear(response: Response) -> str:
     return (
         "jacket" if response.outfit.sweater is not None else "sweater"
     )
+
+
+def _parse_weekdays(texts: list[str]) -> tuple[int, ...]:
+    """Parse ticked weekdays, Monday 0, each one a day of the week."""
+    try:
+        weekdays = tuple(int(text) for text in texts)
+    except ValueError:
+        abort(400)
+    if not all(weekday in range(len(WEEKDAYS)) for weekday in weekdays):
+        abort(400)
+    return weekdays
+
+
+def _parse_threshold(text: str) -> float:
+    try:
+        return float(text)
+    except ValueError:
+        abort(400)
+
+
+def _render_degrees(degrees: float) -> str:
+    """Render degrees exactly, without a trailing `.0`."""
+    return str(degrees).removesuffix(".0")
