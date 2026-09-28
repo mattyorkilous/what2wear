@@ -5,12 +5,12 @@ the Cold Threshold on one page. See `.scratch/phone/spec.md`.
 
 **Blocked by:** 04 — Day page actions.
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Seven weekday checkboxes, the current three ticked
-- [ ] Anything but exactly three is refused with the core message
-- [ ] A note that changing them re-anchors every Rotation, so no
+- [x] Seven weekday checkboxes, the current three ticked
+- [x] Anything but exactly three is refused with the core message
+- [x] A note that changing them re-anchors every Rotation, so no
       Position moves
-- [ ] Cold Threshold as `<input type="number" step="any">` in °F,
+- [x] Cold Threshold as `<input type="number" step="any">` in °F,
       pre-filled
-- [ ] Writes use the notice flow, `recorded` vs `already` included
+- [x] Writes use the notice flow, `recorded` vs `already` included
