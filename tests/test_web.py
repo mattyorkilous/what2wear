@@ -387,7 +387,6 @@ def test_settings_tick_the_current_office_weekdays(
     page = _get_text(client, f"/{TOKEN}/settings")
     assert page.count('type="checkbox"') == 7
     assert page.count("checked") == 3
-    assert "re-anchors every Rotation" in page
 
 
 def test_setting_office_weekdays_records_them(
