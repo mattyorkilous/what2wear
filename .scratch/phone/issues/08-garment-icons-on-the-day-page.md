@@ -7,14 +7,14 @@ shapes the widget will also draw from. See `.scratch/phone/spec.md`.
 
 **Blocked by:** 03 — Today's Day page on PythonAnywhere.
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Each kind (shirt, pants, sweater, jacket, shoes) has a `shape`
+- [x] Each kind (shirt, pants, sweater, jacket, shoes) has a `shape`
       and a `detail` path in a 32×32 box, using only `M`, `L`, `Q`, `Z`
-- [ ] A striped Garment adds a `pattern` path: vertical rectangles
+- [x] A striped Garment adds a `pattern` path: vertical rectangles
       inside the torso (about x 8–24, y 13–28), filled with the stripe
       Color
-- [ ] No dashes: the shirt placket is short segments
-- [ ] Drawn as inline SVG in three layers: fill shape, fill pattern,
+- [x] No dashes: the shirt placket is short segments
+- [x] Drawn as inline SVG in three layers: fill shape, fill pattern,
       stroke detail
-- [ ] Outerwear worn only if it's cold is dimmed
+- [x] Outerwear worn only if it's cold is dimmed
