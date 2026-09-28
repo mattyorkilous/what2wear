@@ -41,8 +41,6 @@ DETAILS = MappingProxyType(
 )
 
 # Stripes fit inside a top's torso.
-# ponytail: striped pants and shoes are drawn plain; give them their own
-# stripes if one is ever Replaced with a stripe Color.
 STRIPES = " ".join(
     f"M{x} 13 L{x + 1.5} 13 L{x + 1.5} 28 L{x} 28 Z"
     for x in (10, 14, 18, 22)
