@@ -8,17 +8,17 @@ reuse. See `.scratch/phone/spec.md`.
 
 **Blocked by:** 03 — Today's Day page on PythonAnywhere.
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] One button, "Make this an Office Day" / "Make this a Home Day",
+- [x] One button, "Make this an Office Day" / "Make this a Home Day",
       whichever the date isn't (`record_override`)
-- [ ] "Wear a different shirt": a `<select>` of that date's Closet's
+- [x] "Wear a different shirt": a `<select>` of that date's Closet's
       Shirts (`reset`)
-- [ ] "Switch to the jacket/sweater" only on today's page when today
+- [x] "Switch to the jacket/sweater" only on today's page when today
       is a Home Day (`reset_outerwear`)
-- [ ] Each write answers 303 to its page with `?notice=<text>`, worded
+- [x] Each write answers 303 to its page with `?notice=<text>`, worded
       as the CLI's confirmations, owned by the web shell
-- [ ] The notice tells `recorded` from `already`
-- [ ] The State is written only when it changes
-- [ ] A refusal re-shows the page with the core message
-- [ ] No confirm steps
+- [x] The notice tells `recorded` from `already`
+- [x] The State is written only when it changes
+- [x] A refusal re-shows the page with the core message
+- [x] No confirm steps
