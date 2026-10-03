@@ -9,29 +9,29 @@ gone. See `.scratch/replace-by-key/spec.md`.
 
 **Blocked by:** None — can start immediately.
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Replace takes the State, the key, the new Label, the Color and an
+- [x] Replace takes the State, the key, the new Label, the Color and an
       optional stripe Color, and records the Label and Colors under
       that key.
-- [ ] A key nothing hangs at is refused with a What2wearError saying
+- [x] A key nothing hangs at is refused with a What2wearError saying
       so, and nothing is recorded.
-- [ ] A Label containing `.` is still refused.
-- [ ] A Label held by another Garment of the same Closet and kind is
+- [x] A Label containing `.` is still refused.
+- [x] A Label held by another Garment of the same Closet and kind is
       still refused; the Garment's own current Label, and the same
       Label in another kind or Closet, are accepted.
-- [ ] The two refusals only a typed Label could reach ("no … is called
+- [x] The two refusals only a typed Label could reach ("no … is called
       …", "nothing is called …") are deleted, with the lookup by Label.
-- [ ] The Closet page's Replace route passes its key to Replace without
+- [x] The Closet page's Replace route passes its key to Replace without
       building a garment string; it still 404s an unknown key and still
       names the Garment by its current Label in the confirmation.
-- [ ] Reset and Swap are unchanged and still take Labels.
-- [ ] The core Replace tests call Replace with keys, cover the new
+- [x] Reset and Swap are unchanged and still take Labels.
+- [x] The core Replace tests call Replace with keys, cover the new
       unknown-key refusal, and drop the two Label-spelling refusal
       tests; the other core tests that call Replace switch to keys.
-- [ ] The web Closet page Replace tests pass unchanged.
-- [ ] ADR-0010 gains a consequence that Replace takes the key now that
+- [x] The web Closet page Replace tests pass unchanged.
+- [x] ADR-0010 gains a consequence that Replace takes the key now that
       the phone's Closet page is its only caller; ADR-0009 gains a
       one-line amendment note that the recording functions take what
       the interface hands over, which for Replace is the key.
-- [ ] Tests, ruff and ty pass.
+- [x] Tests, ruff and ty pass.

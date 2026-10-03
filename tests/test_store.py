@@ -77,7 +77,7 @@ class TestTheLabels:
     ) -> None:
         told = replace_(
             get_default_state(TODAY),
-            "office.shirt.White",
+            "office.shirt.0",
             "cream",
             "#fffdd0",
         )
@@ -91,7 +91,7 @@ class TestTheLabels:
         # writing them out again would only be the file repeating
         # itself.
         told = replace_(
-            get_default_state(TODAY), "pants.Blue", "navy", "#1f2a44"
+            get_default_state(TODAY), "pants.0", "navy", "#1f2a44"
         )
         write_state(_path(tmp_path), told)
         text = _path(tmp_path).read_text()

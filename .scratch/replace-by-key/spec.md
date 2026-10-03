@@ -1,6 +1,6 @@
 # Replace by where a Garment hangs
 
-Status: ready-for-agent
+Status: done
 
 Governed by ADR-0006, ADR-0009, ADR-0010 and ADR-0012. Amends ADR-0010
 with a consequence recording that Replace takes the key, and ADR-0009

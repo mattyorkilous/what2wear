@@ -54,3 +54,13 @@ it is called now.
   Labels filed under them go with it. The Wardrobe is given and does
   not change while the tool runs, so this is a repo edit to make
   carefully, not a runtime hazard.
+- **Replace takes the key.** Once the CLI was deleted, the phone's
+  Closet page was Replace's only caller, and it already holds where the
+  Garment hangs. `replace_(state, key, label, color, stripe_color)`
+  records under that key, so the page no longer spells a Label-shaped
+  string for Replace to split and look up again. The two refusals only
+  a typed Label could reach — `no office shirt is called 'puce'` and
+  `nothing is called 'white'` — went with the lookup; a key nothing
+  hangs at is refused instead, so a bad call cannot write a made-up
+  Garment into the file. Reset and Swap still take Labels, because
+  their forms post Labels.

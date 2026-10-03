@@ -102,7 +102,7 @@ def reset_outerwear(state: State, today: date) -> State:
 
 def replace_(
     state: State,
-    garment: str,
+    key: str,
     label: str,
     color: str,
     stripe_color: str | None = None,
@@ -111,8 +111,7 @@ def replace_(
 
     Args:
         state: The state to replace_ in.
-        garment: The garment: its closet, what it is, and its label
-            today.
+        key: Where the garment hangs, such as `office.shirt.0`.
         label: What it is called now.
         color: The color it is drawn in, as `#rrggbb`.
         stripe_color: Its stripes' color, or None if it has none.
@@ -121,28 +120,23 @@ def replace_(
         The state with the new label and color recorded.
 
     Raises:
-        What2wearError: If the label holds a `.`, the closet holds no
-            such garment, or another of its kind already has the label.
+        What2wearError: If nothing hangs at the key, the label holds a
+            `.`, or another of its kind already has the label.
     """
+    if key not in state.labels:
+        message = f"nothing hangs at {key!r}"
+        raise What2wearError(message)
     if "." in label:
         message = (
             f"a label cannot contain '.', so {label!r} will not do"
         )
         raise What2wearError(message)
-    scope, _, current_label = garment.rpartition(".")
-    keys_by_label = _get_keys_by_label(state, scope)
-    key = keys_by_label.get(current_label)
-    if key is None:
-        message = (
-            f"no {scope.replace('.', ' ')} is called {current_label!r}"
-            if keys_by_label
-            else f"nothing is called {garment!r}"
-        )
-        raise What2wearError(message)
-    key_already_holding_label = keys_by_label.get(label)
-    if (
-        key_already_holding_label is not None
-        and key_already_holding_label != key
+    scope = key.rpartition(".")[0]
+    if any(
+        other_label == label
+        and other_key != key
+        and other_key.rpartition(".")[0] == scope
+        for other_key, other_label in state.labels.items()
     ):
         message = f"{scope} already has a {label!r}"
         raise What2wearError(message)
@@ -356,17 +350,6 @@ def _move_anchor(
     return replace(
         state,
         anchors=MappingProxyType({**state.anchors, rotation: anchor}),
-    )
-
-
-def _get_keys_by_label(state: State, scope: str) -> Mapping[str, str]:
-    """Map each label in one closet and kind to the key under it."""
-    return MappingProxyType(
-        {
-            label: key
-            for key, label in state.labels.items()
-            if key.rpartition(".")[0] == scope
-        }
     )
 
 
