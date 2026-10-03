@@ -8,7 +8,7 @@ the one writer. See `.scratch/phone/spec.md`.
 actions; 05 — Settings page; 06 — Closet page with due dates and Swap;
 07 — Replace with a Color.
 
-**Status:** ready-for-agent (the upload and check are HITL)
+**Status:** done
 
 - [x] `state.json` uploaded in the Files tab to the WSGI file's
       `state_path`
@@ -21,4 +21,4 @@ actions; 05 — Settings page; 06 — Closet page with due dates and Swap;
 - [x] README covers deploy (`git pull`, `uv sync`, Reload), monthly
       renewal with a `state.json` download as backup, and restore by
       upload
-- [ ] The deletion is committed and deployed
+- [x] The deletion is committed and deployed
