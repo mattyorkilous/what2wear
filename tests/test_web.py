@@ -267,7 +267,14 @@ def test_outerwear_on_a_cold_day_is_not_dimmed(
 
 @pytest.mark.parametrize(
     "url",
-    ["/", "/wrong/", f"/{TOKEN}x/", "/wrong/day/2026-09-28", "/é/"],
+    [
+        "/",
+        "/wrong/",
+        f"/{TOKEN}x/",
+        "/wrong/day/2026-09-28",
+        "/wrong/day/2026-09-28.json",
+        "/é/",
+    ],
 )
 def test_a_wrong_token_is_a_plain_404(
     client: FlaskClient, url: str
@@ -278,7 +285,13 @@ def test_a_wrong_token_is_a_plain_404(
 
 
 @pytest.mark.parametrize(
-    "url", [f"/{TOKEN}/", f"/{TOKEN}/day/2026-09-28", "/wrong/"]
+    "url",
+    [
+        f"/{TOKEN}/",
+        f"/{TOKEN}/day/2026-09-28",
+        f"/{TOKEN}/day/2026-09-28.json",
+        "/wrong/",
+    ],
 )
 def test_every_response_is_uncached(
     client: FlaskClient, url: str
@@ -296,6 +309,101 @@ def test_an_unreadable_state_is_a_500_with_the_message_and_nav(
     page = reply.get_data(as_text=True)
     assert "state file" in page
     assert f'href="/{TOKEN}/closet"' in page
+
+
+def test_the_widget_json_answers_for_its_date(
+    client: FlaskClient,
+) -> None:
+    saturday = _get_next(SAT)
+    reply = client.get(f"/{TOKEN}/day/{saturday}.json")
+    assert reply.status_code == 200
+    assert reply.json is not None
+    assert reply.json["date"] == saturday.isoformat()
+    assert reply.json["day"] == "home"
+    outfit = reply.json["outfit"]
+    assert [item["garment"] for item in outfit][:2] == [
+        "shirt",
+        "pants",
+    ]
+    assert outfit[-1]["garment"] == "shoes"
+    assert outfit[2]["garment"] in {"sweater", "jacket"}
+    for item in outfit:
+        assert set(item) - {"if_cold"} == {"garment", "label", "icon"}
+        icon = item["icon"]
+        assert set(icon) == {"shape", "fill", "detail"}
+        assert icon["fill"] == COLORS[item["label"]][0]
+        assert all(
+            re.fullmatch(r"[MLQZ\d. ]+", icon[path])
+            for path in ("shape", "detail")
+        )
+
+
+def test_the_widget_json_draws_a_striped_shirts_stripes(
+    client: FlaskClient,
+) -> None:
+    saturday = _get_next(SAT)
+    _post_text(
+        client,
+        f"/{TOKEN}/day/{saturday}/day-type",
+        {"day_type": "office"},
+    )
+    _post_text(
+        client, f"/{TOKEN}/day/{saturday}/shirt", {"shirt": "Striped"}
+    )
+    reply = client.get(f"/{TOKEN}/day/{saturday}.json")
+    assert reply.json is not None
+    assert reply.json["day"] == "office"
+    shirt = reply.json["outfit"][0]
+    assert shirt["label"] == "Striped"
+    color, stripe_color = COLORS["Striped"]
+    assert shirt["icon"]["fill"] == color
+    assert shirt["icon"]["pattern_fill"] == stripe_color
+    assert re.fullmatch(r"[MLQZ\d. ]+", shirt["icon"]["pattern"])
+
+
+def test_the_widget_json_marks_outerwear_if_cold_when_unknown(
+    client: FlaskClient,
+) -> None:
+    reply = client.get(f"/{TOKEN}/day/{_get_today()}.json")
+    assert reply.json is not None
+    assert [
+        item["garment"]
+        for item in reply.json["outfit"]
+        if "if_cold" in item
+    ] == [reply.json["outfit"][2]["garment"]]
+    assert reply.json["outfit"][2]["if_cold"] is True
+
+
+def test_the_widget_json_on_a_cold_day_has_no_if_cold(
+    state_path: Path,
+) -> None:
+    today = _get_today()
+    client = web.app(
+        state_path,
+        TOKEN,
+        fetch_weather=lambda: {today: DEFAULT_COLD_THRESHOLD - 10},
+    ).test_client()
+    reply = client.get(f"/{TOKEN}/day/{today}.json")
+    assert reply.json is not None
+    assert len(reply.json["outfit"]) == 4
+    assert not any("if_cold" in item for item in reply.json["outfit"])
+
+
+def test_the_widget_json_for_an_unreadable_state_is_an_error(
+    client: FlaskClient, state_path: Path
+) -> None:
+    state_path.write_text('{"overrides": {"x": "gala"}}')
+    reply = client.get(f"/{TOKEN}/day/{_get_today()}.json")
+    assert reply.status_code == 500
+    assert reply.json is not None
+    assert set(reply.json) == {"error"}
+    assert "state file" in reply.json["error"]
+
+
+def test_the_widget_json_for_no_date_is_not_found(
+    client: FlaskClient,
+) -> None:
+    assert client.get(f"/{TOKEN}/day/20260928.json").status_code == 404
 
 
 def test_a_fresh_install_answers_and_writes_nothing(

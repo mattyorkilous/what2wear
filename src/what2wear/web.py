@@ -11,6 +11,7 @@ from typing import Any
 from flask import (
     Flask,
     abort,
+    jsonify,
     redirect,
     render_template,
     request,
@@ -34,6 +35,7 @@ from what2wear.forecast import fetch_forecast
 from what2wear.icons import get_icon
 from what2wear.model import (
     DayType,
+    Garment,
     Response,
     State,
     UpdateFunction,
@@ -106,6 +108,16 @@ def app(
         return render_day(
             _parse_date(iso_date), request.args.get("notice", "")
         )
+
+    @web.get("/<token>/day/<iso_date>.json")
+    def show_day_json(iso_date: str) -> Reply | tuple[Reply, int]:
+        on = _parse_date(iso_date)
+        try:
+            state = read_state(state_path, _get_today())
+            widget_day = _get_widget_day(state, on, fetch_weather())
+        except What2wearError as error:
+            return jsonify(error=str(error)), 500
+        return jsonify(widget_day)
 
     @web.post("/<token>/day/<iso_date>/day-type")
     def set_day_type(iso_date: str) -> Reply | tuple[str, int]:
@@ -342,6 +354,52 @@ def _parse_date(text: str) -> date:
     return on
 
 
+def _get_widget_day(
+    state: State, on: date, weather: Mapping[date, float]
+) -> dict[str, Any]:
+    """Answer for `on` as the widget draws it, from the same icons."""
+    try:
+        response = answer(state, on, weather)
+    except OverflowError:
+        abort(404)
+    return {
+        "date": on.isoformat(),
+        "day": str(response.day_type),
+        "outfit": [
+            {
+                "garment": kind,
+                "label": garment.label,
+                **({"if_cold": True} if if_cold else {}),
+                "icon": get_icon(kind, garment),
+            }
+            for kind, garment, if_cold in _get_worn_garments(response)
+        ],
+    }
+
+
+def _get_worn_garments(
+    response: Response,
+) -> tuple[tuple[str, Garment, bool], ...]:
+    """Each Garment worn, shirt to shoes, with its kind.
+
+    Each carries whether it's Outerwear worn only if it's cold, which
+    is when the forecast is unknown.
+    """
+    outfit = response.outfit
+    cold_unknown = response.cold is None
+    return tuple(
+        (kind, garment, if_cold)
+        for kind, garment, if_cold in (
+            ("shirt", outfit.shirt, False),
+            ("pants", outfit.pants, False),
+            ("sweater", outfit.sweater, cold_unknown),
+            ("jacket", outfit.jacket, cold_unknown),
+            ("shoes", outfit.shoes, False),
+        )
+        if garment is not None
+    )
+
+
 def _get_article(day_type: DayType) -> str:
     return "an" if day_type is DayType.OFFICE else "a"
 
@@ -390,23 +448,14 @@ def _get_drawn_garments(
 
     Outerwear worn only if it's cold is dimmed and says so.
     """
-    outfit = response.outfit
-    cold_unknown = response.cold is None
     return tuple(
         {
             "name": f"{garment.label} {kind.title()}"
-            + (", if it's cold" if dim else ""),
+            + (", if it's cold" if if_cold else ""),
             "icon": get_icon(kind, garment),
-            "dim": dim,
+            "dim": if_cold,
         }
-        for kind, garment, dim in (
-            ("shirt", outfit.shirt, False),
-            ("pants", outfit.pants, False),
-            ("sweater", outfit.sweater, cold_unknown),
-            ("jacket", outfit.jacket, cold_unknown),
-            ("shoes", outfit.shoes, False),
-        )
-        if garment is not None
+        for kind, garment, if_cold in _get_worn_garments(response)
     )
 
 
