@@ -30,12 +30,10 @@ _Avoid_: collection, drawer
 Anything you put on — a Shirt, a pair of Pants, a sweater, a jacket, a
 pair of shoes. A Garment is fixed by where it hangs in the Wardrobe,
 and its Label and Color are the only things about it that can change.
-You name one by its Closet, what kind of thing it is, and its Label
-today — `office.shirt.ecru` — which is what `show-closet` prints and
-what `replace` takes, and which moves the moment the Label does. Within one
-Closet a Label names exactly one Shirt, one sweater and one pair of
-shoes — the office sweater and the office shoes may both be black —
-and the same Label in the two Closets names two different Garments.
+Within one Closet a Label names exactly one Shirt, one sweater and one
+pair of shoes — the office sweater and the office shoes may both be
+black — and the same Label in the two Closets names two different
+Garments.
 _Avoid_: item, piece, article, address
 
 **Label**:

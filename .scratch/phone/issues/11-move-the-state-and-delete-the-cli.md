@@ -10,15 +10,15 @@ actions; 05 — Settings page; 06 — Closet page with due dates and Swap;
 
 **Status:** ready-for-agent (the upload and check are HITL)
 
-- [ ] `state.json` uploaded in the Files tab to the WSGI file's
+- [x] `state.json` uploaded in the Files tab to the WSGI file's
       `state_path`
-- [ ] Today's Day page matches `what2wear` on the Mac; from then on the
+- [x] Today's Day page matches `what2wear` on the Mac; from then on the
       Mac CLI isn't used
-- [ ] Deleted: the CLI module, its tests, the `[project.scripts]`
+- [x] Deleted: the CLI module, its tests, the `[project.scripts]`
       entry, `platformdirs`, and the CLI's per-file ruff ignores
-- [ ] CONTEXT.md no longer mentions `show-closet` or the
+- [x] CONTEXT.md no longer mentions `show-closet` or the
       `office.shirt.ecru` wording
-- [ ] README covers deploy (`git pull`, `uv sync`, Reload), monthly
+- [x] README covers deploy (`git pull`, `uv sync`, Reload), monthly
       renewal with a `state.json` download as backup, and restore by
       upload
 - [ ] The deletion is committed and deployed
