@@ -1,5 +1,9 @@
 # The recording seam is four functions, not a Command union
 
+> Amended by [ADR-0010](./0010-labels-are-filed-by-where-a-garment-hangs.md):
+> the recording functions take what the interface hands over, not what
+> the wearer typed — for Replace, the key from the Closet page's URL.
+
 The recording seam is four public functions on `core` — `record_override`,
 `reset`, `replace_` and `swap` — each taking a State and the plain values
 the wearer typed, and each returning a State. There is no `Command`

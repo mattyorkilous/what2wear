@@ -192,7 +192,6 @@ def app(
         state = read_state(state_path, _get_today())
         if key not in state.labels:
             abort(404)
-        scope = key.rpartition(".")[0]
         label = request.form["label"]
         striped = "striped" in request.form
         color = _parse_color(request.form["color"])
@@ -201,12 +200,11 @@ def app(
             if striped
             else None
         )
-        current = state.labels[key]
-        name = _get_garment_name(key, current)
+        name = _get_garment_name(key, state.labels[key])
         return record(
             partial(
                 replace_,
-                garment=f"{scope}.{current}",
+                key=key,
                 label=label,
                 color=color,
                 stripe_color=stripe_color,
