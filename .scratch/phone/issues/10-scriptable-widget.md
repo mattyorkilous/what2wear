@@ -10,21 +10,21 @@ Scriptable. See `.scratch/phone/spec.md`.
 **Status:** ready-for-agent (the install and check on the phone are
 HITL)
 
-- [ ] Host and token are constants at the top of the script
-- [ ] Fetches the phone's own date; header is 🏢 Office / 🏠 Home and a
+- [x] Host and token are constants at the top of the script
+- [x] Fetches the phone's own date; header is 🏢 Office / 🏠 Home and a
       short date ("Mon 28")
-- [ ] Draws icons with `DrawContext` from the paths (`M`/`L`/`Q`/`Z` →
+- [x] Draws icons with `DrawContext` from the paths (`M`/`L`/`Q`/`Z` →
       `move`/`addLine`/`addQuadCurve`/`closeSubpath`), scaling 32×32,
       with the full name beside each; system font
-- [ ] Detail stroke translucent white, width 1.2; an `if_cold` row
+- [x] Detail stroke translucent white, width 1.2; an `if_cold` row
       dimmed
-- [ ] Tapping opens the Day page
-- [ ] Caches every good response in `FileManager.local()` and draws
+- [x] Tapping opens the Day page
+- [x] Caches every good response in `FileManager.local()` and draws
       from it on any failure
-- [ ] ⚠︎ and a warning colour on the date only when the cached date
+- [x] ⚠︎ and a warning colour on the date only when the cached date
       isn't today
-- [ ] `{"error"}` 500 → header "⚠︎ State won't read"; any non-JSON
+- [x] `{"error"}` 500 → header "⚠︎ State won't read"; any non-JSON
       answer → "⚠︎ Renew PythonAnywhere?"; no cache → the message alone
-- [ ] README says how to install the script and add the widget
+- [x] README says how to install the script and add the widget
 - [ ] Checked by hand: a normal tile, a dimmed row, a striped Shirt,
       airplane mode, a wrong token

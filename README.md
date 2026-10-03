@@ -97,6 +97,8 @@ application = web.app(Path.home() / "state.json", "<a long random token>")
 
 Reload, open `https://<user>.pythonanywhere.com/<token>/` in Safari on the phone, and Share → Add to Home Screen. An update is `git pull`, `uv sync --frozen --no-dev`, then Reload. Click "renew" on the Web tab once a month, and download `state.json` from the Files tab while you're there.
 
+For the widget, install [Scriptable](https://scriptable.app) from the App Store, add a script, paste in [`widget.js`](widget.js), and set `HOST` and `TOKEN` at its top. Run it once in the app to see the tile. Then long-press the Home Screen, tap Edit → Add Widget, choose Scriptable's small widget, and long-press it → Edit Widget to pick the script. It shows today's Outfit on the phone's own date and opens the Day page when tapped. When it can't fetch it keeps the last good Outfit, with ⚠︎ on the date if that isn't today's; "⚠︎ State won't read" means open the Day page, and "⚠︎ Renew PythonAnywhere?" means the web app has lapsed or the token is wrong.
+
 ## The wardrobe is given
 
 There is no configuration. Both closets, the pants they share, the forecast coordinates, and the starting values the state overlays — the labels, the anchors, the office weekdays and the cold threshold a fresh install starts from — all live in [`src/what2wear/wardrobe.py`](src/what2wear/wardrobe.py), because the rules only mean anything against this wardrobe's shape — office sweaters one-to-one with office shoes, a fallback that is always another row's sweater, closet sizes coprime with the office and home days in a week. A stranger's closet satisfying a schema and none of that would produce confident nonsense, and no amount of validation would catch it. See [ADR-0005](docs/adr/0005-what2wear-dresses-one-person-from-a-given-wardrobe.md).
@@ -124,6 +126,7 @@ docs/agents/                conventions for agent workflows
 .scratch/given-wardrobe/    spec and implementation tickets
 src/what2wear/              the package
 src/what2wear/wardrobe.py   the given wardrobe, and the starting values the state overlays
+widget.js                   the Scriptable widget, pasted onto the phone
 ```
 
 ## Design
