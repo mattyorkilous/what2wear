@@ -4,8 +4,6 @@ Tells you what to wear today, and what you'll wear on any other day.
 
 It walks a fixed list of shirts — one closet for the office, one for home — advancing each rotation only on days of its own kind. Pants come welded to the shirt; shoes and sweaters follow from the pants. At the office it guarantees no sweater and no pair of shoes repeats within a Monday-start week. When it's cold you wear the outerwear your pants call for — at the office their sweater, at home their sweater or their jacket, whichever kind the day's turn says.
 
-> **Status: on the phone.** A small web app on PythonAnywhere is the one interface, with a Scriptable widget beside it. The Day page gives you the shirt, its pants, its shoes, whether it's an office day, and whether the forecast calls for its sweater or jacket, for today or any date you pick; a past date answers too, with a note that it says where the rotation stands now rather than what was worn. From the Day page you switch a date between office and home, wear a different shirt, or move the home outerwear rotation on by one. The Closet page lists every garment with when each shirt is next due, swaps two shirts that share pants, and replaces a garment's label and color. The Settings page sets which three weekdays you go in and how cold is cold. Everything it's been told lives in one state file it owns.
-
 ## How it works
 
 **Rotation picks the shirt. Resolution decides everything else.** Those are deliberately separate steps, and the glossary keeps them apart.
@@ -44,7 +42,7 @@ Forecasts are daily highs from [Open-Meteo](https://open-meteo.com), which needs
 
 Three pages, linked from the top of each: Day, Closet and Settings.
 
-- **Day** — one date's outfit, today unless you've picked another with the date box or ‹ prev / next ›. "Make this a Home Day" (or Office Day) switches that date's side; the shirt list moves the rotation to the shirt you'd rather wear that day; on today's page, at home, "Switch to the …" moves the home outerwear rotation on by one.
+- **Day** — one date's outfit, today unless you've picked another with the date box or ‹ prev / next ›. A past date says it shows where the rotation stands now, not what was worn. "Make this a Home Day" (or Office Day) switches that date's side; the shirt list moves the rotation to the shirt you'd rather wear that day; on today's page, at home, "Switch to the …" moves the home outerwear rotation on by one.
 - **Closet** — each closet grouped by pants, every shirt with the date it's next due. Two shirts on the same pants can swap places. Tap any garment to replace it: a new label and color, with an optional stripe color.
 - **Settings** — the three office weekdays and the cold threshold.
 
