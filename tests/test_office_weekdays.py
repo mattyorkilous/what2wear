@@ -9,7 +9,7 @@ from what2wear.core import (
     set_office_weekdays,
 )
 from what2wear.errors import What2wearError
-from what2wear.model import DayType, State
+from what2wear.model import DayType, Garment, State
 from what2wear.wardrobe import get_default_state
 
 MON, TUE, WED, THU, FRI, SAT, SUN = range(7)
@@ -87,6 +87,15 @@ class TestEveryRotationIsReAnchored:
         state = set_office_weekdays(TOLD, weekdays, today)
         assert _get_due(state, today) == _get_due(TOLD, today)
 
+    def test_restating_them_changes_nothing(self) -> None:
+        # So a restatement reads as already the case, not as recorded.
+        assert (
+            set_office_weekdays(
+                TOLD, frozenset({MON, WED, FRI}), WED_SEP16
+            )
+            == TOLD
+        )
+
     def test_restating_them_changes_no_answer_for_any_date(
         self,
     ) -> None:
@@ -115,8 +124,14 @@ class TestEveryRotationIsReAnchored:
         before, after = (
             answer(told, FRI_SEP4, {}).outfit for told in (GIVEN, state)
         )
-        assert before.shirt == after.shirt == "white"
-        assert (before.sweater, after.sweater) == ("grey", "beige")
+        assert before.shirt.label == after.shirt.label == "White"
+        assert (
+            _get_label(before.sweater),
+            _get_label(after.sweater),
+        ) == (
+            "Grey",
+            "Beige",
+        )
 
 
 class TestTheOverrides:
@@ -163,3 +178,7 @@ def _get_due(state: State, today: date) -> tuple[str, str, str]:
         get_due_shirt(state, DayType.HOME, today),
         "jacket" if outfit.jacket is not None else "sweater",
     )
+
+
+def _get_label(garment: Garment | None) -> str | None:
+    return None if garment is None else garment.label

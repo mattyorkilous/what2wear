@@ -35,7 +35,7 @@ class TestTheDateFound:
     def test_a_shirt_due_today_answers_today(self) -> None:
         # A fresh state anchors today at the top of its closet, and
         # today is a Saturday.
-        assert _get_due(GIVEN, DayType.HOME, "white") == TODAY
+        assert _get_due(GIVEN, DayType.HOME, "White") == TODAY
 
     @pytest.mark.parametrize("day_type", tuple(DayType))
     def test_each_shirt_answers_with_the_next_date_that_wears_it(
@@ -68,9 +68,9 @@ class TestWhatMovesTheDate:
     ) -> None:
         # Wednesday wore black; staying home that day leaves Friday
         # the second office day since the anchor, so Friday wears it.
-        assert _get_due(GIVEN, DayType.OFFICE, "black") == WED26
+        assert _get_due(GIVEN, DayType.OFFICE, "Black") == WED26
         state = record_override(GIVEN, WED26, DayType.HOME)
-        assert _get_due(state, DayType.OFFICE, "black") == FRI28
+        assert _get_due(state, DayType.OFFICE, "Black") == FRI28
 
     def test_a_stretch_of_overrides_covering_the_year_answers_none(
         self,
@@ -80,38 +80,38 @@ class TestWhatMovesTheDate:
             state = record_override(
                 state, TODAY + timedelta(days=offset), DayType.HOME
             )
-        assert _get_due(state, DayType.OFFICE, "white") is None
+        assert _get_due(state, DayType.OFFICE, "White") is None
 
     def test_the_horizon_is_a_year(self) -> None:
         assert HORIZON_DAYS == 365
 
     def test_a_reset_moves_the_date(self) -> None:
-        state = reset(GIVEN, "dblue", WED26)
-        assert _get_due(state, DayType.OFFICE, "white") == FRI28
+        state = reset(GIVEN, "Dark Blue", WED26)
+        assert _get_due(state, DayType.OFFICE, "White") == FRI28
 
     def test_a_reset_to_the_shirt_makes_it_answer_that_date(
         self,
     ) -> None:
-        state = reset(GIVEN, "dblue", WED26)
-        assert _get_due(state, DayType.OFFICE, "dblue") == WED26
+        state = reset(GIVEN, "Dark Blue", WED26)
+        assert _get_due(state, DayType.OFFICE, "Dark Blue") == WED26
 
     def test_a_replace_changes_which_label_answers(self) -> None:
-        state = replace_(GIVEN, "office.shirt.white", "ecru")
+        state = replace_(GIVEN, "office.shirt.White", "ecru", "#f0ead6")
         assert _get_due(state, DayType.OFFICE, "ecru") == MON24
-        with pytest.raises(What2wearError, match="white"):
-            _get_due(state, DayType.OFFICE, "white")
+        with pytest.raises(What2wearError, match="White"):
+            _get_due(state, DayType.OFFICE, "White")
 
     def test_a_swap_exchanges_the_two_dates(self) -> None:
-        # white and striped share blue pants, so the swap is cosmetic
+        # White and Striped share Blue pants, so the swap is cosmetic
         # and their dates simply trade.
         before = [
             _get_due(GIVEN, DayType.OFFICE, shirt)
-            for shirt in ("white", "striped")
+            for shirt in ("White", "Striped")
         ]
-        state = swap(GIVEN, DayType.OFFICE, "white", "striped")
+        state = swap(GIVEN, DayType.OFFICE, "White", "Striped")
         after = [
             _get_due(state, DayType.OFFICE, shirt)
-            for shirt in ("white", "striped")
+            for shirt in ("White", "Striped")
         ]
         assert before == [MON24, MON31]
         assert after == list(reversed(before))

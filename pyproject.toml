@@ -6,14 +6,11 @@ readme = "README.md"
 authors = [
     { name = "Matt Yorkilous", email = "matt_yorkilous@yahoo.com" }
 ]
-requires-python = ">=3.14"
+requires-python = ">=3.13"
 dependencies = [
+    "flask>=3.1.3",
     "holidays>=0.105",
-    "platformdirs>=4.11.3",
 ]
-
-[project.scripts]
-what2wear = "what2wear.cli:main"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -45,9 +42,10 @@ ignore = [
 convention = "google"
 
 [tool.ruff.lint.per-file-ignores]
-# The CLI is the one place that prints, and its two matches carry
-# one arm per subcommand (ADR-0009).
-"src/what2wear/cli.py" = ["T201", "PLR0911"]
+# The app factory closes over the state path, so every route is a
+# nested function, and ruff counts each one's branches and statements
+# as the factory's.
+"src/what2wear/web.py" = ["C901", "PLR0915"]
 
 # Tests assert, are not a package, and say 2 when they mean exit 2.
 # A test's name is its documentation, so no docstring per case.
@@ -62,6 +60,11 @@ convention = "google"
     "D102",
     "D103",
 ]
+
+[tool.ty.src]
+# Prototypes are throwaway: they answer a question and are not kept in
+# step with the package.
+exclude = [".scratch"]
 
 [build-system]
 requires = ["uv_build>=0.10.9,<0.11.0"]

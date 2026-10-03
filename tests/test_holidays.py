@@ -8,7 +8,7 @@ from what2wear.core import (
     get_due_shirt,
     record_override,
 )
-from what2wear.model import DayType, State
+from what2wear.model import DayType, Garment, State
 from what2wear.wardrobe import CLOSETS, get_default_state
 
 TODAY = date(2026, 8, 22)
@@ -66,10 +66,10 @@ class TestTheRotations:
 
     def test_a_holiday_advances_the_home_shirts(self) -> None:
         shirts = [
-            answer(GIVEN, on, {}).outfit.shirt
+            answer(GIVEN, on, {}).outfit.shirt.label
             for on in (SUN_SEP6, LABOR_DAY, TUE_SEP8)
         ]
-        assert shirts == ["white", "brown", "dgreen"]
+        assert shirts == ["White", "Brown", "Dark Green"]
 
     def test_a_holiday_takes_a_home_outerwear_turn(self) -> None:
         outerwear = [
@@ -84,10 +84,14 @@ class TestTheRotations:
         # Monday's black would have taken the black sweater that
         # Wednesday's tan pants want; at home it takes nothing.
         outfit = answer(GIVEN, WED_SEP9, {}).outfit
-        assert (outfit.shirt, outfit.pants, outfit.sweater) == (
-            "black",
-            "tan",
-            "black",
+        assert (
+            outfit.shirt.label,
+            outfit.pants.label,
+            _get_label(outfit.sweater),
+        ) == (
+            "Black",
+            "Tan",
+            "Black",
         )
 
     def test_when_never_answers_an_office_shirt_with_a_holiday(
@@ -153,3 +157,7 @@ def _get_outerwear(state: State, on: date) -> str:
         if answer(state, on, {}).outfit.jacket is not None
         else "sweater"
     )
+
+
+def _get_label(garment: Garment | None) -> str | None:
+    return None if garment is None else garment.label

@@ -23,7 +23,7 @@ Wardrobe and pick one.
 real colour, each followed by its full name.** Picked by prototype on
 2026-09-26 (variant E in
 [the prototype](../prototype/emoji_outfit.py); regenerate its page with
-`uv run python .scratch/phone/prototype/emoji_outfit.py`).
+`uv run python .scratch/phone-wayfinder/prototype/emoji_outfit.py`).
 
 ```
 🏢 Office · Mon 28

@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>{{ response.on.strftime("%a %d %b %Y") }}<br>
+  {{ response.day_type.title() }} Day</h1>
+<ul class="outfit">
+  {% for garment in garments %}{% set icon = garment.icon %}<li{% if garment.dim %} class="dim"{% endif %}>
+    <svg viewBox="0 0 32 32" width="32" height="32" aria-hidden="true"><path d="{{ icon.shape }}" fill="{{ icon.fill }}"/>{% if icon.pattern %}<path d="{{ icon.pattern }}" fill="{{ icon.pattern_fill }}"/>{% endif %}<path d="{{ icon.detail }}" fill="none" stroke="#ffffffaa" stroke-width="1.2" stroke-linejoin="round"/></svg>
+    {{ garment.name }}</li>
+  {% endfor %}
+</ul>
+{% if response.unavoidable_repeat %}
+<p class="note">The sweater was already worn this week: there's no free one left.</p>
+{% endif %}
+{% if past %}
+<p class="note">A past date: this is where the Rotation stands now, not what was worn.</p>
+{% endif %}
+<form method="post" action="{{ url_for('set_day_type', iso_date=response.on.isoformat()) }}">
+  <button name="day_type" value="{{ other_day_type }}">Make this {{ other_article }} {{ other_day_type.title() }} Day</button>
+</form>
+<form method="post" action="{{ url_for('set_shirt', iso_date=response.on.isoformat()) }}">
+  <label>Wear a different shirt
+    <select name="shirt">
+      {% for shirt in shirts %}<option{% if shirt == response.outfit.shirt.label %} selected{% endif %}>{{ shirt }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <button>Wear</button>
+</form>
+{% if other_outerwear %}
+<form method="post" action="{{ url_for('switch_outerwear') }}">
+  <button>Switch to the {{ other_outerwear }}</button>
+</form>
+{% endif %}
+<p class="step">
+  <a href="{{ url_for('show_day', iso_date=prev_day.isoformat()) }}">‹ prev</a>
+  <a href="{{ url_for('show_day', iso_date=next_day.isoformat()) }}">next ›</a>
+</p>
+<form action="{{ url_for('pick_day') }}">
+  <input type="date" name="on" value="{{ response.on.isoformat() }}" required>
+  <button>Go</button>
+</form>
+{% endblock %}

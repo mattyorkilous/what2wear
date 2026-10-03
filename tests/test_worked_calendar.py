@@ -12,59 +12,75 @@ SEQUENCE = [
     (
         date(2026, 8, 29),
         DayType.HOME,
-        Outfit("purple", "black", None, "white", jacket="black"),
+        ("Purple", "Black", None, "White", "Black"),
     ),  # Sat -- a jacket day, and Sunday a sweater day
     (
         date(2026, 8, 30),
         DayType.HOME,
-        Outfit("dblue", "tan", "blue", "black"),
+        ("Dark Blue", "Tan", "Blue", "Black", None),
     ),  # Sun
     (
         date(2026, 8, 31),
         DayType.OFFICE,
-        Outfit("striped", "blue", "beige", "brown"),
+        ("Striped", "Blue", "Beige", "Brown", None),
     ),  # Mon -- takes beige, which Friday then wants
     (
         date(2026, 9, 1),
         DayType.HOME,
-        Outfit("beige", "blue", None, "black", jacket="brown"),
+        ("Beige", "Blue", None, "Black", "Brown"),
     ),
     (
         date(2026, 9, 2),
         DayType.OFFICE,
-        Outfit("dblue", "tan", "black", "black"),
+        ("Dark Blue", "Tan", "Black", "Black", None),
     ),
     (
         date(2026, 9, 3),
         DayType.HOME,
-        Outfit("lblue", "black", "beige", "white"),
+        ("Light Blue", "Black", "Beige", "White", None),
     ),
     (
         date(2026, 9, 4),
         DayType.OFFICE,
-        Outfit("white", "blue", "grey", "white"),
+        ("White", "Blue", "Grey", "White", None),
     ),  # Fri -- shares blue with Monday, so the fallback and its shoes
     (
         date(2026, 9, 5),
         DayType.HOME,
-        Outfit("lgreen", "tan", None, "black", jacket="black"),
+        ("Light Green", "Tan", None, "Black", "Black"),
     ),  # Sat -- the end of the home closet
     (
         date(2026, 9, 6),
         DayType.HOME,
-        Outfit("white", "blue", "yellow", "black"),
+        ("White", "Blue", "Yellow", "Black", None),
     ),  # Sun -- wraps back to the start
     (
         date(2026, 9, 7),
         DayType.HOME,
-        Outfit("brown", "black", None, "white", jacket="black"),
+        ("Brown", "Black", None, "White", "Black"),
     ),  # Mon -- Labor Day, so a Home Day, and the next home shirt
 ]
 
 
 @pytest.mark.parametrize(("on", "day_type", "outfit"), SEQUENCE)
 def test_the_worked_calendar(
-    on: date, day_type: DayType, outfit: Outfit
+    on: date, day_type: DayType, outfit: tuple[str | None, ...]
 ) -> None:
     response = answer(get_default_state(TODAY), on, {})
-    assert (response.day_type, response.outfit) == (day_type, outfit)
+    assert (response.day_type, _get_labels(response.outfit)) == (
+        day_type,
+        outfit,
+    )
+
+
+def _get_labels(outfit: Outfit) -> tuple[str | None, ...]:
+    return tuple(
+        None if garment is None else garment.label
+        for garment in (
+            outfit.shirt,
+            outfit.pants,
+            outfit.sweater,
+            outfit.shoes,
+            outfit.jacket,
+        )
+    )

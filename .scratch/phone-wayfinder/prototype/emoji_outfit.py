@@ -3,7 +3,7 @@
 Four radically different widget renderings, each drawn against real
 Outfits from the real State, laid out as iPhone widget-sized tiles.
 
-    uv run python .scratch/phone/prototype/emoji_outfit.py
+    uv run python .scratch/phone-wayfinder/prototype/emoji_outfit.py
 
 Writes emoji_outfit.html next to this file and opens it.
 """

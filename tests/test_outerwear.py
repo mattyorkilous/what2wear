@@ -4,7 +4,7 @@ import pytest
 
 from what2wear.core import answer, replace_, set_cold_threshold
 from what2wear.errors import What2wearError
-from what2wear.model import Response
+from what2wear.model import Garment, Response
 from what2wear.wardrobe import DEFAULT_COLD_THRESHOLD, get_default_state
 
 TODAY = date(2026, 8, 22)
@@ -23,15 +23,19 @@ class TestOfficeOuterwear:
         self,
     ) -> None:
         response = _response(MON, {MON: COLD})
-        assert response.outfit.sweater == "beige"
+        assert _get_label(response.outfit.sweater) == "Beige"
         assert response.cold is True
 
     def test_a_cold_day_after_a_taken_sweater_wears_the_fallback(
         self,
     ) -> None:
         assert (
-            _response(FALLBACK_FRI, {FALLBACK_FRI: COLD}).outfit.sweater
-            == "grey"
+            _get_label(
+                _response(
+                    FALLBACK_FRI, {FALLBACK_FRI: COLD}
+                ).outfit.sweater
+            )
+            == "Grey"
         )
 
     @pytest.mark.parametrize(
@@ -56,13 +60,13 @@ class TestOfficeOuterwear:
             FALLBACK_FRI, {FALLBACK_FRI: COLD}
         ).outfit
         assert (
-            warm_outfit.shirt,
-            warm_outfit.pants,
-            warm_outfit.shoes,
+            warm_outfit.shirt.label,
+            warm_outfit.pants.label,
+            warm_outfit.shoes.label,
         ) == (
-            cold_outfit.shirt,
-            cold_outfit.pants,
-            cold_outfit.shoes,
+            cold_outfit.shirt.label,
+            cold_outfit.pants.label,
+            cold_outfit.shoes.label,
         )
 
     def test_a_warm_monday_does_not_free_its_sweater_for_the_week(
@@ -71,18 +75,25 @@ class TestOfficeOuterwear:
         # Which sweater a day calls for is knowable without any
         # weather, so no day's weather can change another's garment.
         assert (
-            _response(
-                FALLBACK_FRI, {FALLBACK_MON: WARM, FALLBACK_FRI: COLD}
-            ).outfit.sweater
-            == "grey"
+            _get_label(
+                _response(
+                    FALLBACK_FRI,
+                    {FALLBACK_MON: WARM, FALLBACK_FRI: COLD},
+                ).outfit.sweater
+            )
+            == "Grey"
         )
 
     def test_a_cold_day_names_the_sweater_by_its_label(self) -> None:
         state = replace_(
-            get_default_state(TODAY), "office.sweater.beige", "oatmeal"
+            get_default_state(TODAY),
+            "office.sweater.Beige",
+            "oatmeal",
+            "#e0dccc",
         )
         assert (
-            answer(state, MON, {MON: COLD}).outfit.sweater == "oatmeal"
+            _get_label(answer(state, MON, {MON: COLD}).outfit.sweater)
+            == "oatmeal"
         )
 
 
@@ -91,7 +102,7 @@ class TestUnknownWeather:
         self,
     ) -> None:
         response = _response(MON, {TODAY: COLD})
-        assert response.outfit.sweater == "beige"
+        assert _get_label(response.outfit.sweater) == "Beige"
         assert response.cold is None
 
     def test_beyond_the_horizon_keeps_everything_else(self) -> None:
@@ -126,7 +137,7 @@ class TestHomeOuterwear:
         assert [
             _get_home_outerwear(on, {on: COLD})
             for on in (TUE, THU, SAT)
-        ] == [(None, "brown"), ("beige", None), (None, "black")]
+        ] == [(None, "Brown"), ("Beige", None), (None, "Black")]
 
     def test_a_warm_day_spends_its_turn(self) -> None:
         # ADR-0004's price, asserted rather than worked around: the
@@ -135,7 +146,7 @@ class TestHomeOuterwear:
         weather: dict[date, float] = {TUE: COLD, THU: WARM, SAT: COLD}
         assert [
             _get_home_outerwear(on, weather) for on in (TUE, THU, SAT)
-        ] == [(None, "brown"), (None, None), (None, "black")]
+        ] == [(None, "Brown"), (None, None), (None, "Black")]
 
     def test_office_sweaters_between_them_change_nothing(self) -> None:
         cold_office = dict.fromkeys((WED, FRI), COLD)
@@ -146,7 +157,7 @@ class TestHomeOuterwear:
             for on in (TUE, THU, SAT)
         )
         assert all(
-            _response(on, {on: COLD}).outfit.sweater
+            _get_label(_response(on, {on: COLD}).outfit.sweater)
             for on in (WED, FRI)
         )
 
@@ -154,9 +165,12 @@ class TestHomeOuterwear:
         self,
     ) -> None:
         response = _response(TUE, {})
-        assert (response.outfit.sweater, response.outfit.jacket) == (
+        assert (
+            _get_label(response.outfit.sweater),
+            _get_label(response.outfit.jacket),
+        ) == (
             None,
-            "brown",
+            "Brown",
         )
         assert response.cold is None
 
@@ -169,14 +183,22 @@ class TestHomeOuterwear:
         # one black jacket, and home has no no-repeat rule to stop it.
         tue, sat = date(2026, 8, 25), date(2026, 8, 29)
         responses = [_response(on, {on: COLD}) for on in (tue, sat)]
-        assert [r.outfit.jacket for r in responses] == ["black"] * 2
+        assert [_get_label(r.outfit.jacket) for r in responses] == [
+            "Black"
+        ] * 2
         assert not any(r.unavoidable_repeat for r in responses)
 
     def test_a_jacket_is_named_by_its_label(self) -> None:
         state = replace_(
-            get_default_state(TODAY), "home.jacket.black", "navy"
+            get_default_state(TODAY),
+            "home.jacket.Black",
+            "navy",
+            "#1f2a44",
         )
-        assert answer(state, SAT, {SAT: COLD}).outfit.jacket == "navy"
+        assert (
+            _get_label(answer(state, SAT, {SAT: COLD}).outfit.jacket)
+            == "navy"
+        )
 
 
 class TestTheColdThreshold:
@@ -188,7 +210,10 @@ class TestTheColdThreshold:
             get_default_state(TODAY), DEFAULT_COLD_THRESHOLD + 5
         )
         assert _response(MON, {MON: mild}).cold is False
-        assert answer(state, MON, {MON: mild}).outfit.sweater == "beige"
+        assert (
+            _get_label(answer(state, MON, {MON: mild}).outfit.sweater)
+            == "Beige"
+        )
 
     def test_a_day_it_makes_warm_still_spends_its_turn(self) -> None:
         # Lowering it turns Thursday warm, and Saturday still wears
@@ -202,14 +227,14 @@ class TestTheColdThreshold:
         state = set_cold_threshold(get_default_state(TODAY), COLD + 1)
         assert [
             _get_home_outerwear(on, weather) for on in (TUE, THU, SAT)
-        ] == [(None, "brown"), ("beige", None), (None, "black")]
+        ] == [(None, "Brown"), ("Beige", None), (None, "Black")]
         assert [
-            (outfit.sweater, outfit.jacket)
+            (_get_label(outfit.sweater), _get_label(outfit.jacket))
             for outfit in (
                 answer(state, on, weather).outfit
                 for on in (TUE, THU, SAT)
             )
-        ] == [(None, "brown"), (None, None), (None, "black")]
+        ] == [(None, "Brown"), (None, None), (None, "Black")]
 
     @pytest.mark.parametrize("threshold", [float("nan"), float("inf")])
     def test_a_threshold_that_is_no_temperature_is_refused(
@@ -223,8 +248,12 @@ def _get_home_outerwear(
     on: date, weather: dict[date, float]
 ) -> tuple[str | None, str | None]:
     outfit = _response(on, weather).outfit
-    return outfit.sweater, outfit.jacket
+    return _get_label(outfit.sweater), _get_label(outfit.jacket)
 
 
 def _response(on: date, weather: dict[date, float]) -> Response:
     return answer(get_default_state(TODAY), on, weather)
+
+
+def _get_label(garment: Garment | None) -> str | None:
+    return None if garment is None else garment.label

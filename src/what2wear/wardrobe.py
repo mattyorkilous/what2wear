@@ -3,12 +3,14 @@
 The Wardrobe's shape -- the closets, their shirts and the pants rows
 that dress them -- is given and absolute. Alongside it sit the
 starting values the state overlays when nothing has been told: the
-labels, the anchors, the office weekdays and the cold threshold.
+labels and their colors, the anchors, the office weekdays and the cold
+threshold.
 """
 
 from collections.abc import Mapping
 from datetime import date
 from types import MappingProxyType
+from zoneinfo import ZoneInfo
 
 from what2wear.model import (
     Anchor,
@@ -25,6 +27,7 @@ MON, WED, FRI = 0, 2, 4
 DEFAULT_OFFICE_WEEKDAYS = frozenset({MON, WED, FRI})
 DEFAULT_COLD_THRESHOLD = 50  # degrees Fahrenheit
 LATITUDE, LONGITUDE = 38.9, -77.04  # Washington, DC.
+TIMEZONE = ZoneInfo("America/New_York")
 HOME_OUTERWEAR = ("jacket", "sweater")
 
 
@@ -45,6 +48,7 @@ def get_default_state(today: date) -> State:
             }
         ),
         labels=build_default_labels(),
+        colors=build_default_colors(),
         office_weekdays=DEFAULT_OFFICE_WEEKDAYS,
         cold_threshold=DEFAULT_COLD_THRESHOLD,
     )
@@ -65,6 +69,21 @@ def build_default_labels() -> Mapping[str, str]:
             f"{day_type}.{kind}.{place}": garment
             for day_type, closet in CLOSETS.items()
             for kind, place, garment, _ in get_garments(closet)
+        }
+    )
+
+
+def build_default_colors() -> Mapping[str, tuple[str, str | None]]:
+    """Build the colors a wearer starts from.
+
+    Returns:
+        Each garment's place mapped to the color its given name
+        says, and the color of its stripes, if it has any.
+    """
+    return MappingProxyType(
+        {
+            key: COLORS[label]
+            for key, label in build_default_labels().items()
         }
     )
 
@@ -120,61 +139,79 @@ CLOSETS: Mapping[DayType, Closet] = MappingProxyType(
     {
         DayType.OFFICE: Closet(
             shirts=(
-                Shirt("white", "blue"),
-                Shirt("black", "tan"),
-                Shirt("lblue", "black"),
-                Shirt("striped", "blue"),
-                Shirt("dblue", "tan"),
+                Shirt("White", "Blue"),
+                Shirt("Black", "Tan"),
+                Shirt("Light Blue", "Black"),
+                Shirt("Striped", "Blue"),
+                Shirt("Dark Blue", "Tan"),
             ),
             rows=(
                 PantsRow(
-                    "blue",
-                    sweater="beige",
-                    shoes="brown",
-                    fallback="grey",
+                    "Blue",
+                    sweater="Beige",
+                    shoes="Brown",
+                    fallback="Grey",
                 ),
                 PantsRow(
-                    "tan",
-                    sweater="black",
-                    shoes="black",
-                    fallback="grey",
+                    "Tan",
+                    sweater="Black",
+                    shoes="Black",
+                    fallback="Grey",
                 ),
-                PantsRow("black", sweater="grey", shoes="white"),
+                PantsRow("Black", sweater="Grey", shoes="White"),
             ),
         ),
         DayType.HOME: Closet(
             shirts=(
-                Shirt("white", "blue"),
-                Shirt("brown", "black"),
-                Shirt("dgreen", "tan"),
-                Shirt("black", "blue"),
-                Shirt("purple", "black"),
-                Shirt("dblue", "tan"),
-                Shirt("beige", "blue"),
-                Shirt("lblue", "black"),
-                Shirt("lgreen", "tan"),
+                Shirt("White", "Blue"),
+                Shirt("Brown", "Black"),
+                Shirt("Dark Green", "Tan"),
+                Shirt("Black", "Blue"),
+                Shirt("Purple", "Black"),
+                Shirt("Dark Blue", "Tan"),
+                Shirt("Beige", "Blue"),
+                Shirt("Light Blue", "Black"),
+                Shirt("Light Green", "Tan"),
             ),
             rows=(
                 PantsRow(
-                    "blue",
-                    sweater="yellow",
-                    shoes="black",
-                    jacket="brown",
+                    "Blue",
+                    sweater="Yellow",
+                    shoes="Black",
+                    jacket="Brown",
                 ),
                 PantsRow(
-                    "tan", sweater="blue", shoes="black", jacket="black"
+                    "Tan", sweater="Blue", shoes="Black", jacket="Black"
                 ),
                 PantsRow(
-                    "black",
-                    sweater="beige",
-                    shoes="white",
-                    jacket="black",
+                    "Black",
+                    sweater="Beige",
+                    shoes="White",
+                    jacket="Black",
                 ),
             ),
         ),
     }
 )
 
+COLORS: Mapping[str, tuple[str, str | None]] = MappingProxyType(
+    {
+        "White": ("#f4f4f1", None),
+        "Black": ("#26262a", None),
+        "Grey": ("#8e8e93", None),
+        "Brown": ("#6f4a2e", None),
+        "Tan": ("#c9a878", None),
+        "Beige": ("#e4d5b4", None),
+        "Light Blue": ("#9fc8ee", None),
+        "Dark Blue": ("#23406e", None),
+        "Blue": ("#3c67b4", None),
+        "Yellow": ("#f2c84b", None),
+        "Dark Green": ("#2e5e3b", None),
+        "Light Green": ("#a3d69c", None),
+        "Purple": ("#7a4ea3", None),
+        "Striped": ("#f4f4f1", "#3c67b4"),
+    }
+)
 
 KEYS: Mapping[str, str] = MappingProxyType(
     {

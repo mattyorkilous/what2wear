@@ -14,6 +14,7 @@ from what2wear.model import (
     Anchor,
     Closet,
     DayType,
+    Garment,
     Outfit,
     PantsRow,
     Response,
@@ -23,6 +24,7 @@ from what2wear.model import (
 )
 from what2wear.wardrobe import (
     CLOSETS,
+    COLORS,
     DEFAULT_OFFICE_WEEKDAYS,
     HOME_OUTERWEAR,
     KEYS,
@@ -98,22 +100,35 @@ def reset_outerwear(state: State, today: date) -> State:
     return _move_anchor(state, rotation, Anchor(today, position))
 
 
-def replace_(state: State, garment: str, label: str) -> State:
-    """Give a garment a new label.
+def replace_(
+    state: State,
+    garment: str,
+    label: str,
+    color: str,
+    stripe_color: str | None = None,
+) -> State:
+    """Give a garment a new label and color.
 
     Args:
         state: The state to replace_ in.
-        garment: The garment, as show-closet prints it: its closet,
-            what it is, and its label today.
+        garment: The garment: its closet, what it is, and its label
+            today.
         label: What it is called now.
+        color: The color it is drawn in, as `#rrggbb`.
+        stripe_color: Its stripes' color, or None if it has none.
 
     Returns:
-        The state with the new label recorded.
+        The state with the new label and color recorded.
 
     Raises:
-        What2wearError: If the closet holds no such garment, or
-            another of its kind already has the label.
+        What2wearError: If the label holds a `.`, the closet holds no
+            such garment, or another of its kind already has the label.
     """
+    if "." in label:
+        message = (
+            f"a label cannot contain '.', so {label!r} will not do"
+        )
+        raise What2wearError(message)
     scope, _, current_label = garment.rpartition(".")
     keys_by_label = _get_keys_by_label(state, scope)
     key = keys_by_label.get(current_label)
@@ -134,13 +149,16 @@ def replace_(state: State, garment: str, label: str) -> State:
     return replace(
         state,
         labels=MappingProxyType({**state.labels, key: label}),
+        colors=MappingProxyType(
+            {**state.colors, key: (color, stripe_color)}
+        ),
     )
 
 
 def swap(
     state: State, closet: DayType, first: str, second: str
 ) -> State:
-    """Exchange two shirts' labels.
+    """Exchange two shirts' labels and colors.
 
     Args:
         state: The state to swap in.
@@ -149,7 +167,7 @@ def swap(
         second: The other's.
 
     Returns:
-        The state with the two labels exchanged.
+        The state with the two labels and colors exchanged.
 
     Raises:
         What2wearError: If either label names no shirt in the closet,
@@ -166,13 +184,20 @@ def swap(
             f"pants, so swapping them would change more than a name"
         )
         raise What2wearError(message)
+    first_key, second_key = (
+        f"{closet}.shirt.{position}"
+        for position in (first_position, second_position)
+    )
     return replace(
         state,
         labels=MappingProxyType(
+            {**state.labels, first_key: second, second_key: first}
+        ),
+        colors=MappingProxyType(
             {
-                **state.labels,
-                f"{closet}.shirt.{first_position}": second,
-                f"{closet}.shirt.{second_position}": first,
+                **state.colors,
+                first_key: state.colors[second_key],
+                second_key: state.colors[first_key],
             }
         ),
     )
@@ -187,6 +212,7 @@ def set_office_weekdays(
     pattern would reclassify the past and move every rotation. Each
     anchor is therefore moved to `today`, at the position it held
     there under the old pattern. Recorded overrides are left alone.
+    Restating the current weekdays changes nothing, anchors included.
 
     Args:
         state: The state to set them in.
@@ -207,6 +233,8 @@ def set_office_weekdays(
             "the count is a change to the source"
         )
         raise What2wearError(message)
+    if frozenset(weekdays) == state.office_weekdays:
+        return state
     return replace(
         state,
         office_weekdays=frozenset(weekdays),
@@ -257,7 +285,7 @@ def answer(
 
     Returns:
         The response for `on`, its garments named by the wearer's
-        labels.
+        labels and drawn in the wearer's colors.
     """
     response = (
         _get_office_response(state, on)
@@ -412,7 +440,9 @@ def _resolve_office_day(
 ) -> tuple[Response, ...]:
     shirt = _get_shirt(state, DayType.OFFICE, on)
     worn_sweaters = frozenset(
-        response.outfit.sweater for response in resolved_days
+        response.outfit.sweater.label
+        for response in resolved_days
+        if response.outfit.sweater is not None
     )
     sweater = _choose_office_sweater(
         _get_row_for_pants(CLOSETS[DayType.OFFICE], shirt.pants),
@@ -424,12 +454,14 @@ def _resolve_office_day(
             on=on,
             day_type=DayType.OFFICE,
             outfit=Outfit(
-                shirt=shirt.garment,
-                pants=shirt.pants,
-                sweater=sweater,
-                shoes=_get_row_for_sweater(
-                    CLOSETS[DayType.OFFICE], sweater
-                ).shoes,
+                shirt=_get_given_garment(shirt.garment),
+                pants=_get_given_garment(shirt.pants),
+                sweater=_get_given_garment(sweater),
+                shoes=_get_given_garment(
+                    _get_row_for_sweater(
+                        CLOSETS[DayType.OFFICE], sweater
+                    ).shoes
+                ),
             ),
             unavoidable_repeat=sweater in worn_sweaters,
         ),
@@ -462,7 +494,7 @@ def _get_row_for_pants(closet: Closet, pants: str) -> PantsRow:
 
 
 def _choose_office_sweater(
-    row: PantsRow, worn_sweaters: frozenset[str | None]
+    row: PantsRow, worn_sweaters: frozenset[str]
 ) -> str:
     if row.sweater not in worn_sweaters:
         return row.sweater
@@ -475,6 +507,11 @@ def _get_row_for_sweater(closet: Closet, sweater: str) -> PantsRow:
     return next(row for row in closet.rows if row.sweater == sweater)
 
 
+def _get_given_garment(name: str) -> Garment:
+    """The garment as given, before any label or color is told."""
+    return Garment(name, *COLORS[name])
+
+
 def _get_home_response(state: State, on: date) -> Response:
     shirt = _get_shirt(state, DayType.HOME, on)
     row = _get_row_for_pants(CLOSETS[DayType.HOME], shirt.pants)
@@ -485,11 +522,15 @@ def _get_home_response(state: State, on: date) -> Response:
         on=on,
         day_type=DayType.HOME,
         outfit=Outfit(
-            shirt=shirt.garment,
-            pants=shirt.pants,
-            sweater=row.sweater if outerwear == "sweater" else None,
-            shoes=row.shoes,
-            jacket=row.jacket if outerwear == "jacket" else None,
+            shirt=_get_given_garment(shirt.garment),
+            pants=_get_given_garment(shirt.pants),
+            sweater=_get_given_garment(row.sweater)
+            if outerwear == "sweater"
+            else None,
+            shoes=_get_given_garment(row.shoes),
+            jacket=_get_given_garment(row.jacket)
+            if outerwear == "jacket" and row.jacket is not None
+            else None,
         ),
     )
 
@@ -500,23 +541,32 @@ def _get_labeled_response(state: State, response: Response) -> Response:
     return replace(
         response,
         outfit=Outfit(
-            shirt=_get_label(state, f"{scope}.shirt.{outfit.shirt}"),
-            pants=_get_label(state, f"pants.{outfit.pants}"),
-            sweater=_get_label(
-                state, f"{scope}.sweater.{outfit.sweater}"
+            shirt=_get_told_garment(
+                state, f"{scope}.shirt", outfit.shirt
+            ),
+            pants=_get_told_garment(state, "pants", outfit.pants),
+            sweater=_get_told_garment(
+                state, f"{scope}.sweater", outfit.sweater
             )
             if outfit.sweater is not None
             else None,
-            shoes=_get_label(state, f"{scope}.shoes.{outfit.shoes}"),
-            jacket=_get_label(state, f"{scope}.jacket.{outfit.jacket}")
+            shoes=_get_told_garment(
+                state, f"{scope}.shoes", outfit.shoes
+            ),
+            jacket=_get_told_garment(
+                state, f"{scope}.jacket", outfit.jacket
+            )
             if outfit.jacket is not None
             else None,
         ),
     )
 
 
-def _get_label(state: State, given: str) -> str:
-    return state.labels[KEYS[given]]
+def _get_told_garment(
+    state: State, scope: str, given: Garment
+) -> Garment:
+    key = KEYS[f"{scope}.{given.label}"]
+    return Garment(state.labels[key], *state.colors[key])
 
 
 def _apply_weather(

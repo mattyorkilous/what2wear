@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>what2wear</title>
+  <style>
+    body { font: 18px/1.5 system-ui, sans-serif; margin: 0 auto;
+           max-width: 32rem; padding: 0 16px; }
+    nav { display: flex; gap: 1.5rem; padding: 12px 0;
+          border-bottom: 1px solid #ccc; }
+    .step { display: flex; justify-content: space-between; }
+    .note { color: #666; }
+    .notice { background: #eef; padding: 8px 12px; }
+    form { margin: 12px 0; }
+    .outfit { list-style: none; padding: 0; }
+    .outfit li { display: flex; align-items: center; gap: 8px; }
+    .outfit svg { background: #1c1c1e; border-radius: 6px; }
+    .dim { opacity: .5; }
+  </style>
+</head>
+<body>
+  <nav>
+    <a href="{{ url_for('show_today') }}">Day</a>
+    <a href="{{ url_for('show_today') }}closet">Closet</a>
+    <a href="{{ url_for('show_today') }}settings">Settings</a>
+  </nav>
+  {% if notice %}<p class="notice">{{ notice }}</p>{% endif %}
+  {% block content %}<p>{{ message }}</p>{% endblock %}
+</body>
+</html>

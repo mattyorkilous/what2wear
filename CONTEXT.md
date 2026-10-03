@@ -29,22 +29,27 @@ _Avoid_: collection, drawer
 **Garment**:
 Anything you put on — a Shirt, a pair of Pants, a sweater, a jacket, a
 pair of shoes. A Garment is fixed by where it hangs in the Wardrobe,
-and its Label is the only thing about it that can change. You name one
-by its Closet, what kind of thing it is, and its Label today —
-`office.shirt.ecru` — which is what `show-closet` prints and what
-`replace` takes, and which moves the moment the Label does. Within one
-Closet a Label names exactly one Shirt, one sweater and one pair of
-shoes — the office sweater and the office shoes may both be black —
-and the same Label in the two Closets names two different Garments.
+and its Label and Color are the only things about it that can change.
+Within one Closet a Label names exactly one Shirt, one sweater and one
+pair of shoes — the office sweater and the office shoes may both be
+black — and the same Label in the two Closets names two different
+Garments.
 _Avoid_: item, piece, article, address
 
 **Label**:
-What a Garment is called — usually its color, sometimes its cut. A
-Label is the only thing about the Wardrobe that moves, and it is the
-whole of what the tool prints at you, so it has to be something you can
-act on. Changing one never disturbs a Rotation, because nothing is
-keyed by it.
-_Avoid_: color, name, description
+What a Garment is called, in words you'd say (Light Blue) — usually
+its color, sometimes its cut. A Label and its **Color** are told
+together and are the only things about the Wardrobe that move.
+Changing one never disturbs a Rotation, because nothing is keyed by
+it.
+_Avoid_: name, description
+
+**Color**:
+The color a Garment is drawn in, told with its **Label**, with an
+optional stripe Color for a striped Garment. Every Garment has one: the
+given Wardrobe supplies each a starting Color beside its starting
+Label.
+_Avoid_: colour, fill, shade
 
 **Shirt**:
 One position in a Closet, carrying the Pants welded to it. Its sweater,
@@ -159,8 +164,8 @@ _Avoid_: secondary, backup, alternate, substitute
 
 **State**:
 Everything the tool has been told, in the one file it owns. It holds
-the Labels, the Anchors, the Day Type Overrides, the Office Weekdays
-and the Cold Threshold. What may appear here is something the wearer
+the Labels and their Colors, the Anchors, the Day Type Overrides, the
+Office Weekdays and the Cold Threshold. What may appear here is something the wearer
 told the tool; what may not is the Wardrobe's shape, which is given.
 It is the only thing the tool writes, and no human authors it.
 _Avoid_: config, settings, database, log
@@ -207,15 +212,15 @@ after this one and reads better said that way.
 _Avoid_: skip, reroll, shuffle, override, re-anchor
 
 **Replace**:
-The act of giving a Garment a new Label, because you replaced it or
+The act of giving a Garment a new Label and Color, because you replaced it or
 because it was called the wrong thing. Nothing distinguishes those two:
 no Garment's history is kept, so a new sweater in the same Pants Row
 and a corrected name for the old one are the same event.
 _Avoid_: rename, recolor, edit, update
 
 **Swap**:
-The act of exchanging the Labels of two Shirts in one Closet. Only
-Shirts sharing Pants may be swapped, which makes a Swap purely
+The act of exchanging the Labels and Colors of two Shirts in one
+Closet. Only Shirts sharing Pants may be swapped, which makes a Swap purely
 cosmetic — it changes which Shirt you reach for on a given date and
 cannot touch the Pants, the sweater, the shoes or the Fallback.
 _Avoid_: reorder, move, shuffle, rearrange

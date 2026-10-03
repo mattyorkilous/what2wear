@@ -12,6 +12,7 @@ from what2wear.store import read_state, write_state
 from what2wear.wardrobe import (
     DEFAULT_COLD_THRESHOLD,
     DEFAULT_OFFICE_WEEKDAYS,
+    build_default_colors,
     build_default_labels,
     get_default_state,
 )
@@ -22,6 +23,7 @@ WED26 = date(2026, 8, 26)
 
 TOLD = State(
     labels=build_default_labels(),
+    colors=build_default_colors(),
     anchors={
         Rotation.OFFICE: Anchor(TODAY, 3),
         Rotation.HOME: Anchor(WED26, 7),
@@ -74,7 +76,10 @@ class TestTheLabels:
         self, tmp_path: Path
     ) -> None:
         told = replace_(
-            get_default_state(TODAY), "office.shirt.white", "cream"
+            get_default_state(TODAY),
+            "office.shirt.White",
+            "cream",
+            "#fffdd0",
         )
         write_state(_path(tmp_path), told)
         assert read_state(_path(tmp_path), TODAY) == told
@@ -85,28 +90,30 @@ class TestTheLabels:
         # The given Labels go back underneath on the way in, so
         # writing them out again would only be the file repeating
         # itself.
-        told = replace_(get_default_state(TODAY), "pants.blue", "navy")
+        told = replace_(
+            get_default_state(TODAY), "pants.Blue", "navy", "#1f2a44"
+        )
         write_state(_path(tmp_path), told)
         text = _path(tmp_path).read_text()
         assert '"pants.0": "navy"' in text
         assert '"pants.1"' not in text
 
-    def test_a_file_keyed_by_the_given_label_still_reads(
+    def test_a_file_with_no_told_labels_answers_with_full_names(
         self, tmp_path: Path
     ) -> None:
-        # Files written before keys counted places spell the key
-        # with the Label the garment shipped with.
+        # The live file, which is why the given Labels could become
+        # full names without converting it.
         _path(tmp_path).write_text(
             _document("{}").replace(
-                '"overrides": {}',
-                '"overrides": {}, "labels": {"pants.blue": "navy"}',
+                '"overrides": {}', '"overrides": {}, "labels": {}'
             )
         )
-        assert (
-            answer(
-                read_state(_path(tmp_path), TODAY), TODAY, {}
-            ).outfit.pants
-            == "navy"
+        outfit = answer(
+            read_state(_path(tmp_path), TODAY), TODAY, {}
+        ).outfit
+        assert (outfit.shirt.label, outfit.pants.label) == (
+            "White",
+            "Blue",
         )
 
     def test_a_garment_a_file_says_nothing_about_reads_as_given(
@@ -118,6 +125,41 @@ class TestTheLabels:
         assert (
             read_state(_path(tmp_path), TODAY).labels
             == build_default_labels()
+        )
+
+
+class TestTheColors:
+    TOLD = replace(
+        get_default_state(TODAY),
+        colors={
+            **build_default_colors(),
+            "office.shirt.0": ("#fffdd0", None),
+            "home.shirt.0": ("#ffffff", "#ff0000"),
+        },
+    )
+
+    def test_a_told_color_outlives_the_file(
+        self, tmp_path: Path
+    ) -> None:
+        write_state(_path(tmp_path), self.TOLD)
+        assert read_state(_path(tmp_path), TODAY) == self.TOLD
+
+    def test_only_what_was_told_is_written_down(
+        self, tmp_path: Path
+    ) -> None:
+        write_state(_path(tmp_path), self.TOLD)
+        text = _path(tmp_path).read_text()
+        assert '"office.shirt.0"' in text
+        assert '"home.shirt.0"' in text
+        assert '"pants.0"' not in text
+
+    def test_a_file_without_colors_reads_the_given_ones(
+        self, tmp_path: Path
+    ) -> None:
+        _path(tmp_path).write_text(_document("{}"))
+        assert (
+            read_state(_path(tmp_path), TODAY).colors
+            == build_default_colors()
         )
 
 

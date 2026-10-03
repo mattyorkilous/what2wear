@@ -36,13 +36,17 @@ where the State lives, and what the phone shows.
 - [Widgets and apps without a native build](issues/03-widgets-without-a-native-app.md) — no single tool does both; best is a web app (Pyodide can run the core in the page) plus a Scriptable widget, which needs a hosted State or an a-Shell + iCloud Drive relay; Pythonista is ruled out
 - [Choose the approach](issues/05-choose-the-approach.md) — a hosted core on PythonAnywhere free: the State file lives on its disk behind one token, the phone gets Python-rendered HTML pages, a Scriptable widget reads JSON from the same server, and the core holds to Python 3.13
 - [What an emoji Outfit looks like](issues/04-emoji-outfit.md) — a small widget: 🏢/🏠 and a short date, then drawn icons in each Garment's real colour with its full name ("Light Blue Shirt"); Outerwear worn only if it's cold is dimmed
+- [Pages and forms for each command](issues/06-pages-and-forms.md) — three pages (Day at `/`, Closet, Settings); dates in the URL with prev/next and a date picker; writes POST-redirect with a notice; `when` folds into the Closet, the show commands into their set forms
+- [What becomes of the CLI](issues/07-what-becomes-of-the-cli.md) — deleted with its tests, script entry and `platformdirs`, as the last step once the State is hosted; the web shell owns the confirmation strings; the shell behaviours worth keeping become the web shell's test checklist
+- [The web shell on PythonAnywhere](issues/08-the-web-shell.md) — Flask in `web.py`; the token is the first URL segment (no login); today is America/New_York from `wardrobe.py`; notices ride `?notice=`; the widget reads `/<token>/day/YYYY-MM-DD.json`; deployed by git clone + `uv sync`
+- [Drawing the garment icons on the phone](issues/09-drawing-the-icons.md) — the Scriptable widget draws them with `DrawContext` from path strings in the JSON (shape, optional pattern, detail), the same data the Day page's SVG uses; stripes are vertical bars inside the torso, dashes become segments
+- [Full names and colours for Labels](issues/10-full-names-and-colours.md) — the Label becomes the full name as typed ("Light Blue"); each Garment gains a told Color (and optional stripe Color) in the State, set by Replace's color picker and carried by Swap; the move needs no Label conversion (see Moving and backing up the State)
+- [Moving and backing up the State](issues/11-moving-and-backing-up-the-state.md) — upload `state.json` in PythonAnywhere's Files tab, check today against the Mac, then delete the CLI; no Label conversion needed (the file holds no replaced Labels); back up by downloading at each monthly renewal
+- [When the widget can't fetch](issues/12-when-the-widget-cant-fetch.md) — show the last good Outfit cached on the phone; a ⚠︎ date if it isn't today's; the header reads "State won't read" on a 500 or "Renew PythonAnywhere?" on any non-JSON answer; no tomorrow prefetch
 
 ## Not yet specified
 
-- Moving the existing `state.json` onto PythonAnywhere, and backing it
-  up now that it lives on a free host.
-- What the widget shows when its fetch fails or the server has lapsed
-  after a missed monthly renewal.
+Nothing right now.
 
 ## Out of scope
 

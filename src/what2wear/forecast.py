@@ -44,5 +44,5 @@ def fetch_forecast(url: str = FORECAST_URL) -> Mapping[date, float]:
                 if high is not None
             }
         )
-    except HTTPException, OSError, KeyError, TypeError, ValueError:
+    except (HTTPException, OSError, KeyError, TypeError, ValueError):
         return MappingProxyType({})

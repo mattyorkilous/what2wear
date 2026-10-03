@@ -12,8 +12,8 @@ from what2wear.model import Anchor, DayType, Rotation, State
 from what2wear.wardrobe import (
     DEFAULT_COLD_THRESHOLD,
     DEFAULT_OFFICE_WEEKDAYS,
-    KEYS,
     WEEKDAYS,
+    build_default_colors,
     build_default_labels,
     get_default_state,
 )
@@ -77,8 +77,8 @@ def _parse_state(document: dict[str, Any]) -> State:
     A document written before the home outerwear rotation had an anchor
     reads as position 0 on the home shirt anchor's date, which the file
     has already pinned, so nothing has to be migrated. One written
-    before the office weekdays or the cold threshold were told reads
-    as the given ones, for the same reason.
+    before the office weekdays, the cold threshold or the colors were
+    told reads as the given ones, for the same reason.
     """
     records = {
         Rotation.OUTERWEAR: {
@@ -95,12 +95,13 @@ def _parse_state(document: dict[str, Any]) -> State:
             }
         ),
         labels=MappingProxyType(
-            dict(build_default_labels())
+            dict(build_default_labels()) | document.get("labels", {})
+        ),
+        colors=MappingProxyType(
+            dict(build_default_colors())
             | {
-                KEYS.get(recorded, recorded): label
-                for recorded, label in document.get(
-                    "labels", {}
-                ).items()
+                key: (record["color"], record.get("stripe_color"))
+                for key, record in document.get("colors", {}).items()
             }
         ),
         office_weekdays=frozenset(
@@ -130,6 +131,7 @@ def _parse_anchor(record: dict[str, Any]) -> Anchor:
 
 def _get_document(state: State) -> dict[str, Any]:
     given_labels = build_default_labels()
+    given_colors = build_default_colors()
     return {
         "anchors": {
             rotation.value: {
@@ -142,6 +144,14 @@ def _get_document(state: State) -> dict[str, Any]:
             key: label
             for key, label in sorted(state.labels.items())
             if label != given_labels.get(key)
+        },
+        "colors": {
+            key: {"color": color}
+            | ({"stripe_color": stripe_color} if stripe_color else {})
+            for key, (color, stripe_color) in sorted(
+                state.colors.items()
+            )
+            if (color, stripe_color) != given_colors.get(key)
         },
         "office_weekdays": [
             WEEKDAYS[day] for day in sorted(state.office_weekdays)

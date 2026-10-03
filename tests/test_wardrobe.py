@@ -1,10 +1,16 @@
+import re
 from collections import Counter
 from datetime import date
 
 import pytest
 
 from what2wear.model import Closet, DayType, Rotation
-from what2wear.wardrobe import CLOSETS, get_default_state
+from what2wear.wardrobe import (
+    CLOSETS,
+    build_default_colors,
+    build_default_labels,
+    get_default_state,
+)
 
 OFFICE = CLOSETS[DayType.OFFICE]
 HOME = CLOSETS[DayType.HOME]
@@ -21,7 +27,7 @@ def test_the_top_of_every_closet_is_white(closet: Closet) -> None:
     # installation opens on white whichever kind of day it is.
     given = get_default_state(date(2026, 8, 22))
     position = given.anchors[Rotation.OFFICE].position
-    assert closet.shirts[position].garment == "white"
+    assert closet.shirts[position].garment == "White"
 
 
 @pytest.mark.parametrize("closet", CLOSETS)
@@ -42,6 +48,46 @@ class TestEveryCloset:
     ) -> None:
         worn = [row.pants for row in closet.rows]
         assert len(set(worn)) == len(worn)
+
+
+def test_every_given_garment_has_a_color() -> None:
+    colors = build_default_colors()
+    assert colors.keys() == build_default_labels().keys()
+    assert all(
+        re.fullmatch(r"#[0-9a-f]{6}", color)
+        for color, _ in colors.values()
+    )
+
+
+def test_every_given_label_is_a_full_name() -> None:
+    # What the wearer would say, so the page and the widget print it
+    # as given, and a Garment is still addressed by splitting on the
+    # last dot.
+    assert all(
+        "." not in label for label in build_default_labels().values()
+    )
+
+
+def test_no_label_names_two_garments_of_one_kind_in_a_closet() -> None:
+    labels = build_default_labels()
+    scopes = Counter(
+        (key.rpartition(".")[0], label) for key, label in labels.items()
+    )
+    assert set(scopes.values()) == {1}
+
+
+def test_only_the_striped_shirt_has_a_stripe_color() -> None:
+    labels = build_default_labels()
+    striped = {
+        key: stripe_color
+        for key, (_, stripe_color) in build_default_colors().items()
+        if stripe_color is not None
+    }
+    assert {labels[key] for key in striped} == {"Striped"}
+    assert all(
+        re.fullmatch(r"#[0-9a-f]{6}", color)
+        for color in striped.values()
+    )
 
 
 def test_both_closets_wear_the_same_pants() -> None:

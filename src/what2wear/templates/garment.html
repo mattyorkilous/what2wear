@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Replace the {{ garment }}</h1>
+<form method="post" action="{{ url_for('replace_garment', key=key) }}">
+  <p><label>Name <input name="label" value="{{ form.label }}" required></label></p>
+  <p><label>Color <input type="color" name="color" value="{{ form.color }}"></label></p>
+  <p><label><input type="checkbox" name="striped"{% if form.striped %} checked{% endif %}> Striped</label>
+    <input type="color" name="stripe_color" value="{{ form.stripe_color }}" aria-label="Stripe color"></p>
+  <button>Replace</button>
+</form>
+{% endblock %}

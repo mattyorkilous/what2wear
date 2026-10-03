@@ -4,8 +4,6 @@ Tells you what to wear today, and what you'll wear on any other day.
 
 It walks a fixed list of shirts — one closet for the office, one for home — advancing each rotation only on days of its own kind. Pants come welded to the shirt; shoes and sweaters follow from the pants. At the office it guarantees no sweater and no pair of shoes repeats within a Monday-start week. When it's cold you wear the outerwear your pants call for — at the office their sweater, at home their sweater or their jacket, whichever kind the day's turn says.
 
-> **Status: the given wardrobe.** There is nothing to install and nothing to configure — the wardrobe lives in source, so a fresh checkout answers straight away. `what2wear` and `what2wear --on <date>` give you the shirt, its pants, its shoes, whether it's an office day, and whether today's forecast calls for its sweater or jacket; a past date answers too, with a note that it says where the rotation stands now rather than what was worn. `stay-home` and `go-in` switch a date's side, `reset` moves the shirt rotation to a shirt you name, and `reset-outerwear` moves the home outerwear rotation on to the other kind. `when` reads a rotation backwards — name a shirt and it gives the next date you wear it, as a whole day. `replace` gives a garment a new label, `swap` reorders two shirts that share pants, and `show-closet` lists everything with the name to copy into either. `office-weekdays` and `cold-threshold` show which three weekdays you go in and how cold is cold; `set-office-weekdays` and `set-cold-threshold` change them. Every command that acts on a date takes today unless `--on` says otherwise. Everything it's been told lives in one state file it owns.
-
 ## How it works
 
 **Rotation picks the shirt. Resolution decides everything else.** Those are deliberately separate steps, and the glossary keeps them apart.
@@ -24,58 +22,71 @@ Home outerwear alternates on the calendar too. Every home day is a jacket day or
 
 ## Outerwear and the weather
 
-Below the cold threshold — 50°F until you say otherwise with `set-cold-threshold` — you wear outerwear; at or above it, none, and no outerwear line is printed. The forecast decides only *whether*: which garment a date calls for is worked out without it, so a date too far out for the forecast still names one:
+Below the cold threshold — 50°F until you say otherwise on the Settings page — you wear outerwear; at or above it, none, and the Day page shows no outerwear. The forecast decides only *whether*: which garment a date calls for is worked out without it, so a date too far out for the forecast still names one:
 
 ```
-  sweater  beige                  # cold: wear it
-                                  # warm: no outerwear line
-  sweater  beige, if it's cold    # no forecast for that date yet
+  Beige Sweater                  # cold: wear it
+                                 # warm: no outerwear
+  Beige Sweater, if it's cold    # no forecast for that date yet
 ```
 
 The last is also what you get when the forecast can't be fetched at all. A network problem never stops the tool answering — it just can't say yet whether you'll want it.
 
 At the office it is always a sweater — the one your pants call for, or the week's fallback when that one is taken. A warm Monday still spends its sweater for the week.
 
-At home each day is a jacket day or a sweater day, taking turns across home days, and the pants row supplies the garment: the blue pants' jacket is brown, the tan and black pants share one black jacket. The turn is spent whatever the weather, so cold, mild, cold gives jacket, nothing, jacket — the mild day took the sweater's turn. Office days don't take a turn, and home has no rule against wearing the same thing twice in a week. When the turn has fallen out of step with what you actually wore, `reset-outerwear` moves it on by one from today; typed on an office day it lands on the next home day. It takes no `--on`: the turn is only ever put right from where you stand.
+At home each day is a jacket day or a sweater day, taking turns across home days, and the pants row supplies the garment: the blue pants' jacket is brown, the tan and black pants share one black jacket. The turn is spent whatever the weather, so cold, mild, cold gives jacket, nothing, jacket — the mild day took the sweater's turn. Office days don't take a turn, and home has no rule against wearing the same thing twice in a week. When the turn has fallen out of step with what you actually wore, "Switch to the …" on today's Day page moves it on by one from today. Only today's page offers it, and only on a home day not known to be warm: the turn is only ever put right from where you stand, when you're about to wear it.
 
 Forecasts are daily highs from [Open-Meteo](https://open-meteo.com), which needs no API key, for the coordinates in `wardrobe.py`. It covers the next sixteen days. Only the forecast endpoint is ever called — no historical archive — so a past date hedges the same way.
 
 ## Interface
 
-A deliberately disposable CLI, to be replaced later by something usable from a phone.
+Three pages, linked from the top of each: Day, Closet and Settings.
+
+- **Day** — one date's outfit, today unless you've picked another with the date box or ‹ prev / next ›. A past date says it shows where the rotation stands now, not what was worn. "Make this a Home Day" (or Office Day) switches that date's side; the shirt list moves the rotation to the shirt you'd rather wear that day; on today's page, at home, "Switch to the …" moves the home outerwear rotation on by one.
+- **Closet** — each closet grouped by pants, every shirt with the date it's next due. Two shirts on the same pants can swap places. Tap any garment to replace it: a new label and color, with an optional stripe color.
+- **Settings** — the three office weekdays and the cold threshold.
+
+US federal holidays, on their observed dates, and the Friday after Thanksgiving are home days without your saying so — a Saturday July 4 makes Friday one, a Sunday holiday makes Monday one. Making the holiday an office day on its Day page is also how to say your employer doesn't give you one. Leave is just making the date a home day. See [ADR-0011](docs/adr/0011-holidays-are-given-home-days.md).
+
+Office weekdays must be exactly three different days, weekends included. Only *which* three is yours to say: *how many* is a change to the source, because the closet sizes only stay varied against three office days and four home days a week, and three office sweaters cannot keep a fourth day from repeating. See [ADR-0007](docs/adr/0007-office-weekdays-and-the-cold-threshold-are-told.md). Changing them would reclassify the past, and every rotation counts days of its kind since its anchor, so saving them moves all three anchors to today at the positions they held there first: no rotation jumps, and it says so. Overrides you've already recorded stay as they were, and a date can still be made a fourth office day in a week — with the repeat it can't avoid called out. A change mid-week does re-walk that week's earlier office days under the new pattern, so the week's fallback sweater can come out differently; that is accepted rather than stored around. The cold threshold moves nothing: it decides only whether outerwear is worn, never which.
+
+A replace covers a worn-out garment and a mislabeled one alike — no garment's history is kept, so they are the same event. Pants belong to no closet: there is one set of Pants and both closets wear it, so replacing them changes both. Nothing is keyed by a label, so neither a replace nor a swap can move a rotation.
+
+## On the phone
+
+A small Flask app, `what2wear.web`, serves its pages from PythonAnywhere's free plan. Every URL starts with a secret token, so the bookmarked URL is the login; anything else is a plain 404. `/` is today in New York, `/day/YYYY-MM-DD` any other date.
+
+To deploy, in a PythonAnywhere bash console:
 
 ```
-what2wear                            # today's outfit
-what2wear --on 2026-08-24            # any other date, past or future
-what2wear --on tomorrow              # or tomorrow, yesterday, or a weekday name
-what2wear stay-home                  # this office day is now a home day
-what2wear go-in                      # this home day is now an office day
-what2wear reset lblue                # move the rotation to that shirt, today
-what2wear reset lblue --on 2026-09-07  # --on goes after the command, and defaults to today
-what2wear reset-outerwear            # home jacket days become sweater days, and back
-what2wear when office.shirt.white    # the next date that shirt comes round, as a whole day
-what2wear show-closet                # every garment, how to name it, and what's due
-what2wear replace office.sweater.beige oatmeal   # this one is called that now
-what2wear swap office white striped  # two shirts sharing pants trade labels
-what2wear office-weekdays            # the three weekdays you go in
-what2wear set-office-weekdays tue thu sat  # go in on these instead, re-anchoring every rotation
-what2wear cold-threshold             # the high below which outerwear is worn
-what2wear set-cold-threshold 55      # feel the cold sooner
+git clone <this repo> what2wear && cd what2wear
+pip install --user uv
+uv sync --frozen --no-dev --python python3.13
 ```
 
-`--on` takes a word as readily as a date: `tomorrow`, `yesterday`, or any weekday name in any case and either spelling — `fri`, `Friday`, `FRIDAY` — which lands on the soonest date with that weekday, today included, so `--on fri` on a Friday means today. There is no `today`: a bare invocation already means it.
+Add a manual web app on Python 3.13, set its virtualenv to `~/what2wear/.venv`, and make its WSGI file:
 
-`when` asks the question backwards: name a shirt and it gives you the next date that shirt comes round, printed as the whole day for that date — the same thing `--on <that date>` prints, so the pants, the shoes and the outerwear come with it. It searches forward from today, today included, so a shirt due today answers today. It takes no `--on`, and the rule it follows is that **a command takes `--on` when it acts *on* a date; `when` acts on a shirt and *produces* one.** That sharpens ADR-0008's carve-out — "a label is not dated" covers `replace` and `swap` but says nothing about a command whose entire output is a date. The search ignores the forecast while the answer honors it, deliberately: where a rotation puts a shirt is knowable a year out, while the forecast reaches sixteen days, and the answer goes through the renderer every other answer goes through. Only shirts can be asked about — sweaters, shoes and jackets follow from pants during resolution rather than being picked by a rotation, so naming one says so. A year is as far as it looks, which only a deliberate stretch of `stay-home` can exhaust; that isn't an error, it's a plain line saying no day of that kind in the next year wears it.
+```python
+from pathlib import Path
+from what2wear import web
 
-US federal holidays, on their observed dates, and the Friday after Thanksgiving are home days without your saying so — a Saturday July 4 makes Friday one, a Sunday holiday makes Monday one. `go-in --on <the holiday>` makes one an office day, which is also how to say your employer doesn't give you one. Leave is just `stay-home` on the relevant date. See [ADR-0011](docs/adr/0011-holidays-are-given-home-days.md).
+application = web.app(Path.home() / "state.json", "<a long random token>")
+```
 
-**Upgrading to holiday-aware:** every past holiday since your anchors is now a home day, so today's shirts may move once. Check them with `show-closet`, and if either is not what you'd expect, `reset` that closet to the right shirt once. Nothing in the state file changes.
+Reload, open `https://<user>.pythonanywhere.com/<token>/` in Safari on the phone, and Share → Add to Home Screen.
 
-A garment is named by a dotted string — `office.shirt.white`, `home.shoes.black`, `pants.blue` — because a label alone is unique only within a closet and a kind. Pants are named without a closet: there is one set of trousers and both closets wear it, so replacing them changes both. `show-closet` prints those names so one can be copied rather than guessed at, and shows each shirt's pants in its own column so the legal swaps are the ones sharing that column. It marks with `>` the shirt each rotation is due to give you — today's in the closet today draws from, and in the other the one waiting on its next day — so the label to type into `reset` is read off rather than counted out.
+To deploy a change, in a bash console:
 
-Each of the two takes a showing command and a setting one, rather than one command that shows when you give it nothing: the bare name never changes anything, and the `set-` name always does. Office weekdays must be exactly three different days, named `mon` to `sun` or spelled out, in any case — weekends included, and the same vocabulary `--on` takes. Only *which* three is yours to say: *how many* is a change to the source, because the closet sizes only stay varied against three office days and four home days a week, and three office sweaters cannot keep a fourth day from repeating. See [ADR-0007](docs/adr/0007-office-weekdays-and-the-cold-threshold-are-told.md). Changing them would reclassify the past, and every rotation counts days of its kind since its anchor, so the command moves all three anchors to today at the positions they held there first: no rotation jumps, and it says so. Overrides you've already recorded stay as they were, and `go-in` can still make a fourth office day in a week — with the repeat it can't avoid called out. A change mid-week does re-walk that week's earlier office days under the new pattern, so the week's fallback sweater can come out differently; that is accepted rather than stored around. The cold threshold moves nothing: it decides only whether outerwear is worn, never which.
+```
+cd ~/what2wear && git pull
+uv sync --frozen --no-dev
+```
 
-`replace` covers a worn-out garment and a mislabeled one alike — no garment's history is kept, so they are the same event. Nothing is keyed by a label, so neither a replace nor a swap can move a rotation.
+then Reload on the Web tab.
+
+The free plan stops the web app unless you renew it, so once a month click "renew" on the Web tab, and while you're there download `~/state.json` from the Files tab as the backup — it is the only live copy, and the most a lost month costs is a month of what you've told it. To restore, upload the backup in the Files tab over `~/state.json`. Then check today's Day page shows the shirt you expect: a file in the wrong place doesn't fail, it quietly starts a fresh state.
+
+For the widget, install [Scriptable](https://scriptable.app) from the App Store, add a script, paste in [`widget.js`](widget.js), and set `HOST` and `TOKEN` at its top. Run it once in the app to see the tile. Then long-press the Home Screen, tap Edit → Add Widget, choose Scriptable's small widget, and long-press it → Edit Widget to pick the script. It shows today's Outfit on the phone's own date and opens the Day page when tapped. When it can't fetch it keeps the last good Outfit, with ⚠︎ on the date if that isn't today's; "⚠︎ State won't read" means open the Day page, and "⚠︎ Renew PythonAnywhere?" means the web app has lapsed or the token is wrong.
 
 ## The wardrobe is given
 
@@ -91,7 +102,7 @@ Every string in `wardrobe.py` names a garment rather than stating what it is cal
 
 ## The state is one file the tool owns
 
-Everything it's been told — what every garment is called, the three anchors (one per shirt rotation, one for home outerwear), the day type overrides, the office weekdays and the cold threshold — lives in `state.json` in your platform's user config directory (`~/Library/Application Support/what2wear` on macOS, `~/.config/what2wear` on Linux). Nobody authors it and there is nothing in it to edit; it is readable if you open it, but you are not expected to. There is no flag, environment variable or working-directory fallback to point it elsewhere: where it lives is a property of the installation, not of an invocation. The directory arrives with the first record; until then an installation has no files at all.
+Everything it's been told — what every garment is called, the three anchors (one per shirt rotation, one for home outerwear), the day type overrides, the office weekdays and the cold threshold — lives in the `state.json` the WSGI file hands `web.app`. Nobody authors it and there is nothing in it to edit; it is readable if you open it, but you are not expected to. The web app is its one writer. The file arrives with the first record; until then an installation has no state file at all.
 
 It is rewritten whole rather than appended to, so it is written to a temporary file beside it and moved into place atomically — a recording that fails partway leaves the previous state intact. See [ADR-0006](docs/adr/0006-the-wardrobe-is-source-the-state-is-one-file-the-tool-owns.md).
 
@@ -101,9 +112,10 @@ It is rewritten whole rather than appended to, so it is written to a temporary f
 CONTEXT.md                  glossary — authoritative for naming
 docs/adr/                   architecture decisions
 docs/agents/                conventions for agent workflows
-.scratch/given-wardrobe/    spec and implementation tickets
+.scratch/                   specs and implementation tickets
 src/what2wear/              the package
 src/what2wear/wardrobe.py   the given wardrobe, and the starting values the state overlays
+widget.js                   the Scriptable widget, pasted onto the phone
 ```
 
 ## Design
@@ -124,15 +136,15 @@ The other records and never renders anything — one function per thing that can
 record_override(state, on, day_type) -> State
 reset(state, shirt, on)              -> State
 reset_outerwear(state, today)        -> State
-replace_(state, garment, label)      -> State
+replace_(state, garment, label, color, stripe_color) -> State
 swap(state, closet, first, second)   -> State
 set_office_weekdays(state, weekdays, today) -> State
 set_cold_threshold(state, threshold) -> State
 ```
 
-That is seven functions rather than a single `apply` over a union of command objects, because nothing here queues, logs or replays a command — there was nothing for a command object to be. The shell picks one of them for what was typed and calls it (`_choose_update_function(args)(state)`), so trading the CLI for another interface trades the parser, the chooser and the renderers, and moves nothing in core. See [ADR-0009](docs/adr/0009-the-recording-seam-is-four-functions-not-a-command-union.md).
+That is seven functions rather than a single `apply` over a union of command objects, because nothing here queues, logs or replays a command — there was nothing for a command object to be. Each form the web shell serves posts to its own route, and that route calls one of them, so trading the CLI for the web shell traded the parser and the renderers and moved nothing in core. See [ADR-0009](docs/adr/0009-the-recording-seam-is-four-functions-not-a-command-union.md).
 
-The shell composes the two seams, so a command that records shows its result for free. It only reads and writes the state file, reads the clock, fetches the forecast and prints. Those two seams are the whole test surface — no mocks, no files touched, no clock reads outside the shell's own tests. The wardrobe under test is the given one, so there is no fixture that can drift from what ships.
+The shell composes the two seams, so a form that records shows its result for free. It only reads and writes the state file, reads the clock, fetches the forecast and renders pages. Those two seams are the whole test surface — no mocks, no files touched, no clock reads outside the shell's own tests. The wardrobe under test is the given one, so there is no fixture that can drift from what ships.
 
 Read [`CONTEXT.md`](CONTEXT.md) before touching anything, then the ADRs for the area you're working in.
 

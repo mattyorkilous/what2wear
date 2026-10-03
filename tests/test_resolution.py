@@ -19,43 +19,43 @@ TODAY = date(2026, 8, 22)
 # cleanly; two share pants and need a Fallback.
 WEEK_SHAPES = (
     (
-        (date(2026, 8, 24), "white", "blue", "beige", "brown"),
-        (date(2026, 8, 26), "black", "tan", "black", "black"),
-        (date(2026, 8, 28), "lblue", "black", "grey", "white"),
+        (date(2026, 8, 24), "White", "Blue", "Beige", "Brown"),
+        (date(2026, 8, 26), "Black", "Tan", "Black", "Black"),
+        (date(2026, 8, 28), "Light Blue", "Black", "Grey", "White"),
     ),
     (
-        (date(2026, 8, 31), "striped", "blue", "beige", "brown"),
-        (date(2026, 9, 2), "dblue", "tan", "black", "black"),
+        (date(2026, 8, 31), "Striped", "Blue", "Beige", "Brown"),
+        (date(2026, 9, 2), "Dark Blue", "Tan", "Black", "Black"),
         # Blue again, and Monday took beige -- so the Fallback, and its
         # donor row's shoes with it.
-        (date(2026, 9, 4), "white", "blue", "grey", "white"),
+        (date(2026, 9, 4), "White", "Blue", "Grey", "White"),
     ),
     # Labor Day makes the Week of 7 September a Holiday Week of two
     # Office Days, and the Week after it repeats the shape above, so
     # the cycle picks up again two weeks on.
     (
-        (date(2026, 9, 21), "black", "tan", "black", "black"),
-        (date(2026, 9, 23), "lblue", "black", "grey", "white"),
-        (date(2026, 9, 25), "striped", "blue", "beige", "brown"),
+        (date(2026, 9, 21), "Black", "Tan", "Black", "Black"),
+        (date(2026, 9, 23), "Light Blue", "Black", "Grey", "White"),
+        (date(2026, 9, 25), "Striped", "Blue", "Beige", "Brown"),
     ),
     (
-        (date(2026, 9, 28), "dblue", "tan", "black", "black"),
-        (date(2026, 9, 30), "white", "blue", "beige", "brown"),
+        (date(2026, 9, 28), "Dark Blue", "Tan", "Black", "Black"),
+        (date(2026, 9, 30), "White", "Blue", "Beige", "Brown"),
         # Tan again, and Monday took black.
-        (date(2026, 10, 2), "black", "tan", "grey", "white"),
+        (date(2026, 10, 2), "Black", "Tan", "Grey", "White"),
     ),
     (
-        (date(2026, 10, 5), "lblue", "black", "grey", "white"),
-        (date(2026, 10, 7), "striped", "blue", "beige", "brown"),
-        (date(2026, 10, 9), "dblue", "tan", "black", "black"),
+        (date(2026, 10, 5), "Light Blue", "Black", "Grey", "White"),
+        (date(2026, 10, 7), "Striped", "Blue", "Beige", "Brown"),
+        (date(2026, 10, 9), "Dark Blue", "Tan", "Black", "Black"),
     ),
 )
 
 # Labor Day's Week. Monday is at home, so it takes no sweater, and
 # Wednesday's tan pants get the black one Monday would have.
 HOLIDAY_WEEK = (
-    (date(2026, 9, 9), "black", "tan", "black", "black"),
-    (date(2026, 9, 11), "lblue", "black", "grey", "white"),
+    (date(2026, 9, 9), "Black", "Tan", "Black", "Black"),
+    (date(2026, 9, 11), "Light Blue", "Black", "Grey", "White"),
 )
 
 # One Monday-start Week of Home Days, alternating jacket and sweater.
@@ -63,10 +63,10 @@ HOLIDAY_WEEK = (
 # inside the Week -- at the office that would force a Fallback; at
 # home it is simply what the row says.
 HOME_WEEK = (
-    (date(2026, 9, 1), Outfit("beige", "blue", None, "black", "brown")),
-    (date(2026, 9, 3), Outfit("lblue", "black", "beige", "white")),
-    (date(2026, 9, 5), Outfit("lgreen", "tan", None, "black", "black")),
-    (date(2026, 9, 6), Outfit("white", "blue", "yellow", "black")),
+    (date(2026, 9, 1), ("Beige", "Blue", None, "Black", "Brown")),
+    (date(2026, 9, 3), ("Light Blue", "Black", "Beige", "White", None)),
+    (date(2026, 9, 5), ("Light Green", "Tan", None, "Black", "Black")),
+    (date(2026, 9, 6), ("White", "Blue", "Yellow", "Black", None)),
 )
 
 
@@ -83,8 +83,12 @@ class TestOfficeWeeks:
         sweater: str,
         shoes: str,
     ) -> None:
-        assert _outfit(on) == Outfit(
-            shirt=shirt, pants=pants, sweater=sweater, shoes=shoes
+        assert _get_labels(_outfit(on)) == (
+            shirt,
+            pants,
+            sweater,
+            shoes,
+            None,
         )
 
     @pytest.mark.parametrize("week", [*WEEK_SHAPES, HOLIDAY_WEEK])
@@ -98,7 +102,7 @@ class TestOfficeWeeks:
     def test_no_shoes_repeat_within_a_week(
         self, week: tuple[tuple[date, str, str, str, str], ...]
     ) -> None:
-        worn = [_outfit(day[0]).shoes for day in week]
+        worn = [_outfit(day[0]).shoes.label for day in week]
         assert len(set(worn)) == len(worn)
 
     def test_a_week_that_resolves_cleanly_flags_no_repeat(self) -> None:
@@ -120,12 +124,12 @@ class TestFourOfficeDays:
     @pytest.mark.parametrize(
         ("on", "shirt", "pants", "sweater", "shoes"),
         [
-            (date(2026, 8, 24), "white", "blue", "beige", "brown"),
-            (date(2026, 8, 26), "black", "tan", "black", "black"),
-            (date(2026, 8, 28), "lblue", "black", "grey", "white"),
+            (date(2026, 8, 24), "White", "Blue", "Beige", "Brown"),
+            (date(2026, 8, 26), "Black", "Tan", "Black", "Black"),
+            (date(2026, 8, 28), "Light Blue", "Black", "Grey", "White"),
             # Blue pants want beige, Monday took it, and the grey its
             # row falls back on went to the Friday.
-            (date(2026, 8, 29), "striped", "blue", "beige", "brown"),
+            (date(2026, 8, 29), "Striped", "Blue", "Beige", "Brown"),
         ],
     )
     def test_the_week_still_resolves(
@@ -136,8 +140,12 @@ class TestFourOfficeDays:
         sweater: str,
         shoes: str,
     ) -> None:
-        assert _outfit(on, self.STATE) == Outfit(
-            shirt=shirt, pants=pants, sweater=sweater, shoes=shoes
+        assert _get_labels(_outfit(on, self.STATE)) == (
+            shirt,
+            pants,
+            sweater,
+            shoes,
+            None,
         )
 
     def test_the_repeated_day_is_flagged(self) -> None:
@@ -159,9 +167,9 @@ class TestFourOfficeDays:
 class TestHome:
     @pytest.mark.parametrize(("on", "outfit"), HOME_WEEK)
     def test_outerwear_and_shoes_follow_the_pants(
-        self, on: date, outfit: Outfit
+        self, on: date, outfit: tuple[str | None, ...]
     ) -> None:
-        assert _outfit(on) == outfit
+        assert _get_labels(_outfit(on)) == outfit
 
     def test_a_home_day_is_never_flagged_as_a_repeat(self) -> None:
         assert not any(
@@ -175,3 +183,16 @@ def _outfit(on: date, state: State | None = None) -> Outfit:
 
 def _response(on: date, state: State | None = None) -> Response:
     return answer(state or get_default_state(TODAY), on, {})
+
+
+def _get_labels(outfit: Outfit) -> tuple[str | None, ...]:
+    return tuple(
+        None if garment is None else garment.label
+        for garment in (
+            outfit.shirt,
+            outfit.pants,
+            outfit.sweater,
+            outfit.shoes,
+            outfit.jacket,
+        )
+    )

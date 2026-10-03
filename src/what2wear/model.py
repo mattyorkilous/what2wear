@@ -1,4 +1,10 @@
-"""The types the package passes between its modules."""
+"""The types the package passes between its modules.
+
+Each type is defined below the types that name it, which Python 3.13
+allows only with annotations deferred.
+"""
+
+from __future__ import annotations
 
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
@@ -18,6 +24,8 @@ class State:
         labels: Each garment's place in its closet, such as
             `office.shirt.0` or `pants.1`, mapped to the label the
             garment there has now.
+        colors: Keyed like `labels`, each garment's color and the
+            color of its stripes, if it has any, as `#rrggbb`.
         office_weekdays: The three weekdays, Monday 0, that are
             office days unless overridden.
         cold_threshold: The high, in degrees Fahrenheit, below which
@@ -27,6 +35,7 @@ class State:
 
     anchors: Mapping[Rotation, Anchor]
     labels: Mapping[str, str]
+    colors: Mapping[str, tuple[str, str | None]]
     office_weekdays: frozenset[int]
     cold_threshold: float
     overrides: Mapping[date, DayType] = MappingProxyType({})
@@ -70,11 +79,26 @@ class Outfit:
     At most one of `sweater` and `jacket` is named.
     """
 
-    shirt: str
-    pants: str
-    sweater: str | None
-    shoes: str
-    jacket: str | None = None
+    shirt: Garment
+    pants: Garment
+    sweater: Garment | None
+    shoes: Garment
+    jacket: Garment | None = None
+
+
+@dataclass(frozen=True)
+class Garment:
+    """A garment as the wearer knows it.
+
+    Attributes:
+        label: What it is called.
+        color: The color it is drawn in, as `#rrggbb`.
+        stripe_color: The color of its stripes, if it has any.
+    """
+
+    label: str
+    color: str
+    stripe_color: str | None = None
 
 
 @dataclass(frozen=True)
