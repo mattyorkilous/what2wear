@@ -146,8 +146,10 @@ function fillPath(context, path, color) {
 function parsePath(text) {
   const path = new Path();
   text.match(/[MLQZ][^MLQZ]*/g).forEach((segment) => {
-    const numbers = segment.slice(1).trim().split(/\s+/).map(Number);
-    const points = [0, 2].map((at) => new Point(numbers[at], numbers[at + 1]));
+    const numbers = (segment.match(/-?[\d.]+/g) ?? []).map(Number);
+    const points = numbers
+      .filter((_, at) => at % 2 === 0)
+      .map((x, at) => new Point(x, numbers[at * 2 + 1]));
     if (segment[0] === "M") path.move(points[0]);
     else if (segment[0] === "L") path.addLine(points[0]);
     else if (segment[0] === "Q") path.addQuadCurve(points[1], points[0]);
