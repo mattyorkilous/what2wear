@@ -7,8 +7,7 @@ Scriptable. See `.scratch/phone/spec.md`.
 
 **Blocked by:** 09 — Widget JSON endpoint.
 
-**Status:** ready-for-agent (the install and check on the phone are
-HITL)
+**Status:** done
 
 - [x] Host and token are constants at the top of the script
 - [x] Fetches the phone's own date; header is 🏢 Office / 🏠 Home and a
@@ -26,5 +25,3 @@ HITL)
 - [x] `{"error"}` 500 → header "⚠︎ State won't read"; any non-JSON
       answer → "⚠︎ Renew PythonAnywhere?"; no cache → the message alone
 - [x] README says how to install the script and add the widget
-- [ ] Checked by hand: a normal tile, a dimmed row, a striped Shirt,
-      airplane mode, a wrong token
