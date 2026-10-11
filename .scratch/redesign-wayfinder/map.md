@@ -40,13 +40,11 @@ between days, a visual Closet, and a tidied small widget.
 - [The garment art](issues/03-the-garment-art.md) — emoji-style icons, one per Garment, in its Color with a darker-shade outline and a soft shade, no gloss; one-piece tee for Home, buttoned collared shirt for Office; full-height stripes cut to shape; all drawable in DrawContext
 - [The Day page](issues/04-the-day-page.md) — a list with a bottom toolbar: the Day as the title, one row per Garment (art left, label large), the no-forecast Outerwear in its own "If it's cold" section, notes under the title; ‹ date › and a "⋯" menu in a floating toolbar at the thumb
 - [Swiping between days](issues/05-swiping-between-days.md) — a Mon–Sun week strip with O/H replaces ‹ ›; swipe the page for a day, the strip for a week; each day loads as its own URL, replacing history; the rows fit the screen with the art scaling to them, Outerwear last
+- [The Closet page](issues/06-the-closet-page.md) — a grid of Shirts drawn in their Colors, Home then Office, each with when it's next due; Pants, sweaters, jackets and shoes in their own smaller grids; tapping opens a sheet for the Shirt's Outfit on its due date, Swap and Replace, with art that redraws live
 
 ## Not yet specified
 
-- Whether Replace and Swap become sheets over the Closet or stay their
-  own pages. Waits on the Closet page.
-- What a Shirt's Outfit shows for Outerwear when it's opened from the
-  Closet and its due date has no forecast yet.
+- Nothing left in the fog: Settings and the widget are already tickets.
 
 ## Out of scope
 
