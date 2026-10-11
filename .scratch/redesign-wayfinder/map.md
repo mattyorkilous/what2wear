@@ -41,10 +41,11 @@ between days, a visual Closet, and a tidied small widget.
 - [The Day page](issues/04-the-day-page.md) — a list with a bottom toolbar: the Day as the title, one row per Garment (art left, label large), the no-forecast Outerwear in its own "If it's cold" section, notes under the title; ‹ date › and a "⋯" menu in a floating toolbar at the thumb
 - [Swiping between days](issues/05-swiping-between-days.md) — a Mon–Sun week strip with O/H replaces ‹ ›; swipe the page for a day, the strip for a week; each day loads as its own URL, replacing history; the rows fit the screen with the art scaling to them, Outerwear last
 - [The Closet page](issues/06-the-closet-page.md) — a grid of Shirts drawn in their Colors, Home then Office, each with when it's next due; Pants, sweaters, jackets and shoes in their own smaller grids; tapping opens a sheet for the Shirt's Outfit on its due date, Swap and Replace, with art that redraws live
+- [Settings](issues/07-settings.md) — two cards: Office Weekdays as seven M–S day chips, the Cold Threshold as a whole-degree stepper clamped 0–100°F (enforced by the server too); a Save capsule appears only on change; notices on every page are a fading top toast
 
 ## Not yet specified
 
-- Nothing left in the fog: Settings and the widget are already tickets.
+- Nothing left in the fog: the widget is already a ticket.
 
 ## Out of scope
 

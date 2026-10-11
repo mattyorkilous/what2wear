@@ -198,7 +198,8 @@ _Avoid_: schedule, pattern, weekly pattern, work week
 **Cold Threshold**:
 The temperature below which Outerwear is worn. It decides only whether,
 never which — a warm Home Day still spends its Home Outerwear Rotation
-turn wearing nothing.
+turn wearing nothing. It is told in whole degrees Fahrenheit, from 0 to
+100.
 _Avoid_: temperature threshold, cutoff, limit, tolerance
 
 **Reset**:
