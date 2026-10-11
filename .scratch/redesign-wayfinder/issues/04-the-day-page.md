@@ -13,3 +13,9 @@ Where the date and Office/Home Day go, quietly; how the Outerwear hedge,
 past-date note and unavoidable-repeat note show; and where the actions
 go, kept but less visible: Make this a Home/Office Day, Wear a different
 shirt, Switch to the jacket/sweater, and the date picker (a "⋯" sheet?).
+
+## Comments
+
+- From **The garment art**: a lean, not a decision. Tops take a
+  full-width card and pants and shoes share a row below. See
+  `prototype/the-garment-art`.

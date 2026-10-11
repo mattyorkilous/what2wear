@@ -37,6 +37,7 @@ between days, a visual Closet, and a tidied small widget.
 
 - [What Scriptable can draw](issues/01-what-scriptable-can-draw.md) — solid fills, alpha and curves but no gradients, clipping or shadows in DrawContext; gradient backgrounds on stacks; design for a 158 pt tile with rounded SF fonts; keep the art in DrawContext, PNG only as a last resort
 - [The look](issues/02-the-look.md) — bold cards: a top segmented control, heavy 40 pt titles, filled rounded cards, monochrome capsule buttons, actions behind a "⋯" sheet; light/dark follow the system
+- [The garment art](issues/03-the-garment-art.md) — emoji-style icons, one per Garment, in its Color with a darker-shade outline and a soft shade, no gloss; one-piece tee for Home, buttoned collared shirt for Office; full-height stripes cut to shape; all drawable in DrawContext
 
 ## Not yet specified
 
