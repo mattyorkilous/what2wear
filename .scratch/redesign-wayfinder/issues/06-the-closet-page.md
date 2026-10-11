@@ -33,8 +33,8 @@ What the Closet page is, as prototyped:
 - **The Shirts**: one grid per Closet, Home Shirts then Office Shirts,
   three to a row. Each tile is the Shirt drawn in its Color, its Label,
   and when it's next due ("Today", "Tomorrow", a weekday within the
-  week, else "Mon 26 Oct"; "Not due this year" if never). Today and
-  Tomorrow are red. A short last row is centred, so the Office
+  week, else "Mon 26 Oct"; "Not due this year" if never). Only Today is
+  red. A short last row is centred, so the Office
   Closet's 5 sit 3 over 2.
 - **The rest of the Wardrobe**, below the Shirts, as smaller grids four
   to a row, one per kind and never combined: Pants (shared, so once),
