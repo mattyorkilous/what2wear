@@ -53,7 +53,9 @@ _Avoid_: colour, fill, shade
 
 **Shirt**:
 One position in a Closet, carrying the Pants welded to it. Its sweater,
-its shoes and its jacket all follow from those Pants.
+its shoes and its jacket all follow from those Pants. What a Shirt is
+cut like follows from its Closet: every Office Shirt is a long-sleeve
+button-up with a collar, every Home Shirt a short-sleeve crew-neck tee.
 _Avoid_: look, outfit, combination, top
 
 **Pants**:
