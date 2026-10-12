@@ -307,9 +307,7 @@ def app(
         return render_template(
             "closet.html",
             notice=notice,
-            shirt_grids=_get_shirt_grids(
-                state, today, fetch_weather(), forms
-            ),
+            shirt_grids=_get_shirt_grids(state, today, forms),
             garment_grids=_get_garment_grids(state, forms),
             art_templates=_get_art_templates(),
             open_sheet=(
@@ -560,25 +558,20 @@ def _get_replace_form(state: State, key: str) -> Mapping[str, str]:
 def _get_shirt_grids(
     state: State,
     today: date,
-    weather: Mapping[date, float],
     forms: Mapping[str, Mapping[str, str]],
 ) -> tuple[tuple[DayType, tuple[dict[str, Any], ...]], ...]:
     """Each Closet's Shirts, Home first, for their tiles and sheets.
 
     A Shirt carries when it's next due, the rest of its Outfit on that
     date, and the Shirts sharing its Pants, which it may Swap with.
+    The Outfit is answered without a forecast, its Outerwear worn if
+    it's cold, so the Closet never waits on fetching one.
     """
     return tuple(
         (
             day_type,
             tuple(
-                _get_shirt(
-                    state,
-                    f"{day_type}.shirt.{place}",
-                    today,
-                    weather,
-                    forms,
-                )
+                _get_shirt(state, day_type, place, today, forms)
                 for place in range(len(CLOSETS[day_type].shirts))
             ),
         )
@@ -588,13 +581,12 @@ def _get_shirt_grids(
 
 def _get_shirt(
     state: State,
-    key: str,
+    day_type: DayType,
+    place: int,
     today: date,
-    weather: Mapping[date, float],
     forms: Mapping[str, Mapping[str, str]],
 ) -> dict[str, Any]:
-    closet, _, place_text = key.partition(".shirt.")
-    day_type, place = DayType(closet), int(place_text)
+    key = f"{day_type}.shirt.{place}"
     shirts = CLOSETS[day_type].shirts
     due = get_due_date(state, day_type, state.labels[key], today)
     return _get_garment(state, key, day_type, forms) | {
@@ -605,9 +597,7 @@ def _get_shirt(
         if due is None
         else tuple(
             garment
-            for garment in _get_drawn_garments(
-                answer(state, due, weather)
-            )
+            for garment in _get_drawn_garments(answer(state, due, {}))
             if garment["kind"] != "Shirt"
         ),
         "partners": tuple(

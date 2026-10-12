@@ -491,7 +491,9 @@ PythonAnywhere free, made to look and feel like a native iOS app:
   Shirts sharing its Pants (the existing swap POST), and "Replace this
   Shirt". A Shirt with no partner says it can't Swap because no other
   Shirt shares its Pants. A Shirt never due shows no Outfit and no
-  "Next due" link.
+  "Next due" link. The sheet's Outfit is answered without a forecast,
+  so its Outerwear is always under "If it's cold" and the Closet never
+  waits on fetching one: a fetch on every load made the page slow.
 - **The Replace sheet** (a popover per Garment): the art large, then
   Name, Color, Striped and its stripe Color, and a "Replace the
   <kind>" submit. It posts to the existing Replace route with the

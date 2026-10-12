@@ -1002,6 +1002,19 @@ def test_each_shirt_sheet_holds_its_outfit_on_that_date(
     )
 
 
+def test_the_closet_fetches_no_forecast(state_path: Path) -> None:
+    # Each sheet's Outerwear is under "If it's cold" whatever the
+    # weather, so the Closet never waits on the forecast.
+    def fetch_weather() -> dict[date, float]:
+        pytest.fail("the Closet fetched the forecast")
+
+    client = web.app(
+        state_path, TOKEN, fetch_weather=fetch_weather
+    ).test_client()
+    page = _get_text(client, f"/{TOKEN}/closet")
+    assert "If it's cold" in _get_sheet(page, "shirt-office.shirt.0")
+
+
 def test_a_shirt_not_due_this_year_says_so_and_wears_nothing(
     state_path: Path, pinned_client: FlaskClient
 ) -> None:
