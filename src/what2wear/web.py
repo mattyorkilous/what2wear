@@ -309,11 +309,18 @@ def app(
         forms = {
             key: _get_replace_form(state, key) for key in state.labels
         } | dict([refused_replace] if refused_replace else [])
+        shirt_grids = _get_shirt_grids(state, today, forms)
+        garment_grids = _get_garment_grids(state, forms)
         return render_template(
             "closet.html",
             notice=notice,
-            shirt_grids=_get_shirt_grids(state, today, forms),
-            garment_grids=_get_garment_grids(state, forms),
+            shirt_grids=shirt_grids,
+            garment_grids=garment_grids,
+            garments=tuple(
+                garment
+                for _, garments in (*shirt_grids, *garment_grids)
+                for garment in garments
+            ),
             art_templates=_get_art_templates(),
             open_sheet=(
                 f"replace-{refused_replace[0]}"
@@ -627,7 +634,7 @@ def _get_shirt(
         "worn_garments": ()
         if due is None
         else tuple(
-            garment
+            garment | {"key": _get_key(state, day_type, garment)}
             for garment in _get_drawn_garments(answer(state, due, {}))
             if garment["kind"] != "Shirt"
         ),
@@ -637,6 +644,19 @@ def _get_shirt(
             if other != place and shirt.pants == shirts[place].pants
         ),
     }
+
+
+def _get_key(
+    state: State, day_type: DayType, garment: Mapping[str, Any]
+) -> str:
+    """Find where a worn Garment hangs, by its Label within its kind."""
+    kind = garment["kind"].lower()
+    scope = kind if kind == "pants" else f"{day_type}.{kind}"
+    return next(
+        key
+        for key, label in state.labels.items()
+        if key.rpartition(".")[0] == scope and label == garment["label"]
+    )
 
 
 def _get_garment(

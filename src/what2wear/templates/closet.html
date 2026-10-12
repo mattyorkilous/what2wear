@@ -2,9 +2,10 @@
 {% import "_art.html" as art %}
 {% set page = "closet" %}
 {% macro replace_sheet(garment) -%}
-<div id="replace-{{ garment.key }}" class="sheet" popover{% if open_sheet == "replace-" ~ garment.key %} data-open{% endif %}>
+{% set refused = open_sheet == "replace-" ~ garment.key %}
+<div id="replace-{{ garment.key }}" class="sheet" popover{% if refused %} data-open{% endif %}>
   <form class="replace" method="post" action="{{ url_for('replace_garment', key=garment.key) }}" data-art="{{ garment.template }}">
-    <div class="preview">{{ art.draw(garment.preview, 150) }}</div>
+    <div class="preview">{% if refused %}{{ art.draw(garment.preview, 150) }}{% else %}{{ art.show(garment, 150) }}{% endif %}</div>
     <h2>{{ garment.name }}</h2>
     <div class="fields">
       <label>Name <input name="label" value="{{ garment.form.label }}" required></label>
@@ -17,25 +18,26 @@
 </div>
 {%- endmacro %}
 {% block content %}
+{{ art.symbols(garments) }}
 <h1>Closet</h1>
 {% for day_type, shirts in shirt_grids %}
 <h2>{{ day_type.title() }} Shirts</h2>
 <div class="tiles">
-  {% for shirt in shirts %}<button type="button" popovertarget="shirt-{{ shirt.key }}">{{ art.draw(shirt.art, 92) }}<b>{{ shirt.label }}</b> <small{% if shirt.due_text == "Today" %} class="today"{% endif %}>{{ shirt.due_text }}</small></button>
+  {% for shirt in shirts %}<button type="button" popovertarget="shirt-{{ shirt.key }}">{{ art.show(shirt, 92) }}<b>{{ shirt.label }}</b> <small{% if shirt.due_text == "Today" %} class="today"{% endif %}>{{ shirt.due_text }}</small></button>
   {% endfor %}
 </div>
 {% endfor %}
 {% for name, garments in garment_grids %}
 <h2>{{ name }}</h2>
 <div class="tiles four">
-  {% for garment in garments %}<button type="button" popovertarget="replace-{{ garment.key }}">{{ art.draw(garment.art, 64) }}<b>{{ garment.label }}</b></button>
+  {% for garment in garments %}<button type="button" popovertarget="replace-{{ garment.key }}">{{ art.show(garment, 64) }}<b>{{ garment.label }}</b></button>
   {% endfor %}
 </div>
 {% endfor %}
 
 {% for day_type, shirts in shirt_grids %}{% for shirt in shirts %}
 <div id="shirt-{{ shirt.key }}" class="sheet" popover>
-  <div class="sheet-head">{{ art.draw(shirt.art, 96) }}<h2>{{ shirt.name }}</h2></div>
+  <div class="sheet-head">{{ art.show(shirt, 96) }}<h2>{{ shirt.name }}</h2></div>
   {% if shirt.due %}
   <a class="capsule" href="{{ url_for('show_day', iso_date=shirt.due.isoformat()) }}">Next due {{ shirt.due_text }} ›</a>
   {% set if_cold_garments = shirt.worn_garments | selectattr("if_cold") | list %}
@@ -59,7 +61,7 @@
   <form class="shirts" method="post" action="{{ url_for('swap_shirts', closet=shirt.closet) }}">
     <input type="hidden" name="first" value="{{ shirt.label }}">
     {% for partner in shirts | selectattr("label", "in", shirt.partners) %}<button name="second" value="{{ partner.label }}">
-      {{ art.draw(partner.art, 64) }}<span>{{ partner.label }}</span></button>
+      {{ art.show(partner, 64) }}<span>{{ partner.label }}</span></button>
     {% endfor %}
   </form>
   {% else %}

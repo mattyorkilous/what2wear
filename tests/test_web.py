@@ -1176,6 +1176,21 @@ def test_each_garment_tile_opens_its_replace_sheet(
     )
 
 
+def test_each_garment_is_drawn_once_and_shown_wherever_it_hangs(
+    client: FlaskClient,
+) -> None:
+    page = _get_text(client, f"/{TOKEN}/closet")
+    symbols = re.findall(r'<symbol id="art-([^"]+)"', page)
+    assert sorted(symbols) == sorted(build_default_labels())
+    assert COLORS["Striped"][1] in _get_fills(
+        _get_symbol_art(page, "office.shirt.3")
+    )
+    shown = re.findall(r'<use href="#art-([^"]+)"', page)
+    assert set(shown) == set(symbols)
+    # Its tile, its sheet, its Replace sheet, and the White's Swap.
+    assert shown.count("office.shirt.3") == 4
+
+
 def test_the_replace_art_redraws_from_the_same_layers(
     client: FlaskClient,
 ) -> None:
@@ -1189,12 +1204,8 @@ def test_the_replace_art_redraws_from_the_same_layers(
     assert match is not None
     templates = json.loads(match[1])
     sheet = _get_sheet(page, "replace-office.shirt.3")
-    art = [
-        _parse_layer(path)
-        for path in re.findall(
-            r"<path[^>]*>", sheet[: sheet.index("</svg>")]
-        )
-    ]
+    assert '<use href="#art-office.shirt.3"/>' in sheet
+    art = _get_symbol_art(page, "office.shirt.3")
     template = templates[
         _get_fields(sheet[sheet.index("<form") :])["data-art"]
     ]
@@ -1412,6 +1423,18 @@ def _get_sheet(page: str, sheet_id: str) -> str:
     )
     assert match is not None
     return match[0]
+
+
+def _get_symbol_art(page: str, key: str) -> list[dict[str, Any]]:
+    """The layers of the art drawn once for the Garment at `key`."""
+    match = re.search(
+        rf'<symbol id="art-{re.escape(key)}"[^>]*>(.*?)</symbol>', page
+    )
+    assert match is not None
+    return [
+        _parse_layer(path)
+        for path in re.findall(r"<path[^>]*>", match[1])
+    ]
 
 
 def _get_replace_form(page: str, key: str) -> dict[str, Any]:

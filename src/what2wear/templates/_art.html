@@ -1,11 +1,27 @@
+{% macro paths(art) -%}
+  {%- for layer in art %}{% if layer.fill %}<path d="{{ layer.d }}" fill="{{ layer.fill }}"{% if layer.alpha %} fill-opacity="{{ layer.alpha }}"{% endif %}/>{% else %}<path d="{{ layer.d }}" fill="none" stroke="{{ layer.stroke }}"{% if layer.alpha %} stroke-opacity="{{ layer.alpha }}"{% endif %} stroke-width="{{ layer.width }}"/>{% endif %}{% endfor -%}
+{%- endmacro %}
+
 {% macro draw(art, size) -%}
 <svg viewBox="0 0 76 76" width="{{ size }}" height="{{ size }}" aria-hidden="true">
-  {%- for layer in art %}{% if layer.fill %}<path d="{{ layer.d }}" fill="{{ layer.fill }}"{% if layer.alpha %} fill-opacity="{{ layer.alpha }}"{% endif %}/>{% else %}<path d="{{ layer.d }}" fill="none" stroke="{{ layer.stroke }}"{% if layer.alpha %} stroke-opacity="{{ layer.alpha }}"{% endif %} stroke-width="{{ layer.width }}"/>{% endif %}{% endfor -%}
+  {{- paths(art) -}}
 </svg>
+{%- endmacro %}
+
+{#- A Garment shown in several places is drawn once, as a symbol, and
+    each place shows it with `show`. -#}
+{% macro symbols(garments) -%}
+<svg width="0" height="0" class="symbols" aria-hidden="true">
+  {%- for garment in garments %}<symbol id="art-{{ garment.key }}" viewBox="0 0 76 76">{{ paths(garment.art) }}</symbol>{% endfor -%}
+</svg>
+{%- endmacro %}
+
+{% macro show(garment, size) -%}
+<svg viewBox="0 0 76 76" width="{{ size }}" height="{{ size }}" aria-hidden="true"><use href="#art-{{ garment.key }}"/></svg>
 {%- endmacro %}
 
 {% macro row(garment, note="", size=150) -%}
 <li{% if garment.kind == "Shirt" %} class="shirt"{% endif %}>
-    {{ draw(garment.art, size) }}
+    {% if garment.key %}{{ show(garment, size) }}{% else %}{{ draw(garment.art, size) }}{% endif %}
     <div><b>{{ garment.label }}</b> <small>{{ garment.kind }}{{ note }}</small></div></li>
 {%- endmacro %}
