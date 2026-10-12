@@ -1,7 +1,9 @@
 from dataclasses import replace
 from datetime import date
 
-from what2wear.core import answer, record_override
+import pytest
+
+from what2wear.core import answer, get_day_type, record_override
 from what2wear.model import DayType, State
 from what2wear.wardrobe import get_default_state
 
@@ -18,6 +20,7 @@ THU27, FRI28, SAT29 = (
     date(2026, 8, 29),
 )
 MON31 = date(2026, 8, 31)
+LABOR_DAY = date(2026, 9, 7)
 
 GIVEN = get_default_state(TODAY)
 
@@ -155,6 +158,32 @@ class TestAFourthOfficeDay:
         response = answer(_with(SAT29, DayType.OFFICE), SAT29, {})
         assert response.day_type is DayType.OFFICE
         assert response.outfit.shirt.label == "Striped"
+
+
+class TestTheDayTypeLookup:
+    @pytest.mark.parametrize(
+        ("on", "overrides"),
+        [
+            pytest.param(MON24, {MON24: DayType.HOME}, id="override"),
+            pytest.param(LABOR_DAY, {}, id="holiday"),
+            pytest.param(TUE25, {}, id="plain-home-weekday"),
+            pytest.param(WED26, {}, id="plain-office-weekday"),
+        ],
+    )
+    def test_it_agrees_with_the_answer(
+        self, on: date, overrides: dict[date, DayType]
+    ) -> None:
+        state = replace(GIVEN, overrides=overrides)
+        assert get_day_type(state, on) is answer(state, on, {}).day_type
+
+    def test_an_override_beats_the_pattern(self) -> None:
+        assert get_day_type(GIVEN, MON24) is DayType.OFFICE
+        assert get_day_type(_with(MON24, DayType.HOME), MON24) is (
+            DayType.HOME
+        )
+
+    def test_a_holiday_is_a_home_day(self) -> None:
+        assert get_day_type(GIVEN, LABOR_DAY) is DayType.HOME
 
 
 def _with(on: date, day_type: DayType) -> State:

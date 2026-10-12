@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% set page = "closet" %}
 {% block content %}
 <h1>Replace the {{ garment }}</h1>
 <form method="post" action="{{ url_for('replace_garment', key=key) }}">

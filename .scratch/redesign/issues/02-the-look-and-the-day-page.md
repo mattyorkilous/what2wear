@@ -18,7 +18,7 @@ merge them.
 
 **Blocked by:** 01 — The garment art and the widget
 
-**Status:** ready-for-agent
+**Status:** done
 
 ### The look
 

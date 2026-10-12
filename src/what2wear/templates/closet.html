@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% set page = "closet" %}
 {% block content %}
 {% for day_type, rows in closets.items() %}
 <h1>{{ day_type.title() }} Closet</h1>

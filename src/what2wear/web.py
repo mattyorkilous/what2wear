@@ -6,6 +6,7 @@ from collections.abc import Callable, Mapping
 from datetime import date, datetime, timedelta
 from functools import partial
 from pathlib import Path
+from types import MappingProxyType
 from typing import Any
 
 from flask import (
@@ -21,6 +22,7 @@ from werkzeug import Response as Reply
 
 from what2wear.core import (
     answer,
+    get_day_type,
     get_due_date,
     record_override,
     replace_,
@@ -47,6 +49,12 @@ from what2wear.wardrobe import (
     TIMEZONE,
     WEEKDAYS,
     get_garments,
+)
+
+# How far each swipe moves the shown date: a day across the page, a
+# Week across the strip.
+SWIPE_DAYS = MappingProxyType(
+    {"prev_week": -7, "prev_day": -1, "next_day": 1, "next_week": 7}
 )
 
 
@@ -378,10 +386,11 @@ def _get_widget_day(
 def _get_worn_garments(
     response: Response,
 ) -> tuple[tuple[str, Garment, bool], ...]:
-    """Each Garment worn, shirt to shoes, with its kind.
+    """Each Garment worn, with its kind: Shirt, Pants, shoes, Outerwear.
 
-    Each carries whether it's Outerwear worn only if it's cold, which
-    is when the forecast is unknown.
+    The essentials come first, and the Outerwear, which only the
+    weather decides, last. Each carries whether it's Outerwear worn
+    only if it's cold, which is when the forecast is unknown.
     """
     outfit = response.outfit
     cold_unknown = response.cold is None
@@ -390,9 +399,9 @@ def _get_worn_garments(
         for kind, garment, if_cold in (
             ("shirt", outfit.shirt, False),
             ("pants", outfit.pants, False),
+            ("shoes", outfit.shoes, False),
             ("sweater", outfit.sweater, cold_unknown),
             ("jacket", outfit.jacket, cold_unknown),
-            ("shoes", outfit.shoes, False),
         )
         if garment is not None
     )
@@ -411,8 +420,11 @@ def _render_day(
 ) -> str:
     try:
         response = answer(state, on, weather)
-        prev_day = on - timedelta(days=1)
-        next_day = on + timedelta(days=1)
+        week = _get_week(state, on, today)
+        swipes = {
+            name: on + timedelta(days=days)
+            for name, days in SWIPE_DAYS.items()
+        }
     except OverflowError:
         abort(404)
     other_day_type = (
@@ -424,13 +436,14 @@ def _render_day(
         "day.html",
         notice=notice,
         response=response,
+        week=week,
+        swipes=swipes,
         garments=_get_drawn_garments(response),
         past=on < today,
-        prev_day=prev_day,
-        next_day=next_day,
+        is_today=on == today,
         other_day_type=other_day_type,
         other_article=_get_article(other_day_type),
-        shirts=_get_shirt_labels(state, response.day_type),
+        shirts=_get_shirt_tiles(state, response.day_type),
         other_outerwear=_get_other_outerwear(response)
         if on == today
         and response.day_type is DayType.HOME
@@ -439,30 +452,58 @@ def _render_day(
     )
 
 
+def _get_week(
+    state: State, on: date, today: date
+) -> tuple[dict[str, Any], ...]:
+    """Each day of the Monday-start Week holding `on`, for the strip.
+
+    Each carries its Day, and whether it's the day shown and today.
+    """
+    monday = on - timedelta(days=on.weekday())
+    return tuple(
+        {
+            "on": day,
+            "day_type": get_day_type(state, day),
+            "shown": day == on,
+            "today": day == today,
+        }
+        for day in (monday + timedelta(days=days) for days in range(7))
+    )
+
+
 def _get_drawn_garments(
     response: Response,
 ) -> tuple[dict[str, Any], ...]:
-    """Each Garment worn: its name, its art, and whether it's dimmed.
-
-    Outerwear worn only if it's cold is dimmed and says so.
-    """
+    """Each Garment worn: its Label, kind, art, and if only if cold."""
     return tuple(
         {
-            "name": f"{garment.label} {kind.title()}"
-            + (", if it's cold" if if_cold else ""),
+            "label": garment.label,
+            "kind": kind.title(),
             "art": get_art(kind, garment, response.day_type),
-            "dim": if_cold,
+            "if_cold": if_cold,
         }
         for kind, garment, if_cold in _get_worn_garments(response)
     )
 
 
-def _get_shirt_labels(
+def _get_shirt_tiles(
     state: State, day_type: DayType
-) -> tuple[str, ...]:
-    return tuple(
-        state.labels[f"{day_type}.shirt.{place}"]
+) -> tuple[dict[str, Any], ...]:
+    """Each Shirt in the `day_type` Closet: its Label and its art."""
+    keys = tuple(
+        f"{day_type}.shirt.{place}"
         for place in range(len(CLOSETS[day_type].shirts))
+    )
+    return tuple(
+        {
+            "label": state.labels[key],
+            "art": get_art(
+                "shirt",
+                Garment(state.labels[key], *state.colors[key]),
+                day_type,
+            ),
+        }
+        for key in keys
     )
 
 

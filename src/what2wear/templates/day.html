@@ -1,43 +1,67 @@
 {% extends "base.html" %}
 {% import "_art.html" as art %}
+{% set page = "day" %}
+{% set on = response.on.isoformat() %}
+{% set worn_garments = garments | rejectattr("if_cold") | list %}
+{% set if_cold_garments = garments | selectattr("if_cold") | list %}
+{% macro row(garment, note="") -%}
+<li{% if garment.kind == "Shirt" %} class="shirt"{% endif %}>
+    {{ art.draw(garment.art, 150) }}
+    <div><b>{{ garment.label }}</b> <small>{{ garment.kind }}{{ note }}</small></div></li>
+{%- endmacro %}
 {% block content %}
-<h1>{{ response.on.strftime("%a %d %b %Y") }}<br>
-  {{ response.day_type.title() }} Day</h1>
-<ul class="outfit">
-  {% for garment in garments %}<li{% if garment.dim %} class="dim"{% endif %}>
-    {{ art.draw(garment.art, 32) }}
-    {{ garment.name }}</li>
-  {% endfor %}
-</ul>
-{% if response.unavoidable_repeat %}
-<p class="note">The sweater was already worn this week: there's no free one left.</p>
-{% endif %}
-{% if past %}
-<p class="note">A past date: this is where the Rotation stands now, not what was worn.</p>
-{% endif %}
-<form method="post" action="{{ url_for('set_day_type', iso_date=response.on.isoformat()) }}">
-  <button name="day_type" value="{{ other_day_type }}">Make this {{ other_article }} {{ other_day_type.title() }} Day</button>
-</form>
-<form method="post" action="{{ url_for('set_shirt', iso_date=response.on.isoformat()) }}">
-  <label>Wear a different shirt
-    <select name="shirt">
-      {% for shirt in shirts %}<option{% if shirt == response.outfit.shirt.label %} selected{% endif %}>{{ shirt }}</option>
-      {% endfor %}
-    </select>
-  </label>
-  <button>Wear</button>
-</form>
-{% if other_outerwear %}
-<form method="post" action="{{ url_for('switch_outerwear') }}">
-  <button>Switch to the {{ other_outerwear }}</button>
-</form>
-{% endif %}
-<p class="step">
-  <a href="{{ url_for('show_day', iso_date=prev_day.isoformat()) }}">‹ prev</a>
-  <a href="{{ url_for('show_day', iso_date=next_day.isoformat()) }}">next ›</a>
-</p>
-<form action="{{ url_for('pick_day') }}">
-  <input type="date" name="on" value="{{ response.on.isoformat() }}" required>
-  <button>Go</button>
-</form>
+<section class="day" data-on="{{ on }}"
+  {%- for name, swiped_date in swipes.items() %} data-{{ name | replace("_", "-") }}="{{ url_for('show_day', iso_date=swiped_date.isoformat()) }}"{% endfor %}>
+  <nav class="week" aria-label="Week">
+    {%- for day in week %}
+    <a href="{{ url_for('show_day', iso_date=day.on.isoformat()) }}"{% if day.today %} class="today"{% endif %}{% if day.shown %} aria-current="date"{% endif %}><small>{{ day.on.strftime("%a")[0] }}</small> <b>{{ day.on.day }}</b> <i>{{ day.day_type.title()[0] }}</i></a>
+    {%- endfor %}
+  </nav>
+  <h1>{{ response.day_type.title() }} Day</h1>
+  {% if response.unavoidable_repeat %}
+  <p class="caption">The sweater was already worn this week: there's no free one left.</p>
+  {% endif %}
+  {% if past %}
+  <p class="caption">A past date: this is where the Rotation stands now, not what was worn.</p>
+  {% endif %}
+  <ul class="outfit" style="--rows: {{ worn_garments | length + 0.3 }}">
+    {% for garment in worn_garments %}{{ row(garment) }}
+    {% endfor %}
+  </ul>
+  {% if if_cold_garments %}
+  <h2 class="eyebrow">If it's cold</h2>
+  <ul class="outfit" style="--rows: {{ if_cold_garments | length }}">
+    {% for garment in if_cold_garments %}{{ row(garment, " · no forecast yet") }}
+    {% endfor %}
+  </ul>
+  {% endif %}
+</section>
+<div class="toolbar">
+  <form action="{{ url_for('pick_day') }}">
+    <label><span>{{ response.on.strftime("%a") }} {{ response.on.day }} {{ response.on.strftime("%b") }}</span>
+      <input type="date" name="on" value="{{ on }}" required aria-label="Date"></label>
+    <noscript><button>Go</button></noscript>
+  </form>
+  {% if not is_today %}<a href="{{ url_for('show_today') }}">Today</a>{% endif %}
+  <button class="more" type="button" popovertarget="day-menu" aria-label="More">⋯</button>
+</div>
+<div id="day-menu" class="menu" popover>
+  <form method="post" action="{{ url_for('set_day_type', iso_date=on) }}">
+    <button name="day_type" value="{{ other_day_type }}">Make this {{ other_article }} {{ other_day_type.title() }} Day</button>
+  </form>
+  <button type="button" popovertarget="shirt-sheet">Wear a different shirt</button>
+  {% if other_outerwear %}
+  <form method="post" action="{{ url_for('switch_outerwear') }}">
+    <button>Switch to the {{ other_outerwear }}</button>
+  </form>
+  {% endif %}
+</div>
+<div id="shirt-sheet" class="sheet" popover>
+  <h2>Wear a different shirt</h2>
+  <form class="shirts" method="post" action="{{ url_for('set_shirt', iso_date=on) }}">
+    {% for shirt in shirts %}<button name="shirt" value="{{ shirt.label }}"{% if shirt.label == response.outfit.shirt.label %} aria-current="true"{% endif %}>
+      {{ art.draw(shirt.art, 64) }}<span>{{ shirt.label }}</span></button>
+    {% endfor %}
+  </form>
+</div>
 {% endblock %}

@@ -25,9 +25,10 @@ Home outerwear alternates on the calendar too. Every home day is a jacket day or
 Below the cold threshold — 50°F until you say otherwise on the Settings page — you wear outerwear; at or above it, none, and the Day page shows no outerwear. The forecast decides only *whether*: which garment a date calls for is worked out without it, so a date too far out for the forecast still names one:
 
 ```
-  Beige Sweater                  # cold: wear it
-                                 # warm: no outerwear
-  Beige Sweater, if it's cold    # no forecast for that date yet
+  Beige  Sweater                         # cold: a row like the rest
+                                         # warm: no row at all
+  IF IT'S COLD
+  Beige  Sweater · no forecast yet       # no forecast for that date yet
 ```
 
 The last is also what you get when the forecast can't be fetched at all. A network problem never stops the tool answering — it just can't say yet whether you'll want it.
@@ -40,9 +41,9 @@ Forecasts are daily highs from [Open-Meteo](https://open-meteo.com), which needs
 
 ## Interface
 
-Three pages, linked from the top of each: Day, Closet and Settings.
+Three pages, switched between by the Day / Closet / Settings control pinned at the top of each. A write's notice shows as a toast under it and fades.
 
-- **Day** — one date's outfit, today unless you've picked another with the date box or ‹ prev / next ›. A past date says it shows where the rotation stands now, not what was worn. "Make this a Home Day" (or Office Day) switches that date's side; the shirt list moves the rotation to the shirt you'd rather wear that day; on today's page, at home, "Switch to the …" moves the home outerwear rotation on by one.
+- **Day** — one date's outfit, titled by its Day: shirt, pants, shoes, then any outerwear, each row sized so the whole outfit fits on one screen. The week strip above the title shows the date's Monday-to-Sunday week, O or H under each day; tap a day to go to it, swipe the page to move a day, or swipe the strip to move a week. The toolbar at the bottom holds the date (tap it to pick another), "Today" when you're elsewhere, and "⋯". A past date says it shows where the rotation stands now, not what was worn. In "⋯", "Make this a Home Day" (or Office Day) switches that date's side; "Wear a different shirt" opens the closet's shirts, and tapping one moves the rotation to it; on today's page, at home, "Switch to the …" moves the home outerwear rotation on by one. Every day is still its own URL and every action a form, so the page works without its script. See [ADR-0013](docs/adr/0013-the-pages-may-use-js-but-every-day-is-a-url-and-every-write-a-form.md).
 - **Closet** — each closet grouped by pants, every shirt with the date it's next due. Two shirts on the same pants can swap places. Tap any garment to replace it: a new label and color, with an optional stripe color.
 - **Settings** — the three office weekdays and the cold threshold.
 
@@ -120,10 +121,11 @@ widget.js                   the Scriptable widget, pasted onto the phone
 
 ## Design
 
-The architecture is a functional core with an imperative shell, and the core has two pure seams. One answers and never changes anything — `answer` for a whole outfit, `get_due_shirt` for where one rotation stands, `get_due_date` for the same rotation read backwards:
+The architecture is a functional core with an imperative shell, and the core has two pure seams. One answers and never changes anything — `answer` for a whole outfit, `get_day_type` for just a date's Day (the week strip's O and H), `get_due_shirt` for where one rotation stands, `get_due_date` for the same rotation read backwards:
 
 ```
 answer(state, on, weather)                       -> Response
+get_day_type(state, on)                          -> DayType
 get_due_shirt(state, day_type, on)               -> str
 get_due_date(state, day_type, shirt, today)      -> date | None
 ```

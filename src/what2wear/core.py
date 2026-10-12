@@ -72,7 +72,7 @@ def reset(state: State, shirt: str, on: date) -> State:
     Raises:
         What2wearError: If the closet has no shirt so labeled.
     """
-    day_type = _get_day_type(state, on)
+    day_type = get_day_type(state, on)
     position = _get_shirt_position(state, day_type, shirt)
     return _move_anchor(state, Rotation(day_type), Anchor(on, position))
 
@@ -283,13 +283,30 @@ def answer(
     """
     response = (
         _get_office_response(state, on)
-        if _get_day_type(state, on) is DayType.OFFICE
+        if get_day_type(state, on) is DayType.OFFICE
         else _get_home_response(state, on)
     )
     labeled_response = _get_labeled_response(state, response)
     return _apply_weather(
         labeled_response, weather.get(on), state.cold_threshold
     )
+
+
+def get_day_type(state: State, on: date) -> DayType:
+    """Work out which kind of day a date is.
+
+    A Day Type Override wins, then the Holidays, then the Office
+    Weekdays: the same lookup `answer` makes, without answering a
+    whole Outfit.
+
+    Args:
+        state: The state to read the overrides and weekdays from.
+        on: The date to look up.
+
+    Returns:
+        The kind of day `on` is.
+    """
+    return state.overrides.get(on, _get_default_day_type(state, on))
 
 
 def get_due_shirt(state: State, day_type: DayType, on: date) -> str:
@@ -337,7 +354,7 @@ def get_due_date(
         (
             on
             for on in days
-            if _get_day_type(state, on) is day_type
+            if get_day_type(state, on) is day_type
             and _get_position(state, Rotation(day_type), on) == position
         ),
         None,
@@ -351,10 +368,6 @@ def _move_anchor(
         state,
         anchors=MappingProxyType({**state.anchors, rotation: anchor}),
     )
-
-
-def _get_day_type(state: State, on: date) -> DayType:
-    return state.overrides.get(on, _get_default_day_type(state, on))
 
 
 def _get_default_day_type(state: State, on: date) -> DayType:
@@ -414,7 +427,7 @@ def _get_office_days_of_week(
     return tuple(
         day
         for day in week
-        if _get_day_type(state, day) is DayType.OFFICE
+        if get_day_type(state, day) is DayType.OFFICE
     )
 
 
@@ -605,7 +618,7 @@ def _count_days_off_pattern(
         for on in _get_holidays(year)
     )
     return sum(
-        (_get_day_type(state, on) is day_type)
+        (get_day_type(state, on) is day_type)
         - (_get_pattern_day_type(state, on) is day_type)
         for on in {*state.overrides, *holidays_in_range}
         if start <= on < end

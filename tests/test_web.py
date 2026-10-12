@@ -12,7 +12,7 @@ from flask.testing import FlaskClient
 from werkzeug.test import TestResponse
 
 from what2wear import web
-from what2wear.core import get_due_date, record_override
+from what2wear.core import get_day_type, get_due_date, record_override
 from what2wear.model import DayType
 from what2wear.store import read_state, write_state
 from what2wear.wardrobe import (
@@ -39,11 +39,13 @@ def client(state_path: Path) -> FlaskClient:
 
 def test_the_bare_url_is_todays_day_page(client: FlaskClient) -> None:
     page = _get_text(client, f"/{TOKEN}/")
-    assert f"{_get_today():%a %d %b %Y}" in page
-    assert " Day" in page
-    assert "Shirt" in page
-    assert "Pants" in page
-    assert "Shoes" in page
+    assert _get_shown_date(page) == _get_today()
+    assert _get_title(page) in {"Office Day", "Home Day"}
+    assert [kind for _, _, kind in _get_drawn_garments(page)][:3] == [
+        "Shirt",
+        "Pants",
+        "Shoes",
+    ]
 
 
 def test_today_is_todays_date_in_new_york(
@@ -57,46 +59,144 @@ def test_today_is_todays_date_in_new_york(
             return cls(2026, 9, 28, 2, tzinfo=UTC).astimezone(tz)
 
     monkeypatch.setattr(web, "datetime", Evening)
-    assert "Sun 27 Sep 2026" in _get_text(client, f"/{TOKEN}/")
+    page = _get_text(client, f"/{TOKEN}/")
+    assert _get_shown_date(page) == date(2026, 9, 27)
 
 
 def test_a_day_page_shows_that_date(client: FlaskClient) -> None:
     day = _get_today() + timedelta(days=400)
     page = _get_text(client, f"/{TOKEN}/day/{day}")
-    assert f"{day:%a %d %b %Y}" in page
+    assert _get_shown_date(page) == day
 
 
-def test_the_day_type_is_named(client: FlaskClient) -> None:
-    page = _get_text(client, f"/{TOKEN}/day/{_get_next(SAT)}")
-    assert "Home Day" in page
+def test_the_title_is_the_day(client: FlaskClient) -> None:
+    saturday = _get_next(SAT)
+    page = _get_text(client, f"/{TOKEN}/day/{saturday}")
+    assert _get_title(page) == "Home Day"
+    page = _post_text(
+        client,
+        f"/{TOKEN}/day/{saturday}/day-type",
+        {"day_type": "office"},
+    )
+    assert _get_title(page) == "Office Day"
 
 
-def test_a_garment_reads_as_its_label_and_kind(
+def test_a_garment_reads_as_its_label_over_its_kind(
     client: FlaskClient,
 ) -> None:
     page = _get_text(client, f"/{TOKEN}/day/{_get_next(SAT)}")
     labels = get_default_state(_get_today()).labels
-    assert any(
-        f"{label} Pants" in page
+    pants = next(
+        label
+        for _, label, kind in _get_drawn_garments(page)
+        if kind == "Pants"
+    )
+    assert pants in {
+        label
         for key, label in labels.items()
         if key.startswith("pants.")
+    }
+
+
+@pytest.mark.parametrize("high", [None, DEFAULT_COLD_THRESHOLD - 10])
+def test_the_outfit_reads_shirt_pants_shoes_then_outerwear(
+    state_path: Path, high: float | None
+) -> None:
+    saturday = _get_next(SAT)
+    client = web.app(
+        state_path,
+        TOKEN,
+        fetch_weather=lambda: {} if high is None else {saturday: high},
+    ).test_client()
+    page = _get_text(client, f"/{TOKEN}/day/{saturday}")
+    kinds = [
+        kind.partition(" · ")[0]
+        for _, _, kind in _get_drawn_garments(page)
+    ]
+    assert kinds[:3] == ["Shirt", "Pants", "Shoes"]
+    assert kinds[3] in {"Sweater", "Jacket"}
+    assert len(kinds) == 4
+    reply = client.get(f"/{TOKEN}/day/{saturday}.json")
+    assert reply.json is not None
+    assert [
+        item["garment"].title() for item in reply.json["outfit"]
+    ] == kinds
+
+
+def test_the_week_strip_links_each_day_of_the_week(
+    client: FlaskClient, state_path: Path
+) -> None:
+    # A Tuesday made an Office Day, which no Holiday can undo, so one
+    # of the strip's H turns to O.
+    day = _get_next(SAT) + timedelta(days=11)
+    monday = day - timedelta(days=day.weekday())
+    tuesday = monday + timedelta(days=1)
+    state = record_override(
+        get_default_state(_get_today()), tuesday, DayType.OFFICE
+    )
+    write_state(state_path, state)
+    page = _get_text(client, f"/{TOKEN}/day/{day}")
+    strip = _get_week_strip(page)
+    assert strip == [
+        (
+            f"/{TOKEN}/day/{on}",
+            f"{on:%a}"[0],
+            str(on.day),
+            str(get_day_type(state, on))[0].upper(),
+        )
+        for on in (
+            monday + timedelta(days=offset) for offset in range(7)
+        )
+    ]
+    assert strip[1][3] == "O"
+
+
+def test_a_weeks_strip_is_the_same_from_any_of_its_days(
+    client: FlaskClient,
+) -> None:
+    sunday = _get_next(SAT) + timedelta(days=8)
+    monday = sunday - timedelta(days=6)
+    assert _get_week_strip(
+        _get_text(client, f"/{TOKEN}/day/{sunday}")
+    ) == _get_week_strip(_get_text(client, f"/{TOKEN}/day/{monday}"))
+
+
+def test_today_links_back_only_from_another_day(
+    client: FlaskClient,
+) -> None:
+    today_link = re.compile(
+        f'<a [^>]*href="/{TOKEN}/"[^>]*>\\s*Today\\s*</a>'
+    )
+    assert not today_link.search(_get_text(client, f"/{TOKEN}/"))
+    assert not today_link.search(
+        _get_text(client, f"/{TOKEN}/day/{_get_today()}")
+    )
+    tomorrow = _get_today() + timedelta(days=1)
+    assert today_link.search(
+        _get_text(client, f"/{TOKEN}/day/{tomorrow}")
     )
 
 
-def test_prev_and_next_step_one_calendar_day(
-    client: FlaskClient,
+def test_the_menu_posts_to_the_day_routes(
+    client: FlaskClient, state_path: Path
 ) -> None:
-    day = _get_today() + timedelta(days=10)
-    page = _get_text(client, f"/{TOKEN}/day/{day}")
-    assert f'href="/{TOKEN}/day/{day - timedelta(days=1)}"' in page
-    assert f'href="/{TOKEN}/day/{day + timedelta(days=1)}"' in page
+    today = _get_today()
+    write_state(
+        state_path,
+        record_override(get_default_state(today), today, DayType.HOME),
+    )
+    page = _get_text(client, f"/{TOKEN}/")
+    assert f'action="/{TOKEN}/day/{today}/day-type"' in page
+    assert f'action="/{TOKEN}/day/{today}/shirt"' in page
+    assert f'action="/{TOKEN}/outerwear"' in page
 
 
 def test_the_date_picker_lands_on_the_day_page(
     client: FlaskClient,
 ) -> None:
     page = _get_text(client, f"/{TOKEN}/")
-    assert 'type="date"' in page
+    assert f'<form action="/{TOKEN}/day">' in page
+    assert 'type="date" name="on"' in page
     reply = client.get(f"/{TOKEN}/day?on=2026-12-25")
     assert reply.status_code == 303
     assert reply.headers["Location"] == f"/{TOKEN}/day/2026-12-25"
@@ -174,10 +274,21 @@ def test_an_unavoidable_repeat_is_called_out(
     assert "already worn this week" in page
 
 
-def test_an_unknown_forecast_hedges_the_outerwear(
+def test_an_unknown_forecast_puts_the_outerwear_if_its_cold(
     client: FlaskClient,
 ) -> None:
-    assert "if it's cold" in _get_text(client, f"/{TOKEN}/")
+    page = _get_text(client, f"/{TOKEN}/")
+    worn_garments, if_cold_garments = _split_if_cold(page)
+    assert [kind for _, _, kind in worn_garments] == [
+        "Shirt",
+        "Pants",
+        "Shoes",
+    ]
+    assert [kind for _, _, kind in if_cold_garments] in (
+        ["Sweater · no forecast yet"],
+        ["Jacket · no forecast yet"],
+    )
+    assert ", if it's cold" not in page
 
 
 def test_a_cold_day_names_its_outerwear_plainly(
@@ -190,8 +301,10 @@ def test_a_cold_day_names_its_outerwear_plainly(
         fetch_weather=lambda: {today: DEFAULT_COLD_THRESHOLD - 10},
     ).test_client()
     page = _get_text(client, f"/{TOKEN}/")
-    assert "if it's cold" not in page
-    assert "Sweater" in page or "Jacket" in page
+    worn_garments, if_cold_garments = _split_if_cold(page)
+    assert "If it's cold" not in page
+    assert not if_cold_garments
+    assert worn_garments[3][2] in {"Sweater", "Jacket"}
 
 
 def test_a_warm_day_names_no_outerwear(state_path: Path) -> None:
@@ -211,14 +324,10 @@ def test_each_garment_is_drawn_in_its_color(
 ) -> None:
     page = _get_text(client, f"/{TOKEN}/day/{_get_next(SAT)}")
     rows = _get_drawn_garments(page)
-    assert {name.rpartition(" ")[2] for _, name, _ in rows} >= {
-        "Shirt",
-        "Pants",
-        "Shoes",
-    }
-    for art, name, _ in rows:
-        label = name.removesuffix(", if it's cold").rpartition(" ")[0]
-        assert COLORS[label][0] in _get_fills(art)
+    assert {kind for _, _, kind in rows} >= {"Shirt", "Pants", "Shoes"}
+    assert all(
+        COLORS[label][0] in _get_fills(art) for art, label, _ in rows
+    )
 
 
 def test_a_striped_shirt_is_drawn_with_stripes_in_its_stripe_color(
@@ -235,8 +344,8 @@ def test_a_striped_shirt_is_drawn_with_stripes_in_its_stripe_color(
     )
     shirt = next(
         art
-        for art, name, _ in _get_drawn_garments(page)
-        if name == "Striped Shirt"
+        for art, label, kind in _get_drawn_garments(page)
+        if (label, kind) == ("Striped", "Shirt")
     )
     color, stripe_color = COLORS["Striped"]
     assert stripe_color is not None
@@ -308,29 +417,6 @@ def test_a_dark_color_is_outlined_lighter_and_any_other_darker(
     )
 
 
-def test_outerwear_worn_only_if_its_cold_is_dimmed(
-    client: FlaskClient,
-) -> None:
-    rows = _get_drawn_garments(_get_text(client, f"/{TOKEN}/"))
-    dimmed = [name for _, name, dim in rows if dim]
-    assert len(dimmed) == 1
-    assert dimmed[0].endswith(", if it's cold")
-
-
-def test_outerwear_on_a_cold_day_is_not_dimmed(
-    state_path: Path,
-) -> None:
-    today = _get_today()
-    client = web.app(
-        state_path,
-        TOKEN,
-        fetch_weather=lambda: {today: DEFAULT_COLD_THRESHOLD - 10},
-    ).test_client()
-    rows = _get_drawn_garments(_get_text(client, f"/{TOKEN}/"))
-    assert len(rows) == 4
-    assert not any(dim for _, _, dim in rows)
-
-
 @pytest.mark.parametrize(
     "url",
     [
@@ -387,12 +473,12 @@ def test_the_widget_json_answers_for_its_date(
     assert reply.json["date"] == saturday.isoformat()
     assert reply.json["day"] == "home"
     outfit = reply.json["outfit"]
-    assert [item["garment"] for item in outfit][:2] == [
+    assert [item["garment"] for item in outfit][:3] == [
         "shirt",
         "pants",
+        "shoes",
     ]
-    assert outfit[-1]["garment"] == "shoes"
-    assert outfit[2]["garment"] in {"sweater", "jacket"}
+    assert outfit[3]["garment"] in {"sweater", "jacket"}
     for item in outfit:
         assert set(item) - {"if_cold"} == {"garment", "label", "art"}
         assert item["label"] in COLORS
@@ -452,8 +538,8 @@ def test_the_widget_json_marks_outerwear_if_cold_when_unknown(
         item["garment"]
         for item in reply.json["outfit"]
         if "if_cold" in item
-    ] == [reply.json["outfit"][2]["garment"]]
-    assert reply.json["outfit"][2]["if_cold"] is True
+    ] == [reply.json["outfit"][3]["garment"]]
+    assert reply.json["outfit"][3]["if_cold"] is True
 
 
 def test_the_widget_json_on_a_cold_day_has_no_if_cold(
@@ -546,16 +632,24 @@ def test_an_unknown_day_type_is_a_bad_request(
     assert reply.status_code == 400
 
 
-def test_the_shirt_list_holds_the_dates_closets_shirts(
-    client: FlaskClient,
+@pytest.mark.parametrize("closet", ["home", "office"])
+def test_the_shirt_sheet_offers_the_dates_closets_shirts(
+    client: FlaskClient, closet: str
 ) -> None:
-    page = _get_text(client, f"/{TOKEN}/day/{_get_next(SAT)}")
-    labels = get_default_state(_get_today()).labels
-    assert all(
-        f">{label}</option>" in page
-        for key, label in labels.items()
-        if key.startswith("home.shirt.")
+    saturday = _get_next(SAT)
+    page = _post_text(
+        client,
+        f"/{TOKEN}/day/{saturday}/day-type",
+        {"day_type": closet},
     )
+    labels = get_default_state(_get_today()).labels
+    shirt = _get_drawn_garments(page)[0][1]
+    assert _get_shirt_choices(page) == [
+        (label, label == shirt)
+        for key, label in labels.items()
+        if key.startswith(f"{closet}.shirt.")
+    ]
+    assert "<select" not in page
 
 
 def test_wearing_a_different_shirt_resets_to_it(
@@ -569,14 +663,14 @@ def test_wearing_a_different_shirt_resets_to_it(
         if key.startswith("home.shirt.")
     ]
     page = _get_text(client, f"/{TOKEN}/day/{saturday}")
-    other = next(
-        shirt for shirt in shirts if f"{shirt} Shirt" not in page
-    )
+    worn_shirt = _get_drawn_garments(page)[0][1]
+    other = next(shirt for shirt in shirts if shirt != worn_shirt)
     page = _post_text(
         client, f"/{TOKEN}/day/{saturday}/shirt", {"shirt": other}
     )
     assert f"Recorded: the Shirt Rotation reset to {other}" in page
-    assert f"{other} Shirt" in page
+    assert _get_drawn_garments(page)[0][1] == other
+    assert (other, True) in _get_shirt_choices(page)
 
 
 def test_a_refusal_reshows_the_page_with_the_message(
@@ -589,7 +683,7 @@ def test_a_refusal_reshows_the_page_with_the_message(
     assert reply.status_code == 422
     page = html.unescape(reply.get_data(as_text=True))
     assert "no home shirt named 'Nope'" in page
-    assert f"{saturday:%a %d %b %Y}" in page
+    assert _get_shown_date(page) == saturday
     assert not state_path.exists()
 
 
@@ -1033,21 +1127,74 @@ def _get_brightness(color: str) -> int:
     return sum(int(color[at : at + 2], 16) for at in (1, 3, 5))
 
 
+def _get_title(page: str) -> str:
+    match = re.search(r"<h1[^>]*>(.*?)</h1>", page, re.DOTALL)
+    assert match is not None
+    return match[1].strip()
+
+
+def _get_shown_date(page: str) -> date:
+    """Read the date the toolbar's date picker opens on."""
+    match = re.search(
+        r'<input type="date" name="on" value="([^"]+)"', page
+    )
+    assert match is not None
+    return date.fromisoformat(match[1])
+
+
+def _get_week_strip(page: str) -> list[tuple[str, ...]]:
+    """Each day in the strip: its link, letter, number and O/H."""
+    match = re.search(
+        r'<nav [^>]*aria-label="Week"[^>]*>(.*?)</nav>', page, re.DOTALL
+    )
+    assert match is not None
+    return [
+        (href, *re.sub(r"<[^>]*>", " ", text).split())
+        for href, text in re.findall(
+            r'<a [^>]*href="([^"]+)"[^>]*>(.*?)</a>',
+            match[1],
+            re.DOTALL,
+        )
+    ]
+
+
+def _get_shirt_choices(page: str) -> list[tuple[str, bool]]:
+    """Each Shirt the sheet offers, and whether it's the one worn."""
+    return [
+        (
+            dict(re.findall(r'([\w-]+)="([^"]*)"', button))["value"],
+            "aria-current" in button,
+        )
+        for button in re.findall(
+            r'<button [^>]*name="shirt"[^>]*>', page
+        )
+    ]
+
+
+def _split_if_cold(
+    page: str,
+) -> tuple[list[tuple[list[dict[str, Any]], str, str]], ...]:
+    """The rows worn whatever the weather, and those if it's cold."""
+    worn, _, if_cold = page.partition("If it's cold")
+    return _get_drawn_garments(worn), _get_drawn_garments(if_cold)
+
+
 def _get_drawn_garments(
     page: str,
-) -> list[tuple[list[dict[str, Any]], str, bool]]:
-    """Each drawn Garment: its art's layers, name, dimming."""
+) -> list[tuple[list[dict[str, Any]], str, str]]:
+    """Each Garment's row: its art's layers, its Label, its kind."""
     return [
         (
             [
                 _parse_layer(path)
                 for path in re.findall(r"<path[^>]*>", svg)
             ],
-            name.strip(),
-            "dim" in attrs,
+            label.strip(),
+            kind.strip(),
         )
-        for attrs, svg, name in re.findall(
-            r"<li([^>]*)>\s*<svg[^>]*>(.*?)</svg>(.*?)</li>",
+        for svg, label, kind in re.findall(
+            r"<li[^>]*>\s*<svg[^>]*>(.*?)</svg>\s*<div>\s*<b>(.*?)</b>"
+            r"\s*<small>(.*?)</small>",
             page,
             re.DOTALL,
         )
