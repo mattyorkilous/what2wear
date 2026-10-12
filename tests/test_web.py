@@ -6,6 +6,7 @@ from datetime import UTC, date, datetime, time, timedelta, tzinfo
 from functools import reduce
 from pathlib import Path
 from typing import Any, Self
+from unittest.mock import Mock
 from urllib.parse import parse_qs, urlsplit
 
 import pytest
@@ -997,26 +998,28 @@ def test_each_shirt_sheet_holds_its_outfit_on_that_date(
 def test_the_forecast_is_fetched_once_in_half_an_hour(
     state_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    fetches = _Fetches(state_path, {PINNED_TODAY: 60.0})
+    fetch_weather = Mock(return_value={PINNED_TODAY: 60.0})
+    client = web.app(state_path, TOKEN, fetch_weather).test_client()
     _pin_clock(monkeypatch, time(12))
-    fetches.get(f"/{TOKEN}/day/{PINNED_TODAY}")
-    fetches.get(f"/{TOKEN}/day/{PINNED_TODAY}.json")
+    _get_text(client, f"/{TOKEN}/day/{PINNED_TODAY}")
+    assert client.get(f"/{TOKEN}/day/{PINNED_TODAY}.json").json
     _pin_clock(monkeypatch, time(12, 29))
-    fetches.get(f"/{TOKEN}/")
-    assert fetches.count == 1
+    _get_text(client, f"/{TOKEN}/")
+    assert fetch_weather.call_count == 1
     _pin_clock(monkeypatch, time(12, 31))
-    fetches.get(f"/{TOKEN}/")
-    assert fetches.count == 2
+    _get_text(client, f"/{TOKEN}/")
+    assert fetch_weather.call_count == 2
 
 
 def test_a_failed_forecast_is_fetched_again_next_time(
     state_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    fetches = _Fetches(state_path, {})
+    fetch_weather = Mock(return_value={})
+    client = web.app(state_path, TOKEN, fetch_weather).test_client()
     _pin_clock(monkeypatch, time(12))
-    fetches.get(f"/{TOKEN}/")
-    fetches.get(f"/{TOKEN}/")
-    assert fetches.count == 2
+    _get_text(client, f"/{TOKEN}/")
+    _get_text(client, f"/{TOKEN}/")
+    assert fetch_weather.call_count == 2
 
 
 def test_the_closet_fetches_no_forecast(state_path: Path) -> None:
@@ -1340,38 +1343,6 @@ def test_the_garment_page_is_gone(client: FlaskClient) -> None:
     assert reply.status_code == 404
 
 
-def _get_pinned_due_date(key: str) -> date:
-    closet, _, place = key.partition(".shirt.")
-    due = get_due_date(
-        get_default_state(PINNED_TODAY),
-        DayType(closet),
-        CLOSETS[DayType(closet)].shirts[int(place)].garment,
-        PINNED_TODAY,
-    )
-    assert due is not None
-    return due
-
-
-class _Fetches:
-    """A client whose forecast counts how often it's fetched."""
-
-    def __init__(
-        self, state_path: Path, forecast: dict[date, float]
-    ) -> None:
-        self.count = 0
-        self.forecast = forecast
-        self.client = web.app(
-            state_path, TOKEN, fetch_weather=self.fetch
-        ).test_client()
-
-    def fetch(self) -> dict[date, float]:
-        self.count += 1
-        return self.forecast
-
-    def get(self, url: str) -> None:
-        assert self.client.get(url).status_code == 200
-
-
 def _pin_clock(monkeypatch: pytest.MonkeyPatch, at: time) -> None:
     """Pin the clock to `at` on `PINNED_TODAY` in New York."""
 
@@ -1383,6 +1354,18 @@ def _pin_clock(monkeypatch: pytest.MonkeyPatch, at: time) -> None:
             )
 
     monkeypatch.setattr(web, "datetime", Pinned)
+
+
+def _get_pinned_due_date(key: str) -> date:
+    closet, _, place = key.partition(".shirt.")
+    due = get_due_date(
+        get_default_state(PINNED_TODAY),
+        DayType(closet),
+        CLOSETS[DayType(closet)].shirts[int(place)].garment,
+        PINNED_TODAY,
+    )
+    assert due is not None
+    return due
 
 
 def _get_threshold_input(client: FlaskClient) -> str:

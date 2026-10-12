@@ -89,7 +89,7 @@ def app(
         The app, for a WSGI server to serve.
     """
     web = Flask(__name__)
-    fetch_kept_weather = _keep_forecast(fetch_weather)
+    fetch_kept_weather = _get_kept_fetch(fetch_weather)
 
     @web.url_value_preprocessor
     def check_token(
@@ -347,13 +347,15 @@ def app(
     return web
 
 
-def _keep_forecast(
+def _get_kept_fetch(
     fetch_weather: Callable[[], Mapping[date, float]],
 ) -> Callable[[], Mapping[date, float]]:
-    """Keep a fetched forecast for the half hour it was fetched in.
+    """Get a fetch that keeps its forecast for the half hour it's in.
 
-    Each page would otherwise wait on fetching it. A failed fetch, no
-    forecast, isn't kept, so the next page tries again.
+    Each page would otherwise wait on fetching it. The half hour of the
+    clock is the cache's key, and the fetch ignores it, so a new half
+    hour fetches afresh. A failed fetch, which answers no forecast,
+    isn't kept, so the next page tries again.
     """
     fetch_once = lru_cache(maxsize=1)(
         lambda _half_hour: fetch_weather()
