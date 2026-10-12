@@ -57,15 +57,7 @@ def pinned_client(
     client: FlaskClient, monkeypatch: pytest.MonkeyPatch
 ) -> FlaskClient:
     """The client, with today pinned to `PINNED_TODAY` in New York."""
-
-    class Pinned(datetime):
-        @classmethod
-        def now(cls, tz: tzinfo | None = None) -> Self:
-            return cls.combine(
-                PINNED_TODAY, time(12), TIMEZONE
-            ).astimezone(tz)
-
-    monkeypatch.setattr(web, "datetime", Pinned)
+    _pin_clock(monkeypatch, time(12))
     return client
 
 
@@ -1002,6 +994,31 @@ def test_each_shirt_sheet_holds_its_outfit_on_that_date(
     )
 
 
+def test_the_forecast_is_fetched_once_in_half_an_hour(
+    state_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    fetches = _Fetches(state_path, {PINNED_TODAY: 60.0})
+    _pin_clock(monkeypatch, time(12))
+    fetches.get(f"/{TOKEN}/day/{PINNED_TODAY}")
+    fetches.get(f"/{TOKEN}/day/{PINNED_TODAY}.json")
+    _pin_clock(monkeypatch, time(12, 29))
+    fetches.get(f"/{TOKEN}/")
+    assert fetches.count == 1
+    _pin_clock(monkeypatch, time(12, 31))
+    fetches.get(f"/{TOKEN}/")
+    assert fetches.count == 2
+
+
+def test_a_failed_forecast_is_fetched_again_next_time(
+    state_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    fetches = _Fetches(state_path, {})
+    _pin_clock(monkeypatch, time(12))
+    fetches.get(f"/{TOKEN}/")
+    fetches.get(f"/{TOKEN}/")
+    assert fetches.count == 2
+
+
 def test_the_closet_fetches_no_forecast(state_path: Path) -> None:
     # Each sheet's Outerwear is under "If it's cold" whatever the
     # weather, so the Closet never waits on the forecast.
@@ -1333,6 +1350,39 @@ def _get_pinned_due_date(key: str) -> date:
     )
     assert due is not None
     return due
+
+
+class _Fetches:
+    """A client whose forecast counts how often it's fetched."""
+
+    def __init__(
+        self, state_path: Path, forecast: dict[date, float]
+    ) -> None:
+        self.count = 0
+        self.forecast = forecast
+        self.client = web.app(
+            state_path, TOKEN, fetch_weather=self.fetch
+        ).test_client()
+
+    def fetch(self) -> dict[date, float]:
+        self.count += 1
+        return self.forecast
+
+    def get(self, url: str) -> None:
+        assert self.client.get(url).status_code == 200
+
+
+def _pin_clock(monkeypatch: pytest.MonkeyPatch, at: time) -> None:
+    """Pin the clock to `at` on `PINNED_TODAY` in New York."""
+
+    class Pinned(datetime):
+        @classmethod
+        def now(cls, tz: tzinfo | None = None) -> Self:
+            return cls.combine(PINNED_TODAY, at, TIMEZONE).astimezone(
+                tz
+            )
+
+    monkeypatch.setattr(web, "datetime", Pinned)
 
 
 def _get_threshold_input(client: FlaskClient) -> str:

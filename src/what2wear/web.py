@@ -5,7 +5,7 @@ import math
 import re
 from collections.abc import Callable, Mapping
 from datetime import date, datetime, timedelta
-from functools import partial
+from functools import lru_cache, partial
 from pathlib import Path
 from types import MappingProxyType
 from typing import Any
@@ -65,6 +65,8 @@ OTHER_KINDS = MappingProxyType(
 )
 # A Shirt due within this many days is due on a weekday by name.
 WEEKDAY_DUE_DAYS = 6
+# How long a fetched forecast is kept before it's fetched again.
+FORECAST_SECONDS = 30 * 60
 
 
 def app(
@@ -87,6 +89,7 @@ def app(
         The app, for a WSGI server to serve.
     """
     web = Flask(__name__)
+    fetch_kept_weather = _keep_forecast(fetch_weather)
 
     @web.url_value_preprocessor
     def check_token(
@@ -131,7 +134,9 @@ def app(
         on = _parse_date(iso_date)
         try:
             state = read_state(state_path, _get_today())
-            widget_day = _get_widget_day(state, on, fetch_weather())
+            widget_day = _get_widget_day(
+                state, on, fetch_kept_weather()
+            )
         except What2wearError as error:
             return jsonify(error=str(error)), 500
         return jsonify(widget_day)
@@ -248,7 +253,7 @@ def app(
             state,
             on,
             today,
-            fetch_weather(),
+            fetch_kept_weather(),
             notice,
         )
 
@@ -340,6 +345,30 @@ def app(
         )
 
     return web
+
+
+def _keep_forecast(
+    fetch_weather: Callable[[], Mapping[date, float]],
+) -> Callable[[], Mapping[date, float]]:
+    """Keep a fetched forecast for the half hour it was fetched in.
+
+    Each page would otherwise wait on fetching it. A failed fetch, no
+    forecast, isn't kept, so the next page tries again.
+    """
+    fetch_once = lru_cache(maxsize=1)(
+        lambda _half_hour: fetch_weather()
+    )
+
+    def fetch_kept_weather() -> Mapping[date, float]:
+        half_hour = int(
+            datetime.now(TIMEZONE).timestamp() // FORECAST_SECONDS
+        )
+        forecast = fetch_once(half_hour)
+        if not forecast:
+            fetch_once.cache_clear()
+        return forecast
+
+    return fetch_kept_weather
 
 
 def _get_today() -> date:
