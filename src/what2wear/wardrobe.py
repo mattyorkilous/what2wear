@@ -26,6 +26,8 @@ WEEKDAYS = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
 MON, WED, FRI = 0, 2, 4
 DEFAULT_OFFICE_WEEKDAYS = frozenset({MON, WED, FRI})
 DEFAULT_COLD_THRESHOLD = 50  # degrees Fahrenheit
+# The whole degrees a Cold Threshold may be told in.
+COLD_THRESHOLDS = range(101)
 LATITUDE, LONGITUDE = 38.9, -77.04  # Washington, DC.
 TIMEZONE = ZoneInfo("America/New_York")
 HOME_OUTERWEAR = ("jacket", "sweater")

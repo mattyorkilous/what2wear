@@ -1,7 +1,8 @@
 import dataclasses
 import html
+import json
 import re
-from datetime import UTC, date, datetime, timedelta, tzinfo
+from datetime import UTC, date, datetime, time, timedelta, tzinfo
 from functools import reduce
 from pathlib import Path
 from typing import Any, Self
@@ -12,18 +13,32 @@ from flask.testing import FlaskClient
 from werkzeug.test import TestResponse
 
 from what2wear import web
-from what2wear.core import get_day_type, get_due_date, record_override
+from what2wear.core import (
+    answer,
+    get_day_type,
+    get_due_date,
+    record_override,
+)
 from what2wear.model import DayType
 from what2wear.store import read_state, write_state
 from what2wear.wardrobe import (
+    CLOSETS,
     COLORS,
     DEFAULT_COLD_THRESHOLD,
     TIMEZONE,
+    build_default_colors,
+    build_default_labels,
     get_default_state,
 )
 
 TOKEN = "s3cret"  # noqa: S105
 SAT = 5
+PINNED_TODAY = date(2026, 10, 13)
+# Every Shirt, as the Closet page lists them: Home, then Office.
+SHIRT_KEYS = [
+    *(f"home.shirt.{place}" for place in range(9)),
+    *(f"office.shirt.{place}" for place in range(5)),
+]
 
 
 @pytest.fixture
@@ -35,6 +50,23 @@ def state_path(tmp_path: Path) -> Path:
 def client(state_path: Path) -> FlaskClient:
     # No forecast, so no test here touches the network.
     return web.app(state_path, TOKEN, fetch_weather=dict).test_client()
+
+
+@pytest.fixture
+def pinned_client(
+    client: FlaskClient, monkeypatch: pytest.MonkeyPatch
+) -> FlaskClient:
+    """The client, with today pinned to `PINNED_TODAY` in New York."""
+
+    class Pinned(datetime):
+        @classmethod
+        def now(cls, tz: tzinfo | None = None) -> Self:
+            return cls.combine(
+                PINNED_TODAY, time(12), TIMEZONE
+            ).astimezone(tz)
+
+    monkeypatch.setattr(web, "datetime", Pinned)
+    return client
 
 
 def test_the_bare_url_is_todays_day_page(client: FlaskClient) -> None:
@@ -743,12 +775,32 @@ def test_switching_outerwear_offers_the_other_kind(
     )
 
 
-def test_settings_tick_the_current_office_weekdays(
+def test_settings_check_the_chips_of_the_office_weekdays(
     client: FlaskClient,
 ) -> None:
     page = _get_text(client, f"/{TOKEN}/settings")
-    assert page.count('type="checkbox"') == 7
-    assert page.count("checked") == 3
+    chips = re.findall(
+        r'<input type="checkbox" name="weekday"[^>]*>', page
+    )
+    assert len(chips) == 7
+    assert [
+        _get_fields(chip)["value"]
+        for chip in chips
+        if "checked" in chip
+    ] == ["0", "2", "4"]
+    assert "Changing these keeps every Rotation where it is." in page
+
+
+def test_settings_hold_only_the_two_cards(client: FlaskClient) -> None:
+    page = _get_text(client, f"/{TOKEN}/settings")
+    assert re.findall(r"<h2>(.*?)</h2>", page) == [
+        "Office Weekdays",
+        "Cold Threshold",
+    ]
+    assert re.findall(r'<form [^>]*action="([^"]+)"', page) == [
+        f"/{TOKEN}/settings/office-weekdays",
+        f"/{TOKEN}/settings/cold-threshold",
+    ]
 
 
 def test_setting_office_weekdays_records_them(
@@ -791,36 +843,35 @@ def test_other_than_three_weekdays_is_refused(
     assert not state_path.exists()
 
 
-def test_settings_prefill_the_cold_threshold(
+def test_settings_show_the_cold_threshold_on_a_stepper(
     client: FlaskClient,
 ) -> None:
-    page = _get_text(client, f"/{TOKEN}/settings")
-    assert 'type="number" step="any"' in page
-    assert f'value="{DEFAULT_COLD_THRESHOLD:g}"' in page
+    fields = _get_fields(_get_threshold_input(client))
+    assert fields["value"] == f"{DEFAULT_COLD_THRESHOLD}"
+    assert (fields["min"], fields["max"], fields["step"]) == (
+        "0",
+        "100",
+        "1",
+    )
+
+
+def test_a_stored_decimal_threshold_shows_rounded(
+    client: FlaskClient, state_path: Path
+) -> None:
+    _store_threshold(state_path, 52.5)
+    assert _get_fields(_get_threshold_input(client))["value"] == "53"
+    assert read_state(state_path, _get_today()).cold_threshold == 52.5
 
 
 def test_setting_the_cold_threshold_records_it(
-    client: FlaskClient,
+    client: FlaskClient, state_path: Path
 ) -> None:
     page = _post_text(
-        client,
-        f"/{TOKEN}/settings/cold-threshold",
-        {"threshold": "42.5"},
+        client, f"/{TOKEN}/settings/cold-threshold", {"threshold": "42"}
     )
-    assert "Recorded: a Cold Threshold of 42.5°F" in page
-    assert 'value="42.5"' in page
-
-
-def test_the_cold_threshold_is_prefilled_exactly(
-    client: FlaskClient,
-) -> None:
-    page = _post_text(
-        client,
-        f"/{TOKEN}/settings/cold-threshold",
-        {"threshold": "50.123456"},
-    )
-    assert "Recorded: a Cold Threshold of 50.123456°F" in page
-    assert 'value="50.123456"' in page
+    assert "Recorded: a Cold Threshold of 42°F" in page
+    assert 'name="threshold" value="42"' in page
+    assert read_state(state_path, _get_today()).cold_threshold == 42
 
 
 def test_restating_the_cold_threshold_is_already_the_case(
@@ -838,14 +889,20 @@ def test_restating_the_cold_threshold_is_already_the_case(
     assert not state_path.exists()
 
 
-def test_a_threshold_that_is_no_temperature_is_refused(
-    client: FlaskClient,
+@pytest.mark.parametrize("threshold", ["101", "52.5", "-1", "nan"])
+def test_a_threshold_outside_whole_degrees_0_to_100_is_refused(
+    client: FlaskClient, state_path: Path, threshold: str
 ) -> None:
+    _store_threshold(state_path, 52.5)
     reply = client.post(
-        f"/{TOKEN}/settings/cold-threshold", data={"threshold": "nan"}
+        f"/{TOKEN}/settings/cold-threshold",
+        data={"threshold": threshold},
     )
     assert reply.status_code == 422
-    assert "is not a temperature" in reply.get_data(as_text=True)
+    assert "a whole degree from 0 to 100" in reply.get_data(
+        as_text=True
+    )
+    assert read_state(state_path, _get_today()).cold_threshold == 52.5
 
 
 @pytest.mark.parametrize(
@@ -863,45 +920,132 @@ def test_a_setting_that_is_no_number_is_a_bad_request(
     assert reply.status_code == 400
 
 
-def test_the_closet_page_groups_each_closet_by_pants(
-    client: FlaskClient,
+def test_the_closet_shows_home_shirts_then_office_shirts(
+    pinned_client: FlaskClient,
 ) -> None:
-    page = _get_text(client, f"/{TOKEN}/closet")
-    assert "Office Closet" in page
-    assert "Home Closet" in page
-    # The office closet's Blue Pants hang White and Striped, and
-    # nothing hangs between them but those.
-    office = _get_office_closet(page)
-    blue = office[
-        office.index("Blue Pants") : office.index("Tan Pants")
+    page = _get_text(pinned_client, f"/{TOKEN}/closet")
+    assert [key for key, _, _ in _get_shirt_tiles(page)] == SHIRT_KEYS
+    assert _get_grid_names(page) == [
+        "Home Shirts",
+        "Office Shirts",
+        "Pants",
+        "Home sweaters",
+        "Home jackets",
+        "Home shoes",
+        "Office sweaters",
+        "Office shoes",
     ]
-    assert "White Shirt" in blue
-    assert "Striped Shirt" in blue
-    assert "Black Shirt" not in blue
 
 
-def test_each_shirt_links_to_the_day_it_is_next_due(
-    client: FlaskClient,
+def test_each_shirt_says_when_it_is_next_due(
+    pinned_client: FlaskClient,
 ) -> None:
-    today = _get_today()
-    due = get_due_date(
-        get_default_state(today), DayType.OFFICE, "Striped", today
+    # Pinned to Tuesday 13 October 2026, a Home Day: Monday the 19th
+    # is six days on, and Tuesday the 20th seven.
+    page = _get_text(pinned_client, f"/{TOKEN}/closet")
+    due_texts = {
+        key: (label, due_text)
+        for key, label, due_text in _get_shirt_tiles(page)
+    }
+    assert [due_texts[f"home.shirt.{place}"] for place in range(5)] == [
+        ("White", "Today"),
+        ("Brown", "Thursday"),
+        ("Dark Green", "Saturday"),
+        ("Black", "Sunday"),
+        ("Purple", "Tue 20 Oct"),
+    ]
+    assert [
+        due_texts[f"office.shirt.{place}"] for place in range(4)
+    ] == [
+        ("White", "Tomorrow"),
+        ("Black", "Friday"),
+        ("Light Blue", "Monday"),
+        ("Striped", "Wed 21 Oct"),
+    ]
+
+
+@pytest.mark.parametrize("key", SHIRT_KEYS)
+def test_each_shirt_sheet_links_to_the_day_it_is_next_due(
+    pinned_client: FlaskClient, key: str
+) -> None:
+    page = _get_text(pinned_client, f"/{TOKEN}/closet")
+    due = _get_pinned_due_date(key)
+    due_text = next(
+        due_text
+        for tile_key, _, due_text in _get_shirt_tiles(page)
+        if tile_key == key
     )
-    page = _get_text(client, f"/{TOKEN}/closet")
-    assert f'href="/{TOKEN}/day/{due}">{due:%a %d %b}</a>' in page
+    assert (
+        f'href="/{TOKEN}/day/{due}">Next due {due_text} ›</a>'  # noqa: RUF001
+        in _get_sheet(page, f"shirt-{key}")
+    )
+
+
+@pytest.mark.parametrize("key", SHIRT_KEYS)
+def test_each_shirt_sheet_holds_its_outfit_on_that_date(
+    pinned_client: FlaskClient, key: str
+) -> None:
+    page = _get_text(pinned_client, f"/{TOKEN}/closet")
+    outfit = answer(
+        get_default_state(PINNED_TODAY), _get_pinned_due_date(key), {}
+    ).outfit
+    worn, if_cold = _split_if_cold(_get_sheet(page, f"shirt-{key}"))
+    assert [(label, kind) for _, label, kind in worn] == [
+        (outfit.pants.label, "Pants"),
+        (outfit.shoes.label, "Shoes"),
+    ]
+    outerwear = outfit.sweater or outfit.jacket
+    assert outerwear is not None
+    assert [label for _, label, _ in if_cold] == [outerwear.label]
+    assert all(
+        kind.endswith(" · no forecast yet") for _, _, kind in if_cold
+    )
+
+
+def test_a_shirt_not_due_this_year_says_so_and_wears_nothing(
+    state_path: Path, pinned_client: FlaskClient
+) -> None:
+    year = (PINNED_TODAY + timedelta(days=days) for days in range(366))
+    write_state(
+        state_path,
+        dataclasses.replace(
+            get_default_state(PINNED_TODAY),
+            overrides=dict.fromkeys(year, DayType.HOME),
+        ),
+    )
+    page = _get_text(pinned_client, f"/{TOKEN}/closet")
+    assert {
+        due_text
+        for key, _, due_text in _get_shirt_tiles(page)
+        if key.startswith("office.")
+    } == {"Not due this year"}
+    sheet = _get_sheet(page, "shirt-office.shirt.0")
+    assert "Next due" not in sheet
+    assert "Worn with" not in sheet
 
 
 def test_swap_offers_only_shirts_sharing_pants(
     client: FlaskClient,
 ) -> None:
-    page = _get_text(client, f"/{TOKEN}/closet")
-    office = _get_office_closet(page)
-    white = office[
-        office.index("White Shirt") : office.index("Striped Shirt")
+    sheet = _get_sheet(
+        _get_text(client, f"/{TOKEN}/closet"), "shirt-office.shirt.0"
+    )
+    assert f'action="/{TOKEN}/closet/office/swap"' in sheet
+    assert 'name="first" value="White"' in sheet
+    assert re.findall(r'name="second" value="([^"]+)"', sheet) == [
+        "Striped"
     ]
-    assert ">Striped</option>" in white
-    assert ">Dark Blue</option>" not in white
-    assert ">White</option>" not in white
+
+
+def test_a_shirt_sharing_no_pants_says_it_cannot_swap(
+    client: FlaskClient,
+) -> None:
+    # The Office Light Blue is the only Shirt on the Black Pants.
+    sheet = _get_sheet(
+        _get_text(client, f"/{TOKEN}/closet"), "shirt-office.shirt.2"
+    )
+    assert "No other Shirt shares its Pants, so it can't Swap." in sheet
+    assert 'name="second"' not in sheet
 
 
 def test_a_swap_carries_colors_with_labels(
@@ -943,7 +1087,7 @@ def test_a_refused_swap_reshows_the_closet_with_the_message(
     assert reply.status_code == 422
     page = html.unescape(reply.get_data(as_text=True))
     assert "do not share pants" in page
-    assert "Office Closet" in page
+    assert "Office Shirts" in page
     assert not state_path.exists()
 
 
@@ -955,32 +1099,85 @@ def test_an_unknown_closet_is_not_found(client: FlaskClient) -> None:
     assert reply.status_code == 404
 
 
-def test_each_garment_opens_a_prefilled_replace_form(
+@pytest.mark.parametrize("key", build_default_labels())
+def test_every_garment_has_a_prefilled_replace_form(
+    client: FlaskClient, key: str
+) -> None:
+    page = _get_text(client, f"/{TOKEN}/closet")
+    assert page.count(f'id="replace-{key}"') == 1
+    form = _get_replace_form(page, key)
+    color, stripe_color = build_default_colors()[key]
+    assert form["action"] == f"/{TOKEN}/closet/{key}"
+    assert form["label"] == build_default_labels()[key]
+    assert form["color"] == color
+    assert form["striped"] == (stripe_color is not None)
+    assert form["stripe_color"] == (stripe_color or color)
+    assert form["button"] == f"Replace the {key.split('.')[-2].title()}"
+
+
+def test_each_garment_tile_opens_its_replace_sheet(
     client: FlaskClient,
 ) -> None:
-    page = _open_replace_form(client, "White Shirt")
-    assert 'name="label" value="White"' in page
-    assert 'type="color" name="color" value="#f4f4f1"' in page
-    assert 'type="checkbox" name="striped" checked' not in page
-
-
-def test_a_striped_garments_form_ticks_striped(
-    client: FlaskClient,
-) -> None:
-    page = _open_replace_form(client, "Striped Shirt")
-    assert 'type="checkbox" name="striped" checked' in page
-    assert 'name="stripe_color" value="#3c67b4"' in page
-
-
-def test_pants_and_the_rest_of_a_row_open_replace_forms_too(
-    client: FlaskClient,
-) -> None:
-    assert 'name="label" value="Blue"' in _open_replace_form(
-        client, "Blue Pants"
+    page = _get_text(client, f"/{TOKEN}/closet")
+    tiles = page[: page.index('class="sheet"')]
+    assert re.findall(r'popovertarget="replace-([^"]+)"', tiles) == [
+        "pants.0",
+        "pants.1",
+        "pants.2",
+        "home.sweater.0",
+        "home.sweater.1",
+        "home.sweater.2",
+        "home.jacket.0",
+        "home.jacket.1",
+        "home.shoes.0",
+        "home.shoes.1",
+        "office.sweater.0",
+        "office.sweater.1",
+        "office.sweater.2",
+        "office.shoes.0",
+        "office.shoes.1",
+        "office.shoes.2",
+    ]
+    assert 'popovertarget="replace-office.shirt.3"' in _get_sheet(
+        page, "shirt-office.shirt.3"
     )
-    assert 'name="label" value="Beige"' in _open_replace_form(
-        client, "Beige Sweater"
+
+
+def test_the_replace_art_redraws_from_the_same_layers(
+    client: FlaskClient,
+) -> None:
+    page = _get_text(client, f"/{TOKEN}/closet")
+    match = re.search(
+        r'<script type="application/json" id="art-templates">(.*?)'
+        r"</script>",
+        page,
+        re.DOTALL,
     )
+    assert match is not None
+    templates = json.loads(match[1])
+    sheet = _get_sheet(page, "replace-office.shirt.3")
+    art = [
+        _parse_layer(path)
+        for path in re.findall(
+            r"<path[^>]*>", sheet[: sheet.index("</svg>")]
+        )
+    ]
+    template = templates[
+        _get_fields(sheet[sheet.index("<form") :])["data-art"]
+    ]
+    assert [layer["d"] for layer in template] == [
+        layer["d"] for layer in art
+    ]
+    assert {
+        layer.get("fill", layer.get("stroke")) for layer in template
+    } == {
+        "#000000",
+        "color",
+        "stripe",
+        "tone",
+        "button",
+    }
+    assert COLORS["Striped"][1] in _get_fills(art)
 
 
 def test_a_replace_records_the_label_and_colors(
@@ -988,7 +1185,7 @@ def test_a_replace_records_the_label_and_colors(
 ) -> None:
     reply = _post_replace(
         client,
-        "White Shirt",
+        "office.shirt.0",
         {
             "label": "Pinstripe",
             "color": "#ffffff",
@@ -1004,7 +1201,9 @@ def test_a_replace_records_the_label_and_colors(
         "Recorded: the Office White Shirt replaced with Pinstripe"
         in page
     )
-    assert "Pinstripe Shirt" in page
+    assert _get_replace_form(page, "office.shirt.0")["label"] == (
+        "Pinstripe"
+    )
     state = read_state(state_path, _get_today())
     assert state.colors["office.shirt.0"] == ("#ffffff", "#000080")
 
@@ -1014,7 +1213,7 @@ def test_an_unticked_striped_ignores_the_stripe_color(
 ) -> None:
     _post_replace(
         client,
-        "Striped Shirt",
+        "office.shirt.3",
         {
             "label": "Plain",
             "color": "#ffffff",
@@ -1029,7 +1228,7 @@ def test_restating_a_garment_is_already_the_case(
     client: FlaskClient, state_path: Path
 ) -> None:
     reply = _post_replace(
-        client, "Blue Pants", {"label": "Blue", "color": "#3c67b4"}
+        client, "pants.0", {"label": "Blue", "color": "#3c67b4"}
     )
     page = _get_text(client, reply.headers["Location"])
     assert "Already: the Blue Pants replaced with Blue" in page
@@ -1043,16 +1242,44 @@ def test_restating_a_garment_is_already_the_case(
         ("Black", "already has a 'Black'"),
     ],
 )
-def test_a_refused_replace_reshows_the_form_with_the_message(
+def test_a_refused_replace_reopens_its_sheet_as_posted(
     client: FlaskClient, state_path: Path, label: str, message: str
 ) -> None:
     reply = _post_replace(
-        client, "White Shirt", {"label": label, "color": "#ffffff"}
+        client,
+        "office.shirt.0",
+        {
+            "label": label,
+            "color": "#123456",
+            "striped": "on",
+            "stripe_color": "#abcdef",
+        },
     )
     assert reply.status_code == 422
     page = html.unescape(reply.get_data(as_text=True))
     assert message in page
-    assert f'name="label" value="{label}"' in page
+    assert "Office Shirts" in page
+    form = _get_replace_form(page, "office.shirt.0")
+    assert (
+        form["label"],
+        form["color"],
+        form["striped"],
+        form["stripe_color"],
+    ) == (label, "#123456", True, "#abcdef")
+    assert re.findall(r'<div id="([^"]+)" [^>]*data-open', page) == [
+        "replace-office.shirt.0"
+    ]
+    preview = _get_sheet(page, "replace-office.shirt.0")
+    assert {"#123456", "#abcdef"} <= set(
+        _get_fills(
+            [
+                _parse_layer(path)
+                for path in re.findall(
+                    r"<path[^>]*>", preview[: preview.index("</svg>")]
+                )
+            ]
+        )
+    )
     assert not state_path.exists()
 
 
@@ -1060,41 +1287,127 @@ def test_a_color_that_is_no_color_is_a_bad_request(
     client: FlaskClient,
 ) -> None:
     reply = _post_replace(
-        client, "White Shirt", {"label": "White", "color": "red"}
+        client, "office.shirt.0", {"label": "White", "color": "red"}
     )
     assert reply.status_code == 400
 
 
-def test_an_unknown_garment_has_no_replace_form(
+def test_an_unknown_garment_cannot_be_replaced(
     client: FlaskClient,
 ) -> None:
     for url in (
         f"/{TOKEN}/closet/office.shirt.99",
         f"/{TOKEN}/closet/nothing",
     ):
-        assert client.get(url).status_code == 404
+        reply = client.post(
+            url, data={"label": "X", "color": "#ffffff"}
+        )
+        assert reply.status_code == 404
 
 
-def _open_replace_form(client: FlaskClient, name: str) -> str:
-    return _get_text(client, _get_replace_url(client, name))
+def test_the_garment_page_is_gone(client: FlaskClient) -> None:
+    reply = client.get(f"/{TOKEN}/closet/office.shirt.0")
+    assert reply.status_code == 404
+
+
+def _get_pinned_due_date(key: str) -> date:
+    closet, _, place = key.partition(".shirt.")
+    due = get_due_date(
+        get_default_state(PINNED_TODAY),
+        DayType(closet),
+        CLOSETS[DayType(closet)].shirts[int(place)].garment,
+        PINNED_TODAY,
+    )
+    assert due is not None
+    return due
+
+
+def _get_threshold_input(client: FlaskClient) -> str:
+    match = re.search(
+        r'<input type="number" name="threshold"[^>]*>',
+        _get_text(client, f"/{TOKEN}/settings"),
+    )
+    assert match is not None
+    return match[0]
+
+
+def _store_threshold(state_path: Path, threshold: float) -> None:
+    write_state(
+        state_path,
+        dataclasses.replace(
+            get_default_state(_get_today()), cold_threshold=threshold
+        ),
+    )
+
+
+def _get_shirt_tiles(page: str) -> list[tuple[str, str, str]]:
+    """Each Shirt's tile in order: its key, its Label, its due text."""
+    return re.findall(
+        r'popovertarget="shirt-([^"]+)">\s*<svg.*?</svg>\s*<b>(.*?)</b>'
+        r"\s*<small[^>]*>(.*?)</small>",
+        page,
+        re.DOTALL,
+    )
+
+
+def _get_grid_names(page: str) -> list[str]:
+    return re.findall(
+        r"<h2>(.*?)</h2>", page[: page.index('class="sheet"')]
+    )
+
+
+def _get_sheet(page: str, sheet_id: str) -> str:
+    """The sheet `sheet_id`, up to the next sheet or the script."""
+    match = re.search(
+        rf'<div id="{re.escape(sheet_id)}"[^>]*>(.*?)'
+        r'(?=<div id="|<script)',
+        page,
+        re.DOTALL,
+    )
+    assert match is not None
+    return match[0]
+
+
+def _get_replace_form(page: str, key: str) -> dict[str, Any]:
+    """What a Garment's Replace sheet posts, and its button's text."""
+    sheet = _get_sheet(page, f"replace-{key}")
+    inputs = {
+        fields["name"]: fields
+        for fields in map(
+            _get_fields, re.findall(r"<input[^>]*>", sheet)
+        )
+    }
+    button = re.search(r"<button>(.*?)</button>", sheet)
+    assert button is not None
+    return {
+        "action": _get_fields(sheet[sheet.index("<form") :])["action"],
+        "label": inputs["label"]["value"],
+        "color": inputs["color"]["value"],
+        "striped": "checked" in inputs["striped"],
+        "stripe_color": inputs["stripe_color"]["value"],
+        "button": button[1],
+    }
+
+
+def _get_fields(tag: str) -> dict[str, str]:
+    """The attributes of the first tag in `tag`, a bare one as ''."""
+    match = re.match(r"\s*<[^>]*>", tag)
+    assert match is not None
+    return {
+        name: value
+        for name, _, value in re.findall(
+            r'([\w-]+)(="([^"]*)")?', match[0][1:-1]
+        )
+    }
 
 
 def _post_replace(
-    client: FlaskClient, name: str, data: dict[str, str]
+    client: FlaskClient, key: str, data: dict[str, str]
 ) -> TestResponse:
-    return client.post(_get_replace_url(client, name), data=data)
-
-
-def _get_replace_url(client: FlaskClient, name: str) -> str:
-    """Follow the Office Closet's link on the Garment called `name`."""
-    office = _get_office_closet(_get_text(client, f"/{TOKEN}/closet"))
-    match = re.search(f'<a href="([^"]+)">{name}</a>', office)
-    assert match is not None
-    return match[1]
-
-
-def _get_office_closet(page: str) -> str:
-    return page[page.index("Office Closet") : page.index("Home Closet")]
+    page = _get_text(client, f"/{TOKEN}/closet")
+    return client.post(
+        _get_replace_form(page, key)["action"], data=data
+    )
 
 
 def _post_text(

@@ -1,6 +1,5 @@
 """Recording what the wearer tells the tool, and answering from it."""
 
-import math
 from collections.abc import Collection, Mapping
 from dataclasses import replace
 from datetime import date, timedelta
@@ -24,6 +23,7 @@ from what2wear.model import (
 )
 from what2wear.wardrobe import (
     CLOSETS,
+    COLD_THRESHOLDS,
     COLORS,
     DEFAULT_OFFICE_WEEKDAYS,
     HOME_OUTERWEAR,
@@ -257,10 +257,15 @@ def set_cold_threshold(state: State, threshold: float) -> State:
         The state with the threshold replaced.
 
     Raises:
-        What2wearError: If `threshold` is not a finite number.
+        What2wearError: If `threshold` is not a whole degree from 0
+            to 100.
     """
-    if not math.isfinite(threshold):
-        message = f"{threshold} is not a temperature"
+    if threshold not in COLD_THRESHOLDS:
+        message = (
+            f"a Cold Threshold is a whole degree from "
+            f"{COLD_THRESHOLDS[0]} to {COLD_THRESHOLDS[-1]}, "
+            f"so {threshold:g} will not do"
+        )
         raise What2wearError(message)
     return replace(state, cold_threshold=threshold)
 

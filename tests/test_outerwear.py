@@ -236,11 +236,22 @@ class TestTheColdThreshold:
             )
         ] == [(None, "Brown"), (None, None), (None, "Black")]
 
-    @pytest.mark.parametrize("threshold", [float("nan"), float("inf")])
-    def test_a_threshold_that_is_no_temperature_is_refused(
+    @pytest.mark.parametrize("threshold", [0, 100])
+    def test_the_limits_are_accepted(self, threshold: float) -> None:
+        assert (
+            set_cold_threshold(
+                get_default_state(TODAY), threshold
+            ).cold_threshold
+            == threshold
+        )
+
+    @pytest.mark.parametrize(
+        "threshold", [-1, 101, 52.5, float("nan"), float("inf")]
+    )
+    def test_a_threshold_outside_whole_degrees_0_to_100_is_refused(
         self, threshold: float
     ) -> None:
-        with pytest.raises(What2wearError):
+        with pytest.raises(What2wearError, match="whole degree"):
             set_cold_threshold(get_default_state(TODAY), threshold)
 
 

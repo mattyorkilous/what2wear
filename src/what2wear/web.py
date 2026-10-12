@@ -1,6 +1,7 @@
 """The web shell: the pages the wearer opens on the phone."""
 
 import hmac
+import math
 import re
 from collections.abc import Callable, Mapping
 from datetime import date, datetime, timedelta
@@ -34,7 +35,7 @@ from what2wear.core import (
 )
 from what2wear.errors import What2wearError
 from what2wear.forecast import fetch_forecast
-from what2wear.icons import get_art
+from what2wear.icons import Layer, get_art, get_art_template
 from what2wear.model import (
     DayType,
     Garment,
@@ -45,7 +46,7 @@ from what2wear.model import (
 from what2wear.store import read_state, write_state
 from what2wear.wardrobe import (
     CLOSETS,
-    KEYS,
+    COLD_THRESHOLDS,
     TIMEZONE,
     WEEKDAYS,
     get_garments,
@@ -56,6 +57,14 @@ from what2wear.wardrobe import (
 SWIPE_DAYS = MappingProxyType(
     {"prev_week": -7, "prev_day": -1, "next_day": 1, "next_week": 7}
 )
+# The Closet page shows the Home Closet first, then the Office.
+CLOSET_ORDER = (DayType.HOME, DayType.OFFICE)
+# The rest of a Closet's Wardrobe, each kind in its own named grid.
+OTHER_KINDS = MappingProxyType(
+    {"sweater": "sweaters", "jacket": "jackets", "shoes": "shoes"}
+)
+# A Shirt due within this many days is due on a weekday by name.
+WEEKDAY_DUE_DAYS = 6
 
 
 def app(
@@ -178,23 +187,6 @@ def app(
             lambda notice: url_for("show_closet", notice=notice),
         )
 
-    @web.get("/<token>/closet/<key>")
-    def show_garment(key: str) -> str:
-        state = read_state(state_path, _get_today())
-        if key not in state.labels:
-            abort(404)
-        color, stripe_color = state.colors[key]
-        return render_garment(
-            key,
-            "",
-            {
-                "label": state.labels[key],
-                "color": color,
-                "stripe_color": stripe_color or color,
-            }
-            | ({"striped": "on"} if stripe_color else {}),
-        )
-
     @web.post("/<token>/closet/<key>")
     def replace_garment(key: str) -> Reply | tuple[str, int]:
         state = read_state(state_path, _get_today())
@@ -218,7 +210,7 @@ def app(
                 stripe_color=stripe_color,
             ),
             f"the {name} replaced with {label}",
-            lambda notice: render_garment(key, notice, request.form),
+            lambda notice: render_closet(notice, (key, request.form)),
             lambda notice: url_for("show_closet", notice=notice),
         )
 
@@ -298,29 +290,33 @@ def app(
         outcome = "Recorded" if state_changed else "Already"
         return redirect(get_url(f"{outcome}: {confirmation}"), code=303)
 
-    def render_closet(notice: str) -> str:
+    def render_closet(
+        notice: str,
+        refused_replace: tuple[str, Mapping[str, str]] | None = None,
+    ) -> str:
+        """Render the Closet, with a refused Replace's sheet open.
+
+        `refused_replace` is the Garment's key and the form it posted,
+        which its sheet is filled and drawn with.
+        """
         today = _get_today()
         state = read_state(state_path, today)
+        forms = {
+            key: _get_replace_form(state, key) for key in state.labels
+        } | dict([refused_replace] if refused_replace else [])
         return render_template(
             "closet.html",
             notice=notice,
-            closets={
-                day_type: _get_closet_rows(state, day_type, today)
-                for day_type in DayType
-            },
-        )
-
-    def render_garment(
-        key: str, notice: str, form: Mapping[str, str]
-    ) -> str:
-        """Render a Garment's Replace form, filled in as `form`."""
-        state = read_state(state_path, _get_today())
-        return render_template(
-            "garment.html",
-            notice=notice,
-            key=key,
-            garment=_get_garment_name(key, state.labels[key]),
-            form=form,
+            shirt_grids=_get_shirt_grids(
+                state, today, fetch_weather(), forms
+            ),
+            garment_grids=_get_garment_grids(state, forms),
+            art_templates=_get_art_templates(),
+            open_sheet=(
+                f"replace-{refused_replace[0]}"
+                if refused_replace
+                else ""
+            ),
         )
 
     def render_settings(notice: str) -> str:
@@ -330,7 +326,9 @@ def app(
             notice=notice,
             weekdays=WEEKDAYS,
             office_weekdays=state.office_weekdays,
-            threshold=_render_degrees(state.cold_threshold),
+            threshold=_round_degrees(state.cold_threshold),
+            stored_threshold=_render_degrees(state.cold_threshold),
+            thresholds=COLD_THRESHOLDS,
         )
 
     def record_settings(
@@ -549,60 +547,187 @@ def _render_degrees(degrees: float) -> str:
     return str(degrees).removesuffix(".0")
 
 
-def _get_closet_rows(
-    state: State, day_type: DayType, today: date
-) -> tuple[dict[str, Any], ...]:
-    """Each Pants Row: its Pants, its Shirts and what else it wears.
-
-    A Shirt carries its next due date and the Shirts it may Swap
-    with, which are those sharing its Pants.
-    """
-    garments = get_garments(CLOSETS[day_type])
-    return tuple(
-        {
-            "pants": state.labels[KEYS[f"pants.{row.pants}"]],
-            "pants_key": KEYS[f"pants.{row.pants}"],
-            "shirts": _get_row_shirts(
-                state,
-                day_type,
-                tuple(
-                    f"{day_type}.shirt.{place}"
-                    for kind, place, _, pants in garments
-                    if kind == "shirt" and pants == row.pants
-                ),
-                today,
-            ),
-            "others": tuple(
-                (
-                    f"{day_type}.{kind}.{place}",
-                    (
-                        f"{state.labels[f'{day_type}.{kind}.{place}']} "
-                        f"{kind.title()}"
-                    ),
-                )
-                for kind, place, _, pants in garments
-                if kind != "shirt" and pants == row.pants
-            ),
-        }
-        for row in CLOSETS[day_type].rows
-    )
+def _get_replace_form(state: State, key: str) -> Mapping[str, str]:
+    """Fill a Garment's Replace form as the State has it now."""
+    color, stripe_color = state.colors[key]
+    return {
+        "label": state.labels[key],
+        "color": color,
+        "stripe_color": stripe_color or color,
+    } | ({"striped": "on"} if stripe_color else {})
 
 
-def _get_row_shirts(
+def _get_shirt_grids(
     state: State,
-    day_type: DayType,
-    keys: tuple[str, ...],
     today: date,
-) -> tuple[dict[str, Any], ...]:
-    labels = tuple(state.labels[key] for key in keys)
+    weather: Mapping[date, float],
+    forms: Mapping[str, Mapping[str, str]],
+) -> tuple[tuple[DayType, tuple[dict[str, Any], ...]], ...]:
+    """Each Closet's Shirts, Home first, for their tiles and sheets.
+
+    A Shirt carries when it's next due, the rest of its Outfit on that
+    date, and the Shirts sharing its Pants, which it may Swap with.
+    """
     return tuple(
-        {
-            "key": key,
-            "label": label,
-            "due": get_due_date(state, day_type, label, today),
-            "partners": tuple(
-                other for other in labels if other != label
+        (
+            day_type,
+            tuple(
+                _get_shirt(
+                    state,
+                    f"{day_type}.shirt.{place}",
+                    today,
+                    weather,
+                    forms,
+                )
+                for place in range(len(CLOSETS[day_type].shirts))
             ),
-        }
-        for key, label in zip(keys, labels, strict=True)
+        )
+        for day_type in CLOSET_ORDER
     )
+
+
+def _get_shirt(
+    state: State,
+    key: str,
+    today: date,
+    weather: Mapping[date, float],
+    forms: Mapping[str, Mapping[str, str]],
+) -> dict[str, Any]:
+    closet, _, place_text = key.partition(".shirt.")
+    day_type, place = DayType(closet), int(place_text)
+    shirts = CLOSETS[day_type].shirts
+    due = get_due_date(state, day_type, state.labels[key], today)
+    return _get_garment(state, key, day_type, forms) | {
+        "closet": day_type,
+        "due": due,
+        "due_text": _get_due_text(due, today),
+        "worn_garments": ()
+        if due is None
+        else tuple(
+            garment
+            for garment in _get_drawn_garments(
+                answer(state, due, weather)
+            )
+            if garment["kind"] != "Shirt"
+        ),
+        "partners": tuple(
+            state.labels[f"{day_type}.shirt.{other}"]
+            for other, shirt in enumerate(shirts)
+            if other != place and shirt.pants == shirts[place].pants
+        ),
+    }
+
+
+def _get_garment(
+    state: State,
+    key: str,
+    day_type: DayType,
+    forms: Mapping[str, Mapping[str, str]],
+) -> dict[str, Any]:
+    """A Garment's tile and its Replace sheet, filled as `forms`."""
+    kind = key.split(".")[-2]
+    label = state.labels[key]
+    form = forms[key]
+    return {
+        "key": key,
+        "label": label,
+        "kind": kind.title(),
+        "name": _get_garment_name(key, label),
+        "art": get_art(
+            kind, Garment(label, *state.colors[key]), day_type
+        ),
+        "preview": get_art(kind, _get_form_garment(form), day_type),
+        "template": key.rpartition(".")[0],
+        "form": form,
+    }
+
+
+def _get_form_garment(form: Mapping[str, str]) -> Garment:
+    """The Garment a Replace form describes, its stripes if ticked."""
+    return Garment(
+        form["label"],
+        form["color"],
+        form["stripe_color"] if "striped" in form else None,
+    )
+
+
+def _get_due_text(due: date | None, today: date) -> str:
+    """Say when a Shirt is next due, as near dates are spoken."""
+    if due is None:
+        return "Not due this year"
+    days = (due - today).days
+    if days == 0:
+        return "Today"
+    if days == 1:
+        return "Tomorrow"
+    if days <= WEEKDAY_DUE_DAYS:
+        return f"{due:%A}"
+    return f"{due:%a} {due.day} {due:%b}"
+
+
+def _get_garment_grids(
+    state: State, forms: Mapping[str, Mapping[str, str]]
+) -> tuple[tuple[str, tuple[dict[str, Any], ...]], ...]:
+    """The rest of the Wardrobe: the shared Pants, then each kind.
+
+    Each grid is named and holds one kind from one Closet, Home first:
+    sweaters, jackets, then shoes.
+    """
+    pants = tuple(
+        _get_garment(state, f"pants.{place}", DayType.HOME, forms)
+        for place in range(len(CLOSETS[DayType.OFFICE].rows))
+    )
+    return (
+        ("Pants", pants),
+        *(
+            (
+                f"{day_type.title()} {OTHER_KINDS[kind]}",
+                tuple(
+                    _get_garment(
+                        state,
+                        f"{day_type}.{kind}.{place}",
+                        day_type,
+                        forms,
+                    )
+                    for place in places
+                ),
+            )
+            for day_type in CLOSET_ORDER
+            for kind in OTHER_KINDS
+            if (places := _get_places(day_type, kind))
+        ),
+    )
+
+
+def _get_places(day_type: DayType, kind: str) -> tuple[int, ...]:
+    """Where each `kind` hangs in the `day_type` Closet, once each."""
+    return tuple(
+        sorted(
+            {
+                place
+                for garment_kind, place, _, _ in get_garments(
+                    CLOSETS[day_type]
+                )
+                if garment_kind == kind
+            }
+        )
+    )
+
+
+def _get_art_templates() -> dict[str, tuple[Layer, ...]]:
+    """Each Garment's art in paint roles, for the script to redraw.
+
+    Keyed as a Garment's `template` names it: where it hangs, without
+    its place.
+    """
+    return {"pants": get_art_template("pants", DayType.HOME)} | {
+        f"{day_type}.{kind}": get_art_template(kind, day_type)
+        for day_type in CLOSET_ORDER
+        for kind in ("shirt", *OTHER_KINDS)
+        if _get_places(day_type, kind)
+    }
+
+
+def _round_degrees(degrees: float) -> int:
+    """Round `degrees` to a whole degree, a half up."""
+    return math.floor(degrees + 0.5)

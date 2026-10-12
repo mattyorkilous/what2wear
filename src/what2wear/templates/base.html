@@ -125,6 +125,60 @@
                      padding: 8px 4px 10px; font-size: 13px; }
     .shirts button[aria-current] { outline: 3px solid var(--label); outline-offset: -3px; }
     .shirts svg { width: 64px; height: 64px; }
+
+    .tiles { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+    .tiles > button { width: calc((100% - 16px) / 3); display: flex; flex-direction: column;
+                      align-items: center; min-width: 0; background: var(--card); color: var(--label);
+                      border-radius: 20px; padding: 6px 4px 10px; font-weight: 700; font-size: 15px; }
+    .tiles.four > button { width: calc((100% - 24px) / 4); font-size: 13px; padding: 4px 2px 8px; }
+    .tiles svg { width: 100%; height: auto; max-width: 92px; aspect-ratio: 1; }
+    .tiles b { line-height: 1.15; }
+    .tiles small { font-size: 12px; font-weight: 600; color: var(--secondary); margin-top: 2px; }
+    .tiles small.today { color: var(--red); }
+    .sheet-head { display: flex; align-items: center; gap: 14px; }
+    .sheet-head svg { flex: none; }
+    .sheet-head h2 { margin: 0; font-size: 26px; font-weight: 800; }
+    .sheet .eyebrow { margin-top: 18px; }
+    .sheet .shirts { grid-template-columns: repeat(4, 1fr); }
+    .capsule { display: inline-block; margin-top: 12px; border-radius: 999px; background: var(--card);
+               font-size: 15px; font-weight: 700; padding: 10px 16px; }
+    .rows { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+    .rows li { display: flex; align-items: center; gap: 14px; background: var(--card);
+               border-radius: 20px; padding: 4px 16px 4px 4px; }
+    .rows svg { flex: none; }
+    .rows b { display: block; font-size: 19px; font-weight: 800; }
+    .rows small { color: var(--secondary); font-size: 14px; font-weight: 600; }
+    button.wide, .replace > button { display: block; width: 100%; margin-top: 16px; }
+    .preview { display: flex; justify-content: center; }
+    .replace h2 { text-align: center; margin-top: 4px; }
+    .fields { background: var(--card); border-radius: 18px; padding: 2px 16px; }
+    .fields label { display: flex; justify-content: space-between; flex-wrap: nowrap; padding: 10px 0;
+                    font-weight: 600; }
+    .fields label + label { border-top: .5px solid var(--secondary); }
+    .fields input[name=label] { background: none; text-align: right; padding: 0; min-width: 0;
+                                width: 60%; color: var(--secondary); }
+    .fields input[type=color] { width: 44px; height: 30px; border: 0; padding: 0; background: none; }
+
+    .footnote { color: var(--secondary); font-size: 13px; margin: -4px 4px 0; }
+    .chips { display: flex; justify-content: space-between; gap: 4px; }
+    .chips label { position: relative; }
+    .chips input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+    .chips span { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center;
+                  justify-content: center; font-weight: 700; box-shadow: inset 0 0 0 2px var(--label); }
+    .chips input:checked + span { background: var(--label); color: var(--bg); }
+    .chips input:focus-visible + span { outline: 3px solid var(--secondary); outline-offset: 2px; }
+    .countdown:empty { display: none; }
+    .countdown { margin: 12px 4px 0; text-align: center; }
+    .stepper { display: flex; align-items: center; justify-content: space-between; }
+    .stepper button { width: 52px; height: 52px; padding: 0; font-size: 28px; line-height: 1;
+                      background: var(--raised); color: var(--label); }
+    .stepper label { font-size: 40px; font-weight: 800; gap: 0; }
+    .stepper input[name=threshold] { width: 2.4em; text-align: right; background: none; padding: 0;
+                                     font-weight: 800; -moz-appearance: textfield; }
+    .stepper input::-webkit-inner-spin-button { -webkit-appearance: none; }
+    html:not(.js) .stepper [data-step] { visibility: hidden; }
+    .save { display: block; margin: 16px auto 0; }
+    .save[hidden] { display: none; }
   </style>
 </head>
 <body>
@@ -256,12 +310,98 @@
       });
     };
 
+    // Replace redraws its art as the Colors change, painted by the same
+    // rule as the icons module's get_art: a dark Color's tone is
+    // lighter than it, and any other's darker.
+    const getChannels = (color) => [1, 3, 5].map((at) => parseInt(color.slice(at, at + 2), 16));
+    const mix = (color, other, amount) => {
+      const ends = getChannels(other);
+      return "#" + getChannels(color).map((start, at) =>
+        Math.round(start + (ends[at] - start) * amount).toString(16).padStart(2, "0")).join("");
+    };
+    const getTone = (color) => {
+      const [red, green, blue] = getChannels(color).map((channel) => channel / 255);
+      const luminance = 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+      return luminance < 0.35 ? mix(color, "#ffffff", 0.62) : mix(color, "#000000", 0.42);
+    };
+
+    const drawLayer = (layer, paints) => {
+      const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      const paint = layer.fill ?? layer.stroke;
+      path.setAttribute("d", layer.d);
+      path.setAttribute("fill", layer.fill ? paints[paint] ?? paint : "none");
+      if (layer.stroke) {
+        path.setAttribute("stroke", paints[paint] ?? paint);
+        path.setAttribute("stroke-width", layer.width);
+      }
+      if (layer.alpha) path.setAttribute(layer.fill ? "fill-opacity" : "stroke-opacity", layer.alpha);
+      return path;
+    };
+
+    const redrawOnEdit = (form, templates) => {
+      const { color, striped, stripe_color: stripeColor } = form.elements;
+      const svg = form.querySelector(".preview svg");
+      form.addEventListener("input", () => {
+        const paints = { color: color.value, stripe: stripeColor.value, tone: getTone(color.value),
+                         button: mix(color.value, "#ffffff", 0.7) };
+        svg.replaceChildren(...templates[form.dataset.art]
+          .filter((layer) => striped.checked || (layer.fill ?? layer.stroke) !== "stripe")
+          .map((layer) => drawLayer(layer, paints)));
+      });
+    };
+
+    // Each card's Save shows once the card differs from how it loaded.
+    // The weekdays' is enabled only at exactly three, and says why not.
+    const saveWeekdaysOnChange = (form) => {
+      const boxes = [...form.elements.weekday];
+      const save = form.querySelector(".save");
+      const countdown = form.querySelector(".countdown");
+      const getTicks = () => boxes.map((box) => box.checked).join();
+      const loaded = getTicks();
+      const update = () => {
+        const ticked = boxes.filter((box) => box.checked).length;
+        save.hidden = getTicks() === loaded;
+        save.disabled = ticked !== 3;
+        countdown.textContent = save.hidden || ticked === 3 ? ""
+          : ticked < 3 ? `Pick ${3 - ticked} more` : `Untick ${ticked - 3}`;
+      };
+      form.addEventListener("change", update);
+      update();
+    };
+
+    // The stepper moves a whole degree a tap, within the field's limits.
+    // A stored decimal shows rounded, and counts as a change to save.
+    const saveThresholdOnStep = (form) => {
+      const input = form.elements.threshold;
+      const save = form.querySelector(".save");
+      const loaded = form.dataset.stored;
+      const update = () => { save.hidden = input.value === loaded; };
+      form.querySelectorAll("[data-step]").forEach((button) => {
+        button.addEventListener("click", () => {
+          const stepped = Math.round(Number(input.value)) + Number(button.dataset.step);
+          input.value = Math.min(Math.max(stepped, Number(input.min)), Number(input.max));
+          update();
+        });
+      });
+      input.addEventListener("input", update);
+      update();
+    };
+
     const toast = document.querySelector(".toast");
     if (toast) fadeToast(toast);
     const day = document.querySelector(".day");
     if (day) swipeDays(day);
     document.querySelectorAll(".toolbar input[type=date]").forEach(goOnPick);
     document.querySelectorAll("[popover] [popovertarget]").forEach(swapMenuForSheet);
+    const artTemplates = document.getElementById("art-templates");
+    if (artTemplates) {
+      const templates = JSON.parse(artTemplates.textContent);
+      document.querySelectorAll("form[data-art]").forEach((form) => redrawOnEdit(form, templates));
+    }
+    // A refused Replace comes back with its sheet to reopen.
+    document.querySelector(".sheet[data-open]")?.showPopover();
+    document.querySelectorAll("form.weekdays").forEach(saveWeekdaysOnChange);
+    document.querySelectorAll("form.threshold").forEach(saveThresholdOnStep);
   </script>
 </body>
 </html>

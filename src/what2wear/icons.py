@@ -9,6 +9,7 @@ their offsets and scale baked into the numbers, and stripes are the
 silhouette cut into bands ahead of time.
 """
 
+import math
 import re
 from collections.abc import Callable, Mapping
 from functools import cache
@@ -142,8 +143,34 @@ def get_art(
     Returns:
         Its layers in drawing order, in the 76-unit box.
     """
+    color = garment.color
+    paints = {
+        "color": color,
+        "stripe": garment.stripe_color,
+        "tone": _get_tone(color),
+        "button": _mix(color, "#ffffff", BUTTON_LIGHTNESS),
+    }
+    return tuple(
+        _paint(layer, paints)
+        for layer in get_art_template(kind, day_type)
+        if _get_role(layer) != "stripe"
+        or garment.stripe_color is not None
+    )
+
+
+def get_art_template(kind: str, day_type: DayType) -> tuple[Layer, ...]:
+    """Draw a `kind` from the `day_type` Closet in no Color yet.
+
+    The layers are `get_art`'s, striped, with each paint either a
+    fixed `#rrggbb` or the role a Garment's Colors fill: `color`,
+    `stripe`, `tone` or `button`. The page script paints them as the
+    wearer picks Colors, by the same rule as `get_art`.
+
+    Returns:
+        Its layers in drawing order, in the 76-unit box.
+    """
     silhouette = _get_silhouette(kind, day_type)
-    layers = _get_layers(silhouette, garment)
+    layers = _get_layers(silhouette)
     return tuple(
         _place(layer, dx, dy, scale)
         for dx, dy, scale in PLACEMENTS.get(
@@ -159,43 +186,36 @@ def _get_silhouette(kind: str, day_type: DayType) -> str:
     return "shoe" if kind == "shoes" else kind
 
 
-def _get_layers(silhouette: str, garment: Garment) -> tuple[Layer, ...]:
-    """Draw `silhouette` in `garment`'s Colors, in the 64-unit space.
+def _get_layers(silhouette: str) -> tuple[Layer, ...]:
+    """Draw `silhouette` in paint roles, in the 64-unit space.
 
     A soft shade under the body, the body, its stripes, the details
     and the outline in its tone, then any buttons.
     """
-    color = garment.color
-    tone = _get_tone(color)
     body = SILHOUETTES[silhouette]
-    stripe_color = garment.stripe_color
     return (
         {
             "d": _move(body, 0, SHADE_DROP),
             "fill": SHADE,
             "alpha": SHADE_ALPHA,
         },
-        {"d": body, "fill": color},
+        {"d": body, "fill": "color"},
         *(
-            ({"d": _cut_stripes(silhouette), "fill": stripe_color},)
-            if stripe_color is not None
-            and silhouette in STRIPED_SILHOUETTES
+            ({"d": _cut_stripes(silhouette), "fill": "stripe"},)
+            if silhouette in STRIPED_SILHOUETTES
             else ()
         ),
         *(
-            ({"d": PARTS[silhouette], "fill": tone},)
+            ({"d": PARTS[silhouette], "fill": "tone"},)
             if silhouette in PARTS
             else ()
         ),
-        {"d": LINES[silhouette], "stroke": tone, "width": LINE_WIDTH},
-        {"d": body, "stroke": tone, "width": OUTLINE_WIDTH},
+        {"d": LINES[silhouette], "stroke": "tone", "width": LINE_WIDTH},
+        {"d": body, "stroke": "tone", "width": OUTLINE_WIDTH},
         *(
             (
-                {
-                    "d": BUTTONS,
-                    "fill": _mix(color, "#ffffff", BUTTON_LIGHTNESS),
-                },
-                {"d": BUTTONS, "stroke": tone, "width": BUTTON_WIDTH},
+                {"d": BUTTONS, "fill": "button"},
+                {"d": BUTTONS, "stroke": "tone", "width": BUTTON_WIDTH},
             )
             if silhouette == "button-up"
             else ()
@@ -226,13 +246,31 @@ def _get_channels(color: str) -> tuple[int, ...]:
 
 
 def _mix(color: str, other: str, amount: float) -> str:
-    """Mix `color` `amount` of the way toward `other`."""
+    """Mix `color` `amount` of the way toward `other`.
+
+    A channel rounds half up, as the page script's `Math.round` does,
+    so the live redraw paints what the server draws.
+    """
     return "#" + "".join(
-        f"{round(start + (end - start) * amount):02x}"
+        f"{math.floor(start + (end - start) * amount + 0.5):02x}"
         for start, end in zip(
             _get_channels(color), _get_channels(other), strict=True
         )
     )
+
+
+def _get_role(layer: Layer) -> str:
+    return str(layer.get("fill", layer.get("stroke")))
+
+
+def _paint(layer: Layer, paints: Mapping[str, str | None]) -> Layer:
+    """Fill `layer`'s role from `paints`, or keep its fixed color."""
+    paint = _get_role(layer)
+    return {
+        **layer,
+        ("fill" if "fill" in layer else "stroke"): paints.get(paint)
+        or paint,
+    }
 
 
 def _move(path: str, dx: float, dy: float, scale: float = 1) -> str:

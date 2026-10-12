@@ -4,11 +4,6 @@
 {% set on = response.on.isoformat() %}
 {% set worn_garments = garments | rejectattr("if_cold") | list %}
 {% set if_cold_garments = garments | selectattr("if_cold") | list %}
-{% macro row(garment, note="") -%}
-<li{% if garment.kind == "Shirt" %} class="shirt"{% endif %}>
-    {{ art.draw(garment.art, 150) }}
-    <div><b>{{ garment.label }}</b> <small>{{ garment.kind }}{{ note }}</small></div></li>
-{%- endmacro %}
 {% block content %}
 <section class="day" data-on="{{ on }}"
   {%- for name, swiped_date in swipes.items() %} data-{{ name | replace("_", "-") }}="{{ url_for('show_day', iso_date=swiped_date.isoformat()) }}"{% endfor %}>
@@ -25,13 +20,13 @@
   <p class="caption">A past date: this is where the Rotation stands now, not what was worn.</p>
   {% endif %}
   <ul class="outfit" style="--rows: {{ worn_garments | length + 0.3 }}">
-    {% for garment in worn_garments %}{{ row(garment) }}
+    {% for garment in worn_garments %}{{ art.row(garment) }}
     {% endfor %}
   </ul>
   {% if if_cold_garments %}
   <h2 class="eyebrow">If it's cold</h2>
   <ul class="outfit" style="--rows: {{ if_cold_garments | length }}">
-    {% for garment in if_cold_garments %}{{ row(garment, " · no forecast yet") }}
+    {% for garment in if_cold_garments %}{{ art.row(garment, " · no forecast yet") }}
     {% endfor %}
   </ul>
   {% endif %}

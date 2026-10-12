@@ -3,3 +3,9 @@
   {%- for layer in art %}{% if layer.fill %}<path d="{{ layer.d }}" fill="{{ layer.fill }}"{% if layer.alpha %} fill-opacity="{{ layer.alpha }}"{% endif %}/>{% else %}<path d="{{ layer.d }}" fill="none" stroke="{{ layer.stroke }}"{% if layer.alpha %} stroke-opacity="{{ layer.alpha }}"{% endif %} stroke-width="{{ layer.width }}"/>{% endif %}{% endfor -%}
 </svg>
 {%- endmacro %}
+
+{% macro row(garment, note="", size=150) -%}
+<li{% if garment.kind == "Shirt" %} class="shirt"{% endif %}>
+    {{ draw(garment.art, size) }}
+    <div><b>{{ garment.label }}</b> <small>{{ garment.kind }}{{ note }}</small></div></li>
+{%- endmacro %}
