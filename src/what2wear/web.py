@@ -219,6 +219,12 @@ def app(
             lambda notice: url_for("show_closet", notice=notice),
         )
 
+    # The home screen's icon, fetched with the page's own tokened URL,
+    # since iOS's guess at the site's root would be refused.
+    @web.get("/<token>/apple-touch-icon.png")
+    def show_icon() -> Reply:
+        return web.send_static_file("apple-touch-icon.png")
+
     @web.get("/<token>/settings")
     def show_settings() -> str:
         return render_settings(request.args.get("notice", ""))

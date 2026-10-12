@@ -1622,3 +1622,19 @@ def _get_next(weekday: int) -> date:
     return today + timedelta(
         days=(weekday - today.weekday() - 1) % 7 + 1
     )
+
+
+def test_every_page_names_its_home_screen_icon(
+    client: FlaskClient,
+) -> None:
+    page = client.get(f"/{TOKEN}/settings").text
+    icon = re.search(r'rel="apple-touch-icon" href="([^"]+)"', page)
+
+    assert icon is not None
+    reply = client.get(icon[1])
+    assert reply.status_code == 200
+    assert reply.mimetype == "image/png"
+
+
+def test_the_icon_needs_the_token(client: FlaskClient) -> None:
+    assert client.get("/nope/apple-touch-icon.png").status_code == 404
