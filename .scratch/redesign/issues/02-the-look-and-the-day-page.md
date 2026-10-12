@@ -106,6 +106,7 @@ merge them.
       - light and dark on each page;
       - swiping a day and a week, the spring-back, the edge gesture,
         and back leaving the Day page;
-      - a five-row day fitting on the smallest iPhone;
+      - a day with no forecast (four rows and the "If it's cold"
+        heading) fitting on the smallest iPhone;
       - the "⋯" popover and the Shirt sheet;
       - the toast fading and not returning on reload.

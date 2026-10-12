@@ -60,10 +60,10 @@ The layer shape, from the prototype:
 - [ ] The header is one line, 13 pt semibold rounded: the Day word in
       bold ("Office" / "Home") and the short date in grey ("Mon 12").
       The stale ⚠︎ date and the failure messages still work as today.
-- [ ] The rows share the height under the header. At 3, 4 or 5 rows,
-      the art is 34, 27 or 21 pt and the label 17, 16 or 14 pt
-      semibold rounded. Columns line up through fixed-size art stacks
-      and spacers.
+- [ ] The rows share the height under the header. At 3 or 4 rows (an
+      Outfit is never more), the art is 34 or 27 pt and the label 17
+      or 16 pt semibold rounded. Columns line up through fixed-size
+      art stacks and spacers.
 - [ ] Labels drop the kind ("Light Blue").
 - [ ] An "if cold" row is drawn at 40% alpha, with a small grey "if
       cold" at its right.
@@ -88,6 +88,6 @@ The layer shape, from the prototype:
 - [ ] The existing `icon`-shaped tests are rewritten for `art`.
 - [ ] The README says to re-paste the widget whenever the server is
       deployed with this change.
-- [ ] Manual check in Scriptable: 3, 4 and 5 rows; a striped Shirt;
+- [ ] Manual check in Scriptable: 3 and 4 rows; a striped Shirt;
       Black on the dark widget; airplane mode (cached, with the ⚠︎
       date); a wrong token.

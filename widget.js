@@ -9,9 +9,9 @@ const SECONDARY = Color.dynamic(new Color("#8e8e93"), new Color("#98989d"));
 const WARNING = Color.dynamic(new Color("#ff9500"), new Color("#ff9f0a"));
 const IF_COLD_OPACITY = 0.4;
 // The art's and the label's size for each number of rows, so a short
-// Outfit fills the tile.
-const ART_SIZES = { 3: 34, 4: 27, 5: 21 };
-const LABEL_SIZES = { 3: 17, 4: 16, 5: 14 };
+// Outfit fills the tile. An Outfit is 3 Garments, or 4 with Outerwear.
+const ART_SIZES = { 3: 34, 4: 27 };
+const LABEL_SIZES = { 3: 17, 4: 16 };
 const ART_BOX = 76;
 
 const today = getFormatter("yyyy-MM-dd").string(new Date());

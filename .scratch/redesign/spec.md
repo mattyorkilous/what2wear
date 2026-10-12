@@ -119,8 +119,8 @@ PythonAnywhere free, made to look and feel like a native iOS app:
 22. As the wearer, I want the Outfit in the order Shirt, Pants, shoes,
     then Outerwear, so that the essentials come first.
 23. As the wearer, I want every row to fit on one screen without
-    scrolling, whether the Outfit has three, four or five Garments, so
-    that I see the whole Outfit at once.
+    scrolling, whether the Outfit has three Garments or four, so that
+    I see the whole Outfit at once.
 24. As the wearer, I want the Shirt's row a little taller than the
     others, so that the Shirt, the thing I reach for first, stands
     out.
@@ -296,8 +296,8 @@ PythonAnywhere free, made to look and feel like a native iOS app:
     height, so that a short Outfit fills the tile instead of leaving
     space at the bottom.
 82. As the wearer, I want the art and the text as large as the number
-    of rows allows (art 34, 27 or 21 pt and labels 17, 16 or 14 pt for
-    3, 4 or 5 rows), so that the widget is readable at a glance.
+    of rows allows (art 34 or 27 pt and labels 17 or 16 pt for 3 or 4
+    rows), so that the widget is readable at a glance.
 83. As the wearer, I want the widget's labels without the kind ("Light
     Blue", not "Light Blue Shirt"), so that they fit large, since the
     art already shows the kind.
@@ -574,9 +574,10 @@ PythonAnywhere free, made to look and feel like a native iOS app:
   cached date turns orange with ⚠︎. The failure messages ("⚠︎ State
   won't read", "⚠︎ Renew PythonAnywhere?", "⚠︎ Can't reach server")
   replace the line, as today.
-- **Rows** share the height under the header. With 3, 4 or 5 rows the
-  art is 34, 27 or 21 pt and the label 17, 16 or 14 pt semibold
-  rounded. Columns line up through fixed-size art stacks and fixed
+- **Rows** share the height under the header. An Outfit is a Shirt,
+  Pants and shoes, with at most one piece of Outerwear, so there are
+  3 rows or 4. With 3 the art is 34 pt and the label 17 pt, and with 4
+  the art is 27 pt and the label 16 pt, semibold rounded. Columns line up through fixed-size art stacks and fixed
   spacers, because stacks ignore text alignment.
 - **"if cold"** rows draw art and label at 40% alpha, with a small
   grey "if cold" at the right.
@@ -680,7 +681,8 @@ PythonAnywhere free, made to look and feel like a native iOS app:
 - **Manual check on the phone, after deploy** (no automated test):
   light and dark mode on each page; swiping a day and a week, the
   spring-back, the edge gesture, and back leaving the Day page; the
-  rows fitting on a five-row day on the smallest supported iPhone; the
+  rows fitting on a day with no forecast (four rows and the "If it's
+  cold" heading) on the smallest supported iPhone; the
   "⋯" popover and the Shirt sheet; the Closet sheets and the live
   redraw in Replace; the Settings Save capsule and countdown; the
   toast fading and not returning on reload; the widget at 3, 4 and 5
@@ -712,8 +714,8 @@ PythonAnywhere free, made to look and feel like a native iOS app:
   placement, and whose `widget_prototype.js` has the DrawContext
   drawing). Research on what Scriptable can draw is on
   `research/what-scriptable-can-draw`.
-- Not yet checked on a phone: how small the art gets on a five-row Day
-  page on the smallest iPhones, and the widget prototype in Scriptable
+- Not yet checked on a phone: how small the art gets on a four-row Day
+  page with the "If it's cold" heading on the smallest iPhones, and the widget prototype in Scriptable
   itself. Both are in the manual check.
 - Deploying the server before re-pasting the widget leaves the old
   widget without `icon`. It will draw labels with no art, or fall back
