@@ -2,6 +2,7 @@ import dataclasses
 import html
 import re
 from datetime import UTC, date, datetime, timedelta, tzinfo
+from functools import reduce
 from pathlib import Path
 from typing import Any, Self
 from urllib.parse import parse_qs, urlsplit
@@ -147,12 +148,26 @@ def test_an_unavoidable_repeat_is_called_out(
     client: FlaskClient, state_path: Path
 ) -> None:
     # A fourth Office Day in the Week, which the three office sweaters
-    # and their Fallbacks cannot cover however the Week is walked.
+    # and their Fallbacks cannot cover however the Week is walked. The
+    # Office Weekdays are recorded too, so a Holiday can't take one.
     saturday = _get_next(SAT)
+    state = get_default_state(_get_today())
+    monday = saturday - timedelta(days=SAT)
+    office_days = [
+        *(
+            monday + timedelta(days=weekday)
+            for weekday in state.office_weekdays
+        ),
+        saturday,
+    ]
     write_state(
         state_path,
-        record_override(
-            get_default_state(_get_today()), saturday, DayType.OFFICE
+        reduce(
+            lambda recorded, on: record_override(
+                recorded, on, DayType.OFFICE
+            ),
+            office_days,
+            state,
         ),
     )
     page = _get_text(client, f"/{TOKEN}/day/{saturday}")
