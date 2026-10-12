@@ -1,0 +1,5 @@
+{% macro draw(art, size) -%}
+<svg viewBox="0 0 76 76" width="{{ size }}" height="{{ size }}" aria-hidden="true">
+  {%- for layer in art %}{% if layer.fill %}<path d="{{ layer.d }}" fill="{{ layer.fill }}"{% if layer.alpha %} fill-opacity="{{ layer.alpha }}"{% endif %}/>{% else %}<path d="{{ layer.d }}" fill="none" stroke="{{ layer.stroke }}"{% if layer.alpha %} stroke-opacity="{{ layer.alpha }}"{% endif %} stroke-width="{{ layer.width }}"/>{% endif %}{% endfor -%}
+</svg>
+{%- endmacro %}

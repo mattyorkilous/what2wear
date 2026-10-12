@@ -1,8 +1,9 @@
+import dataclasses
 import html
 import re
 from datetime import UTC, date, datetime, timedelta, tzinfo
 from pathlib import Path
-from typing import Self
+from typing import Any, Self
 from urllib.parse import parse_qs, urlsplit
 
 import pytest
@@ -200,9 +201,9 @@ def test_each_garment_is_drawn_in_its_color(
         "Pants",
         "Shoes",
     }
-    for paths, name, _ in rows:
+    for art, name, _ in rows:
         label = name.removesuffix(", if it's cold").rpartition(" ")[0]
-        assert paths[0][1] == COLORS[label][0]
+        assert COLORS[label][0] in _get_fills(art)
 
 
 def test_a_striped_shirt_is_drawn_with_stripes_in_its_stripe_color(
@@ -218,28 +219,78 @@ def test_a_striped_shirt_is_drawn_with_stripes_in_its_stripe_color(
         client, f"/{TOKEN}/day/{saturday}/shirt", {"shirt": "Striped"}
     )
     shirt = next(
-        paths
-        for paths, name, _ in _get_drawn_garments(page)
+        art
+        for art, name, _ in _get_drawn_garments(page)
         if name == "Striped Shirt"
     )
     color, stripe_color = COLORS["Striped"]
-    assert [fill for _, fill in shirt] == [color, stripe_color, "none"]
-    plain = [
-        paths
-        for paths, name, _ in _get_drawn_garments(page)
-        if name != "Striped Shirt"
-    ]
-    assert all(len(paths) == 2 for paths in plain)
+    assert stripe_color is not None
+    assert {color, stripe_color} <= set(_get_fills(shirt))
 
 
-def test_icons_are_drawn_with_only_lines_and_curves(
+def test_the_page_draws_art_with_only_lines_and_curves(
     client: FlaskClient,
 ) -> None:
     page = _get_text(client, f"/{TOKEN}/")
     paths = re.findall(r' d="([^"]*)"', page)
     assert paths
-    assert all(re.fullmatch(r"[MLQZ\d. ]+", path) for path in paths)
+    assert all(re.fullmatch(r"[MLQCZ\d. -]+", path) for path in paths)
     assert "dasharray" not in page
+
+
+def test_the_page_and_the_widget_draw_the_same_art(
+    client: FlaskClient,
+) -> None:
+    saturday = _get_next(SAT)
+    page = _get_text(client, f"/{TOKEN}/day/{saturday}")
+    reply = client.get(f"/{TOKEN}/day/{saturday}.json")
+    assert reply.json is not None
+    assert [art for art, _, _ in _get_drawn_garments(page)] == [
+        item["art"] for item in reply.json["outfit"]
+    ]
+
+
+def test_an_office_shirt_is_cut_unlike_a_home_shirt(
+    client: FlaskClient, state_path: Path
+) -> None:
+    _dress_all_in(state_path, "#9cc3e6")
+    saturday = _get_next(SAT)
+    home = _get_shirt_art(client, saturday)
+    _post_text(
+        client,
+        f"/{TOKEN}/day/{saturday}/day-type",
+        {"day_type": "office"},
+    )
+    office = _get_shirt_art(client, saturday)
+    assert "#9cc3e6" in _get_fills(home)
+    assert "#9cc3e6" in _get_fills(office)
+    assert office != home
+
+
+@pytest.mark.parametrize(
+    ("label", "outline_is_lighter"),
+    [("White", False), ("Tan", False), ("Black", True)],
+)
+def test_a_dark_color_is_outlined_lighter_and_any_other_darker(
+    client: FlaskClient,
+    state_path: Path,
+    label: str,
+    outline_is_lighter: bool,  # noqa: FBT001
+) -> None:
+    color = COLORS[label][0]
+    _dress_all_in(state_path, color)
+    art = _get_shirt_art(client, _get_next(SAT))
+    body = next(
+        layer["d"] for layer in art if layer.get("fill") == color
+    )
+    outline = next(
+        layer["stroke"]
+        for layer in art
+        if "stroke" in layer and layer["d"] == body
+    )
+    assert (_get_brightness(outline) > _get_brightness(color)) is (
+        outline_is_lighter
+    )
 
 
 def test_outerwear_worn_only_if_its_cold_is_dimmed(
@@ -328,14 +379,31 @@ def test_the_widget_json_answers_for_its_date(
     assert outfit[-1]["garment"] == "shoes"
     assert outfit[2]["garment"] in {"sweater", "jacket"}
     for item in outfit:
-        assert set(item) - {"if_cold"} == {"garment", "label", "icon"}
-        icon = item["icon"]
-        assert set(icon) == {"shape", "fill", "detail"}
-        assert icon["fill"] == COLORS[item["label"]][0]
-        assert all(
-            re.fullmatch(r"[MLQZ\d. ]+", icon[path])
-            for path in ("shape", "detail")
-        )
+        assert set(item) - {"if_cold"} == {"garment", "label", "art"}
+        assert item["label"] in COLORS
+        assert COLORS[item["label"]][0] in _get_fills(item["art"])
+
+
+def test_art_is_drawn_with_only_lines_and_curves(
+    client: FlaskClient,
+) -> None:
+    reply = client.get(f"/{TOKEN}/day/{_get_next(SAT)}.json")
+    assert reply.json is not None
+    layers = [
+        layer for item in reply.json["outfit"] for layer in item["art"]
+    ]
+    assert layers
+    assert all(
+        re.fullmatch(r"[MLQCZ\d. -]+", layer["d"]) for layer in layers
+    )
+    assert all(
+        ("fill" in layer) != ("stroke" in layer) for layer in layers
+    )
+    assert all(
+        isinstance(layer["width"], int | float)
+        for layer in layers
+        if "stroke" in layer
+    )
 
 
 def test_the_widget_json_draws_a_striped_shirts_stripes(
@@ -356,9 +424,8 @@ def test_the_widget_json_draws_a_striped_shirts_stripes(
     shirt = reply.json["outfit"][0]
     assert shirt["label"] == "Striped"
     color, stripe_color = COLORS["Striped"]
-    assert shirt["icon"]["fill"] == color
-    assert shirt["icon"]["pattern_fill"] == stripe_color
-    assert re.fullmatch(r"[MLQZ\d. ]+", shirt["icon"]["pattern"])
+    assert stripe_color is not None
+    assert {color, stripe_color} <= set(_get_fills(shirt["art"]))
 
 
 def test_the_widget_json_marks_outerwear_if_cold_when_unknown(
@@ -929,13 +996,38 @@ def _post_text(
     return html.unescape(reply.get_data(as_text=True))
 
 
+def _dress_all_in(state_path: Path, color: str) -> None:
+    state = get_default_state(_get_today())
+    write_state(
+        state_path,
+        dataclasses.replace(
+            state, colors=dict.fromkeys(state.colors, (color, None))
+        ),
+    )
+
+
+def _get_shirt_art(
+    client: FlaskClient, on: date
+) -> list[dict[str, Any]]:
+    reply = client.get(f"/{TOKEN}/day/{on}.json")
+    assert reply.json is not None
+    return reply.json["outfit"][0]["art"]
+
+
+def _get_brightness(color: str) -> int:
+    return sum(int(color[at : at + 2], 16) for at in (1, 3, 5))
+
+
 def _get_drawn_garments(
     page: str,
-) -> list[tuple[list[tuple[str, str]], str, bool]]:
-    """Each drawn Garment: its paths' `d` and fill, name, dimming."""
+) -> list[tuple[list[dict[str, Any]], str, bool]]:
+    """Each drawn Garment: its art's layers, name, dimming."""
     return [
         (
-            re.findall(r'<path d="([^"]*)" fill="([^"]*)"', svg),
+            [
+                _parse_layer(path)
+                for path in re.findall(r"<path[^>]*>", svg)
+            ],
             name.strip(),
             "dim" in attrs,
         )
@@ -945,6 +1037,29 @@ def _get_drawn_garments(
             re.DOTALL,
         )
     ]
+
+
+def _parse_layer(path: str) -> dict[str, Any]:
+    """Read an SVG `<path>` back as the layer the widget is sent."""
+    fields = dict(re.findall(r'([\w-]+)="([^"]*)"', path))
+    alpha = fields.get("fill-opacity") or fields.get("stroke-opacity")
+    paint = (
+        {"fill": fields["fill"]}
+        if fields["fill"] != "none"
+        else {
+            "stroke": fields["stroke"],
+            "width": float(fields["stroke-width"]),
+        }
+    )
+    return {
+        "d": fields["d"],
+        **paint,
+        **({"alpha": float(alpha)} if alpha else {}),
+    }
+
+
+def _get_fills(art: list[dict[str, Any]]) -> list[str]:
+    return [layer["fill"] for layer in art if "fill" in layer]
 
 
 def _get_text(client: FlaskClient, url: str) -> str:

@@ -3,11 +3,16 @@
 const HOST = "https://<user>.pythonanywhere.com";
 const TOKEN = "<the token>";
 
-const BACKGROUND = new Color("#1c1c1e");
-const DETAIL = new Color("#ffffff", 0.67);
-const WARNING = new Color("#ff9f0a");
-const HEADER = new Color("#aaaaaa");
+const BACKGROUND = Color.dynamic(new Color("#ffffff"), new Color("#1c1c1e"));
+const LABEL = Color.dynamic(Color.black(), Color.white());
+const SECONDARY = Color.dynamic(new Color("#8e8e93"), new Color("#98989d"));
+const WARNING = Color.dynamic(new Color("#ff9500"), new Color("#ff9f0a"));
 const IF_COLD_OPACITY = 0.4;
+// The art's and the label's size for each number of rows, so a short
+// Outfit fills the tile.
+const ART_SIZES = { 3: 34, 4: 27, 5: 21 };
+const LABEL_SIZES = { 3: 17, 4: 16, 5: 14 };
+const ART_BOX = 76;
 
 const today = getFormatter("yyyy-MM-dd").string(new Date());
 const dayUrl = `${HOST}/${TOKEN}/day/${today}`;
@@ -69,10 +74,10 @@ function getWidget(answer, message) {
   const widget = new ListWidget();
   widget.backgroundColor = BACKGROUND;
   widget.url = dayUrl;
-  widget.setPadding(11, 12, 11, 12);
+  widget.setPadding(11, 16, 11, 16);
   const header = widget.addStack();
   if (message) {
-    addText(header, message, 12, WARNING);
+    addText(header, message, Font.semiboldRoundedSystemFont(13), WARNING);
   } else if (answer) {
     const isStale = answer.date !== today;
     const shortDate = getFormatter("EEE d").string(
@@ -80,72 +85,88 @@ function getWidget(answer, message) {
     );
     addText(
       header,
-      answer.day === "office" ? "🏢 Office " : "🏠 Home ",
-      12,
-      HEADER,
+      answer.day === "office" ? "Office" : "Home",
+      Font.boldRoundedSystemFont(13),
+      LABEL,
     );
     addText(
       header,
-      (isStale ? "⚠︎ " : "") + shortDate,
-      12,
-      isStale ? WARNING : HEADER,
+      ` · ${isStale ? "⚠︎ " : ""}${shortDate}`,
+      Font.semiboldRoundedSystemFont(13),
+      isStale ? WARNING : SECONDARY,
     );
   }
-  widget.addSpacer(6);
-  (answer?.outfit ?? []).forEach((item) => addRow(widget, item));
+  const outfit = answer?.outfit ?? [];
+  const artSize = ART_SIZES[outfit.length] ?? ART_SIZES[3];
+  const labelSize = LABEL_SIZES[outfit.length] ?? LABEL_SIZES[3];
+  outfit.forEach((item) => {
+    widget.addSpacer();
+    addRow(widget, item, artSize, labelSize);
+  });
   widget.addSpacer();
   return widget;
 }
 
-function addText(stack, text, size, color) {
+function addText(stack, text, font, color) {
   const widgetText = stack.addText(text);
-  widgetText.font = Font.systemFont(size);
+  widgetText.font = font;
   widgetText.textColor = color;
   widgetText.lineLimit = 1;
   widgetText.minimumScaleFactor = 0.7;
   return widgetText;
 }
 
-// One Garment: its icon and full name, dimmed if worn only if cold.
-function addRow(widget, item) {
+// One Garment: its art and Label, dimmed and marked if worn only if
+// cold. The art sits in a fixed-size stack and the gap is a fixed
+// spacer, so the Labels line up: stacks ignore text alignment.
+function addRow(widget, item, artSize, labelSize) {
   const row = widget.addStack();
   row.centerAlignContent();
   const opacity = item.if_cold ? IF_COLD_OPACITY : 1;
-  const image = row.addImage(drawIcon(item.icon));
-  image.imageSize = new Size(20, 20);
+  const artStack = row.addStack();
+  artStack.size = new Size(artSize, artSize);
+  const image = artStack.addImage(drawArt(item.art));
+  image.imageSize = new Size(artSize, artSize);
   image.imageOpacity = opacity;
-  row.addSpacer(6);
-  const kind = item.garment[0].toUpperCase() + item.garment.slice(1);
-  addText(row, `${item.label} ${kind}`, 13, Color.white()).textOpacity =
-    opacity;
-  widget.addSpacer(3);
+  row.addSpacer(7);
+  addText(
+    row,
+    item.label,
+    Font.semiboldRoundedSystemFont(labelSize),
+    LABEL,
+  ).textOpacity = opacity;
+  if (item.if_cold) {
+    row.addSpacer();
+    addText(row, "if cold", Font.semiboldRoundedSystemFont(11), SECONDARY);
+  }
 }
 
-// Drawn in the icon's own 32×32 box; the widget scales it down.
-function drawIcon(icon) {
+// Drawn in the art's own 76-unit box and scaled down whole, so stroke
+// widths scale with it.
+function drawArt(layers) {
   const context = new DrawContext();
-  context.size = new Size(32, 32);
+  context.size = new Size(ART_BOX, ART_BOX);
   context.opaque = false;
   context.respectScreenScale = true;
-  fillPath(context, icon.shape, icon.fill);
-  if (icon.pattern) fillPath(context, icon.pattern, icon.pattern_fill);
-  context.addPath(parsePath(icon.detail));
-  context.setStrokeColor(DETAIL);
-  context.setLineWidth(1.2);
-  context.strokePath();
+  layers.forEach((layer) => {
+    context.addPath(parsePath(layer.d));
+    const color = new Color(layer.fill ?? layer.stroke, layer.alpha ?? 1);
+    if (layer.fill) {
+      context.setFillColor(color);
+      context.fillPath();
+    } else {
+      context.setStrokeColor(color);
+      context.setLineWidth(layer.width);
+      context.strokePath();
+    }
+  });
   return context.getImage();
 }
 
-function fillPath(context, path, color) {
-  context.addPath(parsePath(path));
-  context.setFillColor(new Color(color));
-  context.fillPath();
-}
-
-// An SVG path of only M, L, Q and Z, as the server's icons are drawn.
+// An SVG path of only M, L, Q, C and Z, as the server's art is drawn.
 function parsePath(text) {
   const path = new Path();
-  text.match(/[MLQZ][^MLQZ]*/g).forEach((segment) => {
+  text.match(/[MLQCZ][^MLQCZ]*/g).forEach((segment) => {
     const numbers = (segment.match(/-?[\d.]+/g) ?? []).map(Number);
     const points = numbers
       .filter((_, at) => at % 2 === 0)
@@ -153,6 +174,8 @@ function parsePath(text) {
     if (segment[0] === "M") path.move(points[0]);
     else if (segment[0] === "L") path.addLine(points[0]);
     else if (segment[0] === "Q") path.addQuadCurve(points[1], points[0]);
+    else if (segment[0] === "C")
+      path.addCurve(points[2], points[0], points[1]);
     else path.closeSubpath();
   });
   return path;

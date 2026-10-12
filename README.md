@@ -82,7 +82,7 @@ cd ~/what2wear && git pull
 uv sync --frozen --no-dev
 ```
 
-then Reload on the Web tab.
+then Reload on the Web tab. If the change touches [`widget.js`](widget.js), or the widget's JSON it reads, re-paste the widget into Scriptable in the same sitting. The JSON's `icon` became `art`, and a widget older than the server can't draw what it's sent.
 
 The free plan stops the web app unless you renew it, so once a month click "renew" on the Web tab, and while you're there download `~/state.json` from the Files tab as the backup — it is the only live copy, and the most a lost month costs is a month of what you've told it. To restore, upload the backup in the Files tab over `~/state.json`. Then check today's Day page shows the shirt you expect: a file in the wrong place doesn't fail, it quietly starts a fresh state.
 

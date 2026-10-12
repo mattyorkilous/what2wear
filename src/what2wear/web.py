@@ -32,7 +32,7 @@ from what2wear.core import (
 )
 from what2wear.errors import What2wearError
 from what2wear.forecast import fetch_forecast
-from what2wear.icons import get_icon
+from what2wear.icons import get_art
 from what2wear.model import (
     DayType,
     Garment,
@@ -355,7 +355,7 @@ def _parse_date(text: str) -> date:
 def _get_widget_day(
     state: State, on: date, weather: Mapping[date, float]
 ) -> dict[str, Any]:
-    """Answer for `on` as the widget draws it, from the same icons."""
+    """Answer for `on` as the widget draws it, from the same art."""
     try:
         response = answer(state, on, weather)
     except OverflowError:
@@ -368,7 +368,7 @@ def _get_widget_day(
                 "garment": kind,
                 "label": garment.label,
                 **({"if_cold": True} if if_cold else {}),
-                "icon": get_icon(kind, garment),
+                "art": get_art(kind, garment, response.day_type),
             }
             for kind, garment, if_cold in _get_worn_garments(response)
         ],
@@ -442,7 +442,7 @@ def _render_day(
 def _get_drawn_garments(
     response: Response,
 ) -> tuple[dict[str, Any], ...]:
-    """Each Garment worn: its name, its icon, and whether it's dimmed.
+    """Each Garment worn: its name, its art, and whether it's dimmed.
 
     Outerwear worn only if it's cold is dimmed and says so.
     """
@@ -450,7 +450,7 @@ def _get_drawn_garments(
         {
             "name": f"{garment.label} {kind.title()}"
             + (", if it's cold" if if_cold else ""),
-            "icon": get_icon(kind, garment),
+            "art": get_art(kind, garment, response.day_type),
             "dim": if_cold,
         }
         for kind, garment, if_cold in _get_worn_garments(response)

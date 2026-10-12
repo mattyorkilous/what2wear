@@ -22,7 +22,7 @@ The layer shape, from the prototype:
 
 **Blocked by:** None — can start immediately
 
-**Status:** ready-for-agent
+**Status:** done
 
 ### The art
 
