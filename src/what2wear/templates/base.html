@@ -187,7 +187,7 @@
 <body>
   <header class="bar">
     <nav class="segments" aria-label="Pages">
-      <a href="{{ url_for('show_today') }}"{% if today_title %} data-title="{{ today_title }}"{% endif %}{% if page == 'day' %} aria-current="page"{% endif %}>Day</a>
+      <a href="{{ url_for('show_today') }}" data-week{% if today_title %} data-title="{{ today_title }}"{% endif %}{% if page == 'day' %} aria-current="page"{% endif %}>Day</a>
       <a href="{{ url_for('show_closet') }}" data-title="Closet"{% if page == 'closet' %} aria-current="page"{% endif %}>Closet</a>
       <a href="{{ url_for('show_settings') }}" data-title="Settings"{% if page == 'settings' %} aria-current="page"{% endif %}>Settings</a>
     </nav>
@@ -373,6 +373,19 @@
       });
     };
 
+    // The Day page's title sits under its week strip, so its placeholder
+    // keeps an unseen strip's room above it, drawn by the strip's own rules.
+    const leaveRoomForWeek = (title) => {
+      const day = document.createElement("section");
+      const strip = document.createElement("nav");
+      day.className = "day";
+      strip.className = "week";
+      strip.style.visibility = "hidden";
+      strip.innerHTML = "<a><small>M</small> <b>1</b> <i>H</i></a>";
+      day.replaceChildren(strip, title);
+      return day;
+    };
+
     // A tap on another page's segment answers at once: the highlight moves to it
     // and the page gives way to that page's title, until the page itself
     // arrives. A page restored from the back-forward cache shows itself
@@ -393,7 +406,7 @@
         mark(link);
         const title = document.createElement("h1");
         title.textContent = link.dataset.title ?? link.textContent;
-        main.replaceChildren(title);
+        main.replaceChildren("week" in link.dataset ? leaveRoomForWeek(title) : title);
       });
       addEventListener("pageshow", (event) => {
         if (!event.persisted) return;

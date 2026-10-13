@@ -315,6 +315,20 @@ def test_each_segment_carries_the_title_of_the_page_it_opens(
     ]
 
 
+@pytest.mark.parametrize("url", ["/", "/closet", "/settings"])
+def test_only_the_day_segment_opens_under_the_week_strip(
+    client: FlaskClient, url: str
+) -> None:
+    # So the Day's title shows where it lands, below the strip's room.
+    nav = _get_element(
+        _get_text(client, f"/{TOKEN}{url}"), '<nav class="segments"'
+    )
+    assert [
+        "data-week" in _get_fields(tag)
+        for tag in re.findall(r"<a [^>]*>", nav)
+    ] == [True, False, False]
+
+
 def test_a_past_date_says_what_it_shows(client: FlaskClient) -> None:
     day = _get_today() - timedelta(days=1)
     assert "not what was worn" in _get_text(
