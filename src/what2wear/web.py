@@ -333,10 +333,12 @@ def app(
                 if refused_replace
                 else ""
             ),
+            today_title=_get_day_title(state, today),
         )
 
     def render_settings(notice: str) -> str:
-        state = read_state(state_path, _get_today())
+        today = _get_today()
+        state = read_state(state_path, today)
         return render_template(
             "settings.html",
             notice=notice,
@@ -345,6 +347,7 @@ def app(
             threshold=_round_degrees(state.cold_threshold),
             stored_threshold=_render_degrees(state.cold_threshold),
             thresholds=COLD_THRESHOLDS,
+            today_title=_get_day_title(state, today),
         )
 
     def record_settings(
@@ -489,6 +492,7 @@ def _render_day(
         and response.day_type is DayType.HOME
         and response.cold is not False
         else None,
+        today_title=_get_day_title(state, today),
     )
 
 
@@ -551,6 +555,15 @@ def _get_other_outerwear(response: Response) -> str:
     return (
         "jacket" if response.outfit.sweater is not None else "sweater"
     )
+
+
+def _get_day_title(state: State, on: date) -> str:
+    """Title `on`'s Day page as it opens: Home Day or Office Day.
+
+    Every page's segment bar carries today's, so the Day segment can
+    show it the moment it's tapped.
+    """
+    return f"{get_day_type(state, on).title()} Day"
 
 
 def _parse_color(text: str) -> str:

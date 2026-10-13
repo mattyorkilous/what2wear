@@ -2,8 +2,10 @@ import dataclasses
 import html
 import json
 import re
+from collections.abc import Callable
 from datetime import UTC, date, datetime, time, timedelta, tzinfo
 from functools import reduce
+from itertools import accumulate
 from pathlib import Path
 from typing import Any, Self
 from unittest.mock import Mock
@@ -20,7 +22,7 @@ from what2wear.core import (
     get_due_date,
     record_override,
 )
-from what2wear.model import DayType
+from what2wear.model import DayType, State
 from what2wear.store import read_state, write_state
 from what2wear.wardrobe import (
     CLOSETS,
@@ -186,6 +188,22 @@ def test_a_weeks_strip_is_the_same_from_any_of_its_days(
     ) == _get_week_strip(_get_text(client, f"/{TOKEN}/day/{monday}"))
 
 
+def test_the_outfit_is_one_block_apart_from_the_strip_and_title(
+    client: FlaskClient,
+) -> None:
+    # A past date with no forecast, so a caption shows and the
+    # Outerwear is worn only if it's cold, under its own heading.
+    day = _get_today() - timedelta(days=1)
+    page = _get_text(client, f"/{TOKEN}/day/{day}")
+    block = _get_element(page, '<div class="outfit"')
+    worn_garments, if_cold_garments = _split_if_cold(page)
+    assert if_cold_garments
+    assert _split_if_cold(block) == (worn_garments, if_cold_garments)
+    assert 'aria-label="Week"' not in block
+    assert "<h1" not in block
+    assert "not what was worn" not in block
+
+
 def test_today_links_back_only_from_another_day(
     client: FlaskClient,
 ) -> None:
@@ -256,6 +274,45 @@ def test_every_page_links_to_day_closet_and_settings(
     assert f'href="/{TOKEN}/"' in page
     assert f'href="/{TOKEN}/closet"' in page
     assert f'href="/{TOKEN}/settings"' in page
+
+
+@pytest.mark.parametrize(
+    ("record_today", "title"),
+    [
+        (lambda state: state, "Home Day"),
+        (
+            lambda state: dataclasses.replace(
+                state, office_weekdays=(0, 1, 2)
+            ),
+            "Office Day",
+        ),
+        (
+            lambda state: record_override(
+                state, PINNED_TODAY, DayType.OFFICE
+            ),
+            "Office Day",
+        ),
+    ],
+)
+@pytest.mark.parametrize("url", ["/", "/closet", "/settings"])
+def test_each_segment_carries_the_title_of_the_page_it_opens(
+    pinned_client: FlaskClient,
+    state_path: Path,
+    record_today: Callable[[State], State],
+    title: str,
+    url: str,
+) -> None:
+    # The pinned today is a Tuesday: a Home Day unless the Office
+    # Weekdays or an Override make it an Office Day.
+    write_state(
+        state_path, record_today(get_default_state(PINNED_TODAY))
+    )
+    page = _get_text(pinned_client, f"/{TOKEN}{url}")
+    assert _get_segments(page) == [
+        (f"/{TOKEN}/", title, "Day"),
+        (f"/{TOKEN}/closet", "Closet", "Closet"),
+        (f"/{TOKEN}/settings", "Settings", "Settings"),
+    ]
 
 
 def test_a_past_date_says_what_it_shows(client: FlaskClient) -> None:
@@ -1538,6 +1595,33 @@ def _get_week_strip(page: str) -> list[tuple[str, ...]]:
             re.DOTALL,
         )
     ]
+
+
+def _get_segments(page: str) -> list[tuple[str, str, str]]:
+    """Each segment: its link, the title it carries, and its text."""
+    nav = _get_element(page, '<nav class="segments"')
+    return [
+        (fields["href"], fields.get("data-title", ""), text)
+        for tag, text in re.findall(r"(<a [^>]*>)(.*?)</a>", nav)
+        for fields in [_get_fields(tag)]
+    ]
+
+
+def _get_element(page: str, opening: str) -> str:
+    """The element whose tag starts with `opening`, closed and all."""
+    start = page.index(opening)
+    tag_name = re.match(r"<(\w+)", opening)
+    assert tag_name is not None
+    tags = list(
+        re.finditer(rf"<(/?){tag_name[1]}\b[^>]*>", page[start:])
+    )
+    depths = accumulate(-1 if tag[1] else 1 for tag in tags)
+    end = next(
+        tag.end()
+        for tag, depth in zip(tags, depths, strict=True)
+        if depth == 0
+    )
+    return page[start : start + end]
 
 
 def _get_shirt_choices(page: str) -> list[tuple[str, bool]]:

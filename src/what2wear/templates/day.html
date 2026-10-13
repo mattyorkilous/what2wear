@@ -19,17 +19,19 @@
   {% if past %}
   <p class="caption">A past date: this is where the Rotation stands now, not what was worn.</p>
   {% endif %}
-  <ul class="outfit" style="--rows: {{ worn_garments | length + 0.3 }}">
-    {% for garment in worn_garments %}{{ art.row(garment) }}
-    {% endfor %}
-  </ul>
-  {% if if_cold_garments %}
-  <h2 class="eyebrow">If it's cold</h2>
-  <ul class="outfit" style="--rows: {{ if_cold_garments | length }}">
-    {% for garment in if_cold_garments %}{{ art.row(garment, " · no forecast yet") }}
-    {% endfor %}
-  </ul>
-  {% endif %}
+  <div class="outfit">
+    <ul style="--rows: {{ worn_garments | length + 0.3 }}">
+      {% for garment in worn_garments %}{{ art.row(garment) }}
+      {% endfor %}
+    </ul>
+    {% if if_cold_garments %}
+    <h2 class="eyebrow">If it's cold</h2>
+    <ul style="--rows: {{ if_cold_garments | length }}">
+      {% for garment in if_cold_garments %}{{ art.row(garment, " · no forecast yet") }}
+      {% endfor %}
+    </ul>
+    {% endif %}
+  </div>
 </section>
 <div class="toolbar">
   <form action="{{ url_for('pick_day') }}">

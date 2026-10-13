@@ -92,8 +92,9 @@
     .week .today b { color: var(--red); }
     .week [aria-current] b { background: var(--label); color: var(--bg); }
     .week .today[aria-current] b { background: var(--red); color: #fff; }
-    .outfit { list-style: none; margin: 0; padding: 0; min-height: 0;
-              display: flex; flex-direction: column; gap: 8px; flex: var(--rows) 1 0; }
+    .outfit { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; }
+    .outfit ul { list-style: none; margin: 0; padding: 0; min-height: 0;
+                 display: flex; flex-direction: column; gap: 8px; flex: var(--rows) 1 0; }
     .outfit li { flex: 1 1 0; min-height: 44px; container-type: size;
                  display: flex; align-items: center; gap: 16px;
                  background: var(--card); border-radius: 22px; padding: 4px 18px 4px 6px; }
@@ -186,9 +187,9 @@
 <body>
   <header class="bar">
     <nav class="segments" aria-label="Pages">
-      <a href="{{ url_for('show_today') }}"{% if page == 'day' %} aria-current="page"{% endif %}>Day</a>
-      <a href="{{ url_for('show_closet') }}"{% if page == 'closet' %} aria-current="page"{% endif %}>Closet</a>
-      <a href="{{ url_for('show_settings') }}"{% if page == 'settings' %} aria-current="page"{% endif %}>Settings</a>
+      <a href="{{ url_for('show_today') }}"{% if today_title %} data-title="{{ today_title }}"{% endif %}{% if page == 'day' %} aria-current="page"{% endif %}>Day</a>
+      <a href="{{ url_for('show_closet') }}" data-title="Closet"{% if page == 'closet' %} aria-current="page"{% endif %}>Closet</a>
+      <a href="{{ url_for('show_settings') }}" data-title="Settings"{% if page == 'settings' %} aria-current="page"{% endif %}>Settings</a>
     </nav>
     {% if notice %}<p class="toast" role="status">{{ notice }}</p>{% endif %}
   </header>
@@ -223,15 +224,18 @@
       toast.addEventListener("transitionend", () => toast.remove());
     };
 
-    // A drag across the page moves a day, and across the strip a Week.
-    // Each day is still its own URL, loaded whole with replace, so back
-    // leaves the Day page rather than walking every day swiped past.
+    // A drag across the Outfit moves a day, and across the strip a Week,
+    // and only what was dragged follows the finger; a drag anywhere else
+    // does nothing. Each day is still its own URL, loaded whole with
+    // replace, so back leaves the Day page rather than walking every day
+    // swiped past.
     const swipeDays = (day) => {
       const strip = day.querySelector(".week");
+      const outfit = day.querySelector(".outfit");
       const EDGE = 24;
       const SLOP = 10;
       const side = takeHandOver();
-      if (side) day.classList.add(`from-${side}`);
+      if (side) outfit.classList.add(`from-${side}`);
 
       const go = (url, from) => { handOver(from); location.replace(url); };
       const move = (target, dx) => {
@@ -243,9 +247,10 @@
       let dragged = false;
       day.addEventListener("pointerdown", (event) => {
         if (event.clientX < EDGE || event.clientX > innerWidth - EDGE || isPopoverOpen()) return;
-        const onStrip = event.target.closest(".week") !== null;
+        const target = event.target.closest(".week, .outfit");
+        if (!target) return;
         drag = { x: event.clientX, y: event.clientY, dx: 0, axis: null,
-                 target: onStrip ? strip : day, unit: onStrip ? "week" : "day" };
+                 target, unit: target === strip ? "week" : "day" };
         dragged = false;
       });
       day.addEventListener("pointermove", (event) => {
@@ -292,7 +297,7 @@
       }, true);
       addEventListener("pageshow", (event) => {
         if (!event.persisted) return;
-        [day, strip].forEach((target) => { target.classList.remove("snap"); move(target, 0); });
+        [outfit, strip].forEach((target) => { target.classList.remove("snap"); move(target, 0); });
       });
     };
 
@@ -309,6 +314,91 @@
         event.preventDefault();
         opener.closest("[popover]").hidePopover();
         document.getElementById(opener.getAttribute("popovertarget")).showPopover();
+      });
+    };
+
+    // A sheet scrolled to its top follows a downward drag, and closes as a
+    // tap outside it does when let go past a quarter of its height or
+    // flicked; otherwise it springs back. A Replace sheet is its Shirt
+    // sheet's child popover, so closing it leaves that sheet open.
+    const pullToClose = (sheet) => {
+      const SLOP = 10;
+      const FLICK = .5;
+      const move = (dy) => { sheet.style.transform = dy ? `translateY(${dy}px)` : ""; };
+      const settle = (closing) => {
+        sheet.classList.add("snap");
+        sheet.style.transform = closing ? "translateY(100%)" : "";
+        setTimeout(() => {
+          if (closing && sheet.matches(":popover-open")) sheet.hidePopover();
+          sheet.classList.remove("snap");
+          move(0);
+        }, 220);
+      };
+
+      let pull = null;
+      sheet.addEventListener("touchstart", (event) => {
+        const { clientX, clientY } = event.touches[0];
+        pull = sheet.scrollTop > 0 || event.touches.length > 1 ? null
+          : { x: clientX, y: clientY, dy: 0, at: event.timeStamp, speed: 0, pulling: false };
+      }, { passive: true });
+      sheet.addEventListener("touchmove", (event) => {
+        if (!pull) return;
+        const dx = event.touches[0].clientX - pull.x;
+        const dy = event.touches[0].clientY - pull.y;
+        if (!pull.pulling) {
+          // Held from the first move, so a scroll can't take the gesture
+          // before it's clear which way the finger is going.
+          if (dy < 0) { pull = null; return; }
+          event.preventDefault();
+          if (Math.hypot(dx, dy) <= SLOP) return;
+          if (dy <= Math.abs(dx)) { pull = null; return; }
+          pull.pulling = true;
+        }
+        event.preventDefault();
+        pull.speed = (dy - pull.dy) / Math.max(event.timeStamp - pull.at, 1);
+        pull.dy = dy;
+        pull.at = event.timeStamp;
+        move(Math.max(dy, 0));
+      }, { passive: false });
+      sheet.addEventListener("touchend", (event) => {
+        if (!pull) return;
+        const { dy, speed, pulling, at } = pull;
+        pull = null;
+        const flicked = dy > 0 && speed > FLICK && event.timeStamp - at < 100;
+        if (pulling) settle(dy > sheet.offsetHeight / 4 || flicked);
+      });
+      sheet.addEventListener("touchcancel", () => {
+        if (pull?.pulling) settle(false);
+        pull = null;
+      });
+    };
+
+    // A tap on another page's segment answers at once: the highlight moves to it
+    // and the page gives way to that page's title, until the page itself
+    // arrives. A page restored from the back-forward cache shows itself
+    // again, under its own segment.
+    const switchOnTap = (segments) => {
+      const main = document.querySelector("main");
+      const ownSegment = segments.querySelector("[aria-current]");
+      const shownNodes = [...main.childNodes];
+      const mark = (link) => segments.querySelectorAll("a").forEach((segment) => {
+        if (segment === link) segment.setAttribute("aria-current", "page");
+        else segment.removeAttribute("aria-current");
+      });
+      segments.addEventListener("click", (event) => {
+        const link = event.target.closest("a");
+        const plain = event.button === 0 && !(event.metaKey || event.ctrlKey || event.shiftKey || event.altKey);
+        if (!link || !plain) return;
+        if (new URL(link.href).pathname === location.pathname) { event.preventDefault(); return; }
+        mark(link);
+        const title = document.createElement("h1");
+        title.textContent = link.dataset.title ?? link.textContent;
+        main.replaceChildren(title);
+      });
+      addEventListener("pageshow", (event) => {
+        if (!event.persisted) return;
+        mark(ownSegment);
+        main.replaceChildren(...shownNodes);
       });
     };
 
@@ -349,6 +439,16 @@
         svg.replaceChildren(...templates[form.dataset.art]
           .filter((layer) => striped.checked || (layer.fill ?? layer.stroke) !== "stripe")
           .map((layer) => drawLayer(layer, paints)));
+      });
+    };
+
+    // A Replace sheet closed by a tap outside or a pull writes nothing,
+    // and forgets its unsaved fields, redrawing its art as it loaded.
+    const forgetOnClose = (form) => {
+      form.closest(".sheet").addEventListener("toggle", (event) => {
+        if (event.newState !== "closed") return;
+        form.reset();
+        form.dispatchEvent(new Event("input"));
       });
     };
 
@@ -394,12 +494,15 @@
     const day = document.querySelector(".day");
     if (day) swipeDays(day);
     document.querySelectorAll(".toolbar input[type=date]").forEach(goOnPick);
-    document.querySelectorAll("[popover] [popovertarget]").forEach(swapMenuForSheet);
+    document.querySelectorAll(".menu [popovertarget]").forEach(swapMenuForSheet);
+    document.querySelectorAll(".sheet").forEach(pullToClose);
+    switchOnTap(document.querySelector(".segments"));
     const artTemplates = document.getElementById("art-templates");
     if (artTemplates) {
       const templates = JSON.parse(artTemplates.textContent);
       document.querySelectorAll("form[data-art]").forEach((form) => redrawOnEdit(form, templates));
     }
+    document.querySelectorAll("form.replace").forEach(forgetOnClose);
     // A refused Replace comes back with its sheet to reopen.
     document.querySelector(".sheet[data-open]")?.showPopover();
     document.querySelectorAll("form.weekdays").forEach(saveWeekdaysOnChange);
