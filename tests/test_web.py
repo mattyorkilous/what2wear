@@ -204,6 +204,41 @@ def test_the_outfit_is_one_block_apart_from_the_strip_and_title(
     assert "not what was worn" not in block
 
 
+@pytest.mark.parametrize(
+    ("on", "swipes"),
+    [
+        # From this Week's Thursday, a Week either way is its Monday.
+        (
+            date(2026, 10, 15),
+            {
+                "prev-week": date(2026, 10, 5),
+                "prev-day": date(2026, 10, 14),
+                "next-day": date(2026, 10, 16),
+                "next-week": date(2026, 10, 19),
+            },
+        ),
+        # From next Week's Wednesday, back a Week is today, a Tuesday.
+        (
+            date(2026, 10, 21),
+            {
+                "prev-week": PINNED_TODAY,
+                "prev-day": date(2026, 10, 20),
+                "next-day": date(2026, 10, 22),
+                "next-week": date(2026, 10, 26),
+            },
+        ),
+    ],
+)
+def test_a_week_swipe_lands_on_monday_or_on_today_in_this_week(
+    pinned_client: FlaskClient, on: date, swipes: dict[str, date]
+) -> None:
+    page = _get_text(pinned_client, f"/{TOKEN}/day/{on}")
+    assert _get_swipes(page) == {
+        name: f"/{TOKEN}/day/{swiped}"
+        for name, swiped in swipes.items()
+    }
+
+
 def test_today_links_back_only_from_another_day(
     client: FlaskClient,
 ) -> None:
@@ -1636,6 +1671,16 @@ def _get_element(page: str, opening: str) -> str:
         if depth == 0
     )
     return page[start : start + end]
+
+
+def _get_swipes(page: str) -> dict[str, str]:
+    """Where each swipe on the Day page goes, by its direction."""
+    fields = _get_fields(page[page.index('<section class="day"') :])
+    return {
+        name.removeprefix("data-"): url
+        for name, url in fields.items()
+        if name.endswith(("-day", "-week"))
+    }
 
 
 def _get_shirt_choices(page: str) -> list[tuple[str, bool]]:

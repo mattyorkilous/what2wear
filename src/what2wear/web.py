@@ -52,11 +52,6 @@ from what2wear.wardrobe import (
     get_garments,
 )
 
-# How far each swipe moves the shown date: a day across the page, a
-# Week across the strip.
-SWIPE_DAYS = MappingProxyType(
-    {"prev_week": -7, "prev_day": -1, "next_day": 1, "next_week": 7}
-)
 # The Closet page shows the Home Closet first, then the Office.
 CLOSET_ORDER = (DayType.HOME, DayType.OFFICE)
 # The rest of a Closet's Wardrobe, each kind in its own named grid.
@@ -465,8 +460,14 @@ def _render_day(
         response = answer(state, on, weather)
         week = _get_week(state, on, today)
         swipes = {
-            name: on + timedelta(days=days)
-            for name, days in SWIPE_DAYS.items()
+            "prev_week": _get_week_landing(
+                on - timedelta(days=7), today
+            ),
+            "prev_day": on - timedelta(days=1),
+            "next_day": on + timedelta(days=1),
+            "next_week": _get_week_landing(
+                on + timedelta(days=7), today
+            ),
         }
     except OverflowError:
         abort(404)
@@ -512,6 +513,21 @@ def _get_week(
             "today": day == today,
         }
         for day in (monday + timedelta(days=days) for days in range(7))
+    )
+
+
+def _get_week_landing(on: date, today: date) -> date:
+    """Find where a Week swipe to `on`'s Week lands.
+
+    That's today in today's Week, and the Week's Monday in any other,
+    so a Week swipe always starts the Week rather than keeping the
+    weekday it left.
+    """
+    monday = on - timedelta(days=on.weekday())
+    return (
+        today
+        if monday <= today < monday + timedelta(days=7)
+        else monday
     )
 
 
