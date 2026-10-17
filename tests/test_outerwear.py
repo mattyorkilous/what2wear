@@ -251,7 +251,7 @@ class TestTheColdThreshold:
     def test_a_threshold_outside_whole_degrees_0_to_100_is_refused(
         self, threshold: float
     ) -> None:
-        with pytest.raises(What2wearError, match="whole degree"):
+        with pytest.raises(What2wearError, match="whole number"):
             set_cold_threshold(get_default_state(TODAY), threshold)
 
 

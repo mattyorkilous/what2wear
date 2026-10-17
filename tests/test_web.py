@@ -67,7 +67,7 @@ def pinned_client(
 def test_the_bare_url_is_todays_day_page(client: FlaskClient) -> None:
     page = _get_text(client, f"/{TOKEN}/")
     assert _get_shown_date(page) == _get_today()
-    assert _get_title(page) in {"Office Day", "Home Day"}
+    assert _get_title(page) in {"Office day", "Home day"}
     assert [kind for _, _, kind in _get_drawn_garments(page)][:3] == [
         "Shirt",
         "Pants",
@@ -99,13 +99,13 @@ def test_a_day_page_shows_that_date(client: FlaskClient) -> None:
 def test_the_title_is_the_day(client: FlaskClient) -> None:
     saturday = _get_next(SAT)
     page = _get_text(client, f"/{TOKEN}/day/{saturday}")
-    assert _get_title(page) == "Home Day"
+    assert _get_title(page) == "Home day"
     page = _post_text(
         client,
         f"/{TOKEN}/day/{saturday}/day-type",
         {"day_type": "office"},
     )
-    assert _get_title(page) == "Office Day"
+    assert _get_title(page) == "Office day"
 
 
 def test_a_garment_reads_as_its_label_over_its_kind(
@@ -201,7 +201,7 @@ def test_the_outfit_is_one_block_apart_from_the_strip_and_title(
     assert _split_if_cold(block) == (worn_garments, if_cold_garments)
     assert 'aria-label="Week"' not in block
     assert "<h1" not in block
-    assert "not what was worn" not in block
+    assert "not be what you actually wore" not in block
 
 
 @pytest.mark.parametrize(
@@ -314,18 +314,18 @@ def test_every_page_links_to_day_closet_and_settings(
 @pytest.mark.parametrize(
     ("record_today", "title"),
     [
-        (lambda state: state, "Home Day"),
+        (lambda state: state, "Home day"),
         (
             lambda state: dataclasses.replace(
                 state, office_weekdays=(0, 1, 2)
             ),
-            "Office Day",
+            "Office day",
         ),
         (
             lambda state: record_override(
                 state, PINNED_TODAY, DayType.OFFICE
             ),
-            "Office Day",
+            "Office day",
         ),
     ],
 )
@@ -366,13 +366,15 @@ def test_only_the_day_segment_opens_under_the_week_strip(
 
 def test_a_past_date_says_what_it_shows(client: FlaskClient) -> None:
     day = _get_today() - timedelta(days=1)
-    assert "not what was worn" in _get_text(
+    assert "not be what you actually wore" in _get_text(
         client, f"/{TOKEN}/day/{day}"
     )
 
 
 def test_today_is_not_the_past(client: FlaskClient) -> None:
-    assert "not what was worn" not in _get_text(client, f"/{TOKEN}/")
+    assert "not be what you actually wore" not in _get_text(
+        client, f"/{TOKEN}/"
+    )
 
 
 def test_an_unavoidable_repeat_is_called_out(
@@ -402,7 +404,7 @@ def test_an_unavoidable_repeat_is_called_out(
         ),
     )
     page = _get_text(client, f"/{TOKEN}/day/{saturday}")
-    assert "already worn this week" in page
+    assert "been worn this week" in page
 
 
 def test_an_unknown_forecast_puts_the_outerwear_if_its_cold(
@@ -590,7 +592,7 @@ def test_an_unreadable_state_is_a_500_with_the_message_and_nav(
     assert reply.status_code == 500
     assert reply.headers["Cache-Control"] == "no-store"
     page = reply.get_data(as_text=True)
-    assert "state file" in page
+    assert "looks damaged" in page
     assert f'href="/{TOKEN}/closet"' in page
 
 
@@ -696,7 +698,7 @@ def test_the_widget_json_for_an_unreadable_state_is_an_error(
     assert reply.status_code == 500
     assert reply.json is not None
     assert set(reply.json) == {"error"}
-    assert "state file" in reply.json["error"]
+    assert "looks damaged" in reply.json["error"]
 
 
 def test_the_widget_json_for_no_date_is_not_found(
@@ -718,8 +720,8 @@ def test_the_day_type_button_offers_the_other_type(
     client: FlaskClient,
 ) -> None:
     page = _get_text(client, f"/{TOKEN}/day/{_get_next(SAT)}")
-    assert "Make this an Office Day" in page
-    assert "Make this a Home Day" not in page
+    assert "Make this an office day" in page
+    assert "Make this a home day" not in page
 
 
 def test_a_day_type_write_answers_303_with_the_notice(
@@ -732,12 +734,10 @@ def test_a_day_type_write_answers_303_with_the_notice(
     assert reply.status_code == 303
     location = urlsplit(reply.headers["Location"])
     assert location.path == f"/{TOKEN}/day/{saturday}"
-    assert parse_qs(location.query)["notice"] == [
-        "Recorded: an Office Day"
-    ]
+    assert parse_qs(location.query)["notice"] == ["Now an office day"]
     page = _get_text(client, reply.headers["Location"])
-    assert "Recorded: an Office Day" in page
-    assert "Make this a Home Day" in page
+    assert "Now an office day" in page
+    assert "Make this a home day" in page
     assert state_path.exists()
 
 
@@ -749,7 +749,7 @@ def test_a_write_already_the_case_says_so_and_writes_nothing(
         f"/{TOKEN}/day/{_get_next(SAT)}/day-type",
         {"day_type": "home"},
     )
-    assert "Already: a Home Day" in page
+    assert "Already a home day" in page
     assert not state_path.exists()
 
 
@@ -799,7 +799,10 @@ def test_wearing_a_different_shirt_resets_to_it(
     page = _post_text(
         client, f"/{TOKEN}/day/{saturday}/shirt", {"shirt": other}
     )
-    assert f"Recorded: the Shirt Rotation reset to {other}" in page
+    assert (
+        f"Switched to the {other} shirt, and the rotation is reset"
+        in page
+    )
     assert _get_drawn_garments(page)[0][1] == other
     assert (other, True) in _get_shirt_choices(page)
 
@@ -813,7 +816,7 @@ def test_a_refusal_reshows_the_page_with_the_message(
     )
     assert reply.status_code == 422
     page = html.unescape(reply.get_data(as_text=True))
-    assert "no home shirt named 'Nope'" in page
+    assert "There's no home shirt called Nope." in page
     assert _get_shown_date(page) == saturday
     assert not state_path.exists()
 
@@ -868,7 +871,8 @@ def test_switching_outerwear_offers_the_other_kind(
     assert reply.status_code == 303
     assert urlsplit(reply.headers["Location"]).path == f"/{TOKEN}/"
     after = _get_text(client, reply.headers["Location"])
-    assert "Recorded: the Home Outerwear Rotation reset" in after
+    other = "jacket" if "Switch to the jacket" in before else "sweater"
+    assert f"Switched to the {other}" in after
     assert ("Switch to the jacket" in before) == (
         "Switch to the sweater" in after
     )
@@ -887,14 +891,14 @@ def test_settings_check_the_chips_of_the_office_weekdays(
         for chip in chips
         if "checked" in chip
     ] == ["0", "2", "4"]
-    assert "Changing these keeps every Rotation where it is." in page
+    assert "Your shirts carry on in the same order." in page
 
 
 def test_settings_hold_only_the_two_cards(client: FlaskClient) -> None:
     page = _get_text(client, f"/{TOKEN}/settings")
     assert re.findall(r"<h2>(.*?)</h2>", page) == [
-        "Office Weekdays",
-        "Cold Threshold",
+        "Office days",
+        "Cold below",
     ]
     assert re.findall(r'<form [^>]*action="([^"]+)"', page) == [
         f"/{TOKEN}/settings/office-weekdays",
@@ -913,7 +917,7 @@ def test_setting_office_weekdays_records_them(
     location = urlsplit(reply.headers["Location"])
     assert location.path == f"/{TOKEN}/settings"
     after = _get_text(client, reply.headers["Location"])
-    assert "Recorded: Office Weekdays Tue, Thu, Sat" in after
+    assert "Office days are now Tuesday, Thursday and Saturday" in after
     assert state_path.exists()
 
 
@@ -925,7 +929,9 @@ def test_restating_office_weekdays_is_already_the_case(
         f"/{TOKEN}/settings/office-weekdays",
         {"weekday": ["0", "2", "4"]},
     )
-    assert "Already: Office Weekdays Mon, Wed, Fri" in page
+    assert (
+        "Office days are already Monday, Wednesday and Friday" in page
+    )
     assert not state_path.exists()
 
 
@@ -937,7 +943,7 @@ def test_other_than_three_weekdays_is_refused(
     )
     assert reply.status_code == 422
     page = html.unescape(reply.get_data(as_text=True))
-    assert "exactly 3 different days" in page
+    assert "Pick exactly 3 office days." in page
     assert page.count('type="checkbox"') == 7
     assert not state_path.exists()
 
@@ -968,7 +974,7 @@ def test_setting_the_cold_threshold_records_it(
     page = _post_text(
         client, f"/{TOKEN}/settings/cold-threshold", {"threshold": "42"}
     )
-    assert "Recorded: a Cold Threshold of 42°F" in page
+    assert "Sweaters and jackets below 42°F" in page
     assert 'name="threshold" value="42"' in page
     assert read_state(state_path, _get_today()).cold_threshold == 42
 
@@ -981,10 +987,7 @@ def test_restating_the_cold_threshold_is_already_the_case(
         f"/{TOKEN}/settings/cold-threshold",
         {"threshold": f"{DEFAULT_COLD_THRESHOLD}"},
     )
-    assert (
-        f"Already: a Cold Threshold of {DEFAULT_COLD_THRESHOLD:g}°F"
-        in page
-    )
+    assert f"Already set to {DEFAULT_COLD_THRESHOLD:g}°F" in page
     assert not state_path.exists()
 
 
@@ -998,7 +1001,7 @@ def test_a_threshold_outside_whole_degrees_0_to_100_is_refused(
         data={"threshold": threshold},
     )
     assert reply.status_code == 422
-    assert "a whole degree from 0 to 100" in reply.get_data(
+    assert "a whole number from 0 to 100°F" in reply.get_data(
         as_text=True
     )
     assert read_state(state_path, _get_today()).cold_threshold == 52.5
@@ -1025,8 +1028,8 @@ def test_the_closet_shows_home_shirts_then_office_shirts(
     page = _get_text(pinned_client, f"/{TOKEN}/closet")
     assert [key for key, _, _ in _get_shirt_tiles(page)] == SHIRT_KEYS
     assert _get_grid_names(page) == [
-        "Home Shirts",
-        "Office Shirts",
+        "Home shirts",
+        "Office shirts",
         "Pants",
         "Home sweaters",
         "Home jackets",
@@ -1074,8 +1077,10 @@ def test_each_shirt_sheet_links_to_the_day_it_is_next_due(
         for tile_key, _, due_text in _get_shirt_tiles(page)
         if tile_key == key
     )
+    if due_text in {"Today", "Tomorrow"}:
+        due_text = due_text.lower()
     assert (
-        f'href="/{TOKEN}/day/{due}">Next due {due_text} ›</a>'  # noqa: RUF001
+        f'href="/{TOKEN}/day/{due}">Next up {due_text} ›</a>'  # noqa: RUF001
         in _get_sheet(page, f"shirt-{key}")
     )
 
@@ -1157,9 +1162,9 @@ def test_a_shirt_not_due_this_year_says_so_and_wears_nothing(
         due_text
         for key, _, due_text in _get_shirt_tiles(page)
         if key.startswith("office.")
-    } == {"Not due this year"}
+    } == {"Not coming up this year"}
     sheet = _get_sheet(page, "shirt-office.shirt.0")
-    assert "Next due" not in sheet
+    assert "Next up" not in sheet
     assert "Worn with" not in sheet
 
 
@@ -1183,7 +1188,10 @@ def test_a_shirt_sharing_no_pants_says_it_cannot_swap(
     sheet = _get_sheet(
         _get_text(client, f"/{TOKEN}/closet"), "shirt-office.shirt.2"
     )
-    assert "No other Shirt shares its Pants, so it can't Swap." in sheet
+    assert (
+        "No other shirt goes with these pants, "
+        "so there's nothing to swap with."
+    ) in sheet
     assert 'name="second"' not in sheet
 
 
@@ -1195,9 +1203,7 @@ def test_a_swap_carries_colors_with_labels(
         f"/{TOKEN}/closet/office/swap",
         {"first": "White", "second": "Striped"},
     )
-    assert "Recorded: the Office White and Striped Shirts swapped" in (
-        page
-    )
+    assert "Swapped the White and Striped shirts" in (page)
     state = read_state(state_path, _get_today())
     colors = get_default_state(_get_today()).colors
     assert (
@@ -1225,8 +1231,8 @@ def test_a_refused_swap_reshows_the_closet_with_the_message(
     )
     assert reply.status_code == 422
     page = html.unescape(reply.get_data(as_text=True))
-    assert "do not share pants" in page
-    assert "Office Shirts" in page
+    assert "go with different pants" in page
+    assert "Office shirts" in page
     assert not state_path.exists()
 
 
@@ -1251,7 +1257,7 @@ def test_every_garment_has_a_prefilled_replace_form(
     assert form["color"] == color
     assert form["striped"] == (stripe_color is not None)
     assert form["stripe_color"] == (stripe_color or color)
-    assert form["button"] == f"Replace the {key.split('.')[-2].title()}"
+    assert form["button"] == "Save"
 
 
 def test_each_garment_tile_opens_its_replace_sheet(
@@ -1347,10 +1353,7 @@ def test_a_replace_records_the_label_and_colors(
     location = reply.headers["Location"]
     assert urlsplit(location).path == f"/{TOKEN}/closet"
     page = _get_text(client, location)
-    assert (
-        "Recorded: the Office White Shirt replaced with Pinstripe"
-        in page
-    )
+    assert "Saved the Pinstripe office shirt" in page
     assert _get_replace_form(page, "office.shirt.0")["label"] == (
         "Pinstripe"
     )
@@ -1381,15 +1384,15 @@ def test_restating_a_garment_is_already_the_case(
         client, "pants.0", {"label": "Blue", "color": "#3c67b4"}
     )
     page = _get_text(client, reply.headers["Location"])
-    assert "Already: the Blue Pants replaced with Blue" in page
+    assert "Nothing to save" in page
     assert not state_path.exists()
 
 
 @pytest.mark.parametrize(
     ("label", "message"),
     [
-        ("St. Patrick", "cannot contain '.'"),
-        ("Black", "already has a 'Black'"),
+        ("St. Patrick", "Names can't contain a period."),
+        ("Black", "Another office shirt is already called Black."),
     ],
 )
 def test_a_refused_replace_reopens_its_sheet_as_posted(
@@ -1408,7 +1411,7 @@ def test_a_refused_replace_reopens_its_sheet_as_posted(
     assert reply.status_code == 422
     page = html.unescape(reply.get_data(as_text=True))
     assert message in page
-    assert "Office Shirts" in page
+    assert "Office shirts" in page
     form = _get_replace_form(page, "office.shirt.0")
     assert (
         form["label"],

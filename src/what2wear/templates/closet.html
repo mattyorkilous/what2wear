@@ -13,7 +13,7 @@
       <label>Striped <input type="checkbox" name="striped"{% if garment.form.striped %} checked{% endif %}></label>
       <label>Stripe color <input type="color" name="stripe_color" value="{{ garment.form.stripe_color }}"></label>
     </div>
-    <button>Replace the {{ garment.kind }}</button>
+    <button>Save</button>
   </form>
 </div>
 {%- endmacro %}
@@ -21,7 +21,7 @@
 {{ art.symbols(garments) }}
 <h1>Closet</h1>
 {% for day_type, shirts in shirt_grids %}
-<h2>{{ day_type.title() }} Shirts</h2>
+<h2>{{ day_type.title() }} shirts</h2>
 <div class="tiles">
   {% for shirt in shirts %}<button type="button" popovertarget="shirt-{{ shirt.key }}">{{ art.show(shirt, 92) }}<b>{{ shirt.label }}</b> <small{% if shirt.due_text == "Today" %} class="today"{% endif %}>{{ shirt.due_text }}</small></button>
   {% endfor %}
@@ -39,7 +39,7 @@
 <div id="shirt-{{ shirt.key }}" class="sheet" popover>
   <div class="sheet-head">{{ art.show(shirt, 96) }}<h2>{{ shirt.name }}</h2></div>
   {% if shirt.due %}
-  <a class="capsule" href="{{ url_for('show_day', iso_date=shirt.due.isoformat()) }}">Next due {{ shirt.due_text }} ›</a>
+  <a class="capsule" href="{{ url_for('show_day', iso_date=shirt.due.isoformat()) }}">Next up {{ shirt.due_text | lower if shirt.due_text in ("Today", "Tomorrow") else shirt.due_text }} ›</a>
   {% set if_cold_garments = shirt.worn_garments | selectattr("if_cold") | list %}
   <h3 class="eyebrow">Worn with</h3>
   <ul class="rows">
@@ -54,7 +54,7 @@
   </ul>
   {% endif %}
   {% else %}
-  <p class="note">Not due this year.</p>
+  <p class="note">Not coming up this year.</p>
   {% endif %}
   <h3 class="eyebrow">Swap with</h3>
   {% if shirt.partners %}
@@ -65,9 +65,9 @@
     {% endfor %}
   </form>
   {% else %}
-  <p class="note">No other Shirt shares its Pants, so it can't Swap.</p>
+  <p class="note">No other shirt goes with these pants, so there's nothing to swap with.</p>
   {% endif %}
-  <button class="wide" type="button" popovertarget="replace-{{ shirt.key }}">Replace this Shirt</button>
+  <button class="wide" type="button" popovertarget="replace-{{ shirt.key }}">Edit name and color</button>
 </div>
 {{ replace_sheet(shirt) }}
 {% endfor %}{% endfor %}

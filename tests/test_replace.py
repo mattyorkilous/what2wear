@@ -130,9 +130,7 @@ class TestARefusedReplace:
 
     def test_a_key_nothing_hangs_at_is_refused(self) -> None:
         # Recording it would write a made-up Garment into the State.
-        with pytest.raises(
-            What2wearError, match=r"nothing hangs at 'office\.shirt\.9'"
-        ):
+        with pytest.raises(What2wearError, match="no such garment"):
             _replaced("office.shirt.9", "cream")
 
 

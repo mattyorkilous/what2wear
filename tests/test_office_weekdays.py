@@ -64,10 +64,10 @@ class TestSettingThem:
             (MON, MON, WED, FRI),
         ],
     )
-    def test_any_count_but_three_is_refused_as_a_source_change(
+    def test_any_count_but_three_is_refused(
         self, weekdays: tuple[int, ...]
     ) -> None:
-        with pytest.raises(What2wearError, match="source"):
+        with pytest.raises(What2wearError, match="exactly 3"):
             set_office_weekdays(GIVEN, weekdays, TODAY)
 
 

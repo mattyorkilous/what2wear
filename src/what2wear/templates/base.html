@@ -478,7 +478,7 @@
         save.hidden = getTicks() === loaded;
         save.disabled = ticked !== 3;
         countdown.textContent = save.hidden || ticked === 3 ? ""
-          : ticked < 3 ? `Pick ${3 - ticked} more` : `Untick ${ticked - 3}`;
+          : ticked < 3 ? `Pick ${3 - ticked} more` : `${ticked - 3} too many`;
       };
       form.addEventListener("change", update);
       update();

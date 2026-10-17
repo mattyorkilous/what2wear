@@ -12,12 +12,12 @@
     <a href="{{ url_for('show_day', iso_date=day.on.isoformat()) }}"{% if day.today %} class="today"{% endif %}{% if day.shown %} aria-current="date"{% endif %}><small>{{ day.on.strftime("%a")[0] }}</small> <b>{{ day.on.day }}</b> <i>{{ day.day_type.title()[0] }}</i></a>
     {%- endfor %}
   </nav>
-  <h1>{{ response.day_type.title() }} Day</h1>
+  <h1>{{ response.day_type.title() }} day</h1>
   {% if response.unavoidable_repeat %}
-  <p class="caption">The sweater was already worn this week: there's no free one left.</p>
+  <p class="caption">Every sweater's been worn this week, so this one's a repeat.</p>
   {% endif %}
   {% if past %}
-  <p class="caption">A past date: this is where the Rotation stands now, not what was worn.</p>
+  <p class="caption">This day has passed, so this may not be what you actually wore.</p>
   {% endif %}
   <div class="outfit">
     <ul style="--rows: {{ worn_garments | length + 0.3 }}">
@@ -44,7 +44,7 @@
 </div>
 <div id="day-menu" class="menu" popover>
   <form method="post" action="{{ url_for('set_day_type', iso_date=on) }}">
-    <button name="day_type" value="{{ other_day_type }}">Make this {{ other_article }} {{ other_day_type.title() }} Day</button>
+    <button name="day_type" value="{{ other_day_type }}">Make this {{ other_article }} {{ other_day_type }} day</button>
   </form>
   <button type="button" popovertarget="shirt-sheet">Wear a different shirt</button>
   {% if other_outerwear %}

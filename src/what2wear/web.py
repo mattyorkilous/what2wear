@@ -1,5 +1,6 @@
 """The web shell: the pages the wearer opens on the phone."""
 
+import calendar
 import hmac
 import math
 import re
@@ -143,10 +144,12 @@ def app(
             day_type = DayType(request.form["day_type"])
         except ValueError:
             abort(400)
+        day = f"{_get_article(day_type)} {day_type} day"
         return record_day(
             partial(record_override, on=on, day_type=day_type),
             on,
-            f"{_get_article(day_type)} {day_type.title()} Day",
+            f"Now {day}",
+            f"Already {day}",
         )
 
     @web.post("/<token>/day/<iso_date>/shirt")
@@ -156,16 +159,20 @@ def app(
         return record_day(
             partial(reset, shirt=shirt, on=on),
             on,
-            f"the Shirt Rotation reset to {shirt}",
+            f"Switched to the {shirt} shirt, and the rotation is reset",
+            f"Already wearing the {shirt} shirt",
         )
 
     @web.post("/<token>/outerwear")
     def switch_outerwear() -> Reply | tuple[str, int]:
         today = _get_today()
+        state = read_state(state_path, today)
+        outerwear = _get_other_outerwear(answer(state, today, {}))
         return record_day(
             partial(reset_outerwear, today=today),
             today,
-            "the Home Outerwear Rotation reset",
+            f"Switched to the {outerwear}",
+            f"Already wearing the {outerwear}",
         )
 
     @web.get("/<token>/closet")
@@ -179,10 +186,11 @@ def app(
         except ValueError:
             abort(404)
         first, second = request.form["first"], request.form["second"]
+        swapped = f"Swapped the {first} and {second} shirts"
         return record(
             partial(swap, closet=day_type, first=first, second=second),
-            f"the {day_type.title()} {first} and {second} Shirts "
-            "swapped",
+            swapped,
+            swapped,
             render_closet,
             lambda notice: url_for("show_closet", notice=notice),
         )
@@ -200,7 +208,6 @@ def app(
             if striped
             else None
         )
-        name = _get_garment_name(key, state.labels[key])
         return record(
             partial(
                 replace_,
@@ -209,7 +216,8 @@ def app(
                 color=color,
                 stripe_color=stripe_color,
             ),
-            f"the {name} replaced with {label}",
+            f"Saved the {_get_garment_name(key, label)}",
+            "Nothing to save",
             lambda notice: render_closet(notice, (key, request.form)),
             lambda notice: url_for("show_closet", notice=notice),
         )
@@ -227,24 +235,25 @@ def app(
     @web.post("/<token>/settings/office-weekdays")
     def save_office_weekdays() -> Reply | tuple[str, int]:
         weekdays = _parse_weekdays(request.form.getlist("weekday"))
+        days = _render_weekdays(weekdays)
         return record_settings(
             partial(
                 set_office_weekdays,
                 weekdays=weekdays,
                 today=_get_today(),
             ),
-            "Office Weekdays "
-            + ", ".join(
-                WEEKDAYS[weekday].title() for weekday in weekdays
-            ),
+            f"Office days are now {days}",
+            f"Office days are already {days}",
         )
 
     @web.post("/<token>/settings/cold-threshold")
     def save_cold_threshold() -> Reply | tuple[str, int]:
         threshold = _parse_threshold(request.form["threshold"])
+        degrees = f"{_render_degrees(threshold)}°F"
         return record_settings(
             partial(set_cold_threshold, threshold=threshold),
-            f"a Cold Threshold of {_render_degrees(threshold)}°F",
+            f"Sweaters and jackets below {degrees}",
+            f"Already set to {degrees}",
         )
 
     def render_day(on: date, notice: str) -> str:
@@ -259,11 +268,12 @@ def app(
         )
 
     def record_day(
-        update: UpdateFunction, on: date, confirmation: str
+        update: UpdateFunction, on: date, saved: str, unchanged: str
     ) -> Reply | tuple[str, int]:
         return record(
             update,
-            confirmation,
+            saved,
+            unchanged,
             partial(render_day, on),
             lambda notice: (
                 url_for("show_today", notice=notice)
@@ -276,14 +286,16 @@ def app(
 
     def record(
         update: UpdateFunction,
-        confirmation: str,
+        saved: str,
+        unchanged: str,
         render_page: Callable[[str], str],
         get_url: Callable[[str], str],
     ) -> Reply | tuple[str, int]:
         """Record a write, then send the wearer back to its page.
 
-        The State is written only if it changed, and the notice says
-        which. A refusal re-shows the page with its message instead.
+        The State is written only if it changed, and the notice is
+        `saved` or `unchanged` to say which. A refusal re-shows the page
+        with its message instead.
         """
         state = read_state(state_path, _get_today())
         try:
@@ -293,8 +305,8 @@ def app(
         state_changed = updated_state != state
         if state_changed:
             write_state(state_path, updated_state)
-        outcome = "Recorded" if state_changed else "Already"
-        return redirect(get_url(f"{outcome}: {confirmation}"), code=303)
+        notice = saved if state_changed else unchanged
+        return redirect(get_url(notice), code=303)
 
     def render_closet(
         notice: str,
@@ -346,11 +358,12 @@ def app(
         )
 
     def record_settings(
-        update: UpdateFunction, confirmation: str
+        update: UpdateFunction, saved: str, unchanged: str
     ) -> Reply | tuple[str, int]:
         return record(
             update,
-            confirmation,
+            saved,
+            unchanged,
             render_settings,
             lambda notice: url_for("show_settings", notice=notice),
         )
@@ -574,12 +587,12 @@ def _get_other_outerwear(response: Response) -> str:
 
 
 def _get_day_title(state: State, on: date) -> str:
-    """Title `on`'s Day page as it opens: Home Day or Office Day.
+    """Title `on`'s Day page as it opens: Home day or Office day.
 
     Every page's segment bar carries today's, so the Day segment can
     show it the moment it's tapped.
     """
-    return f"{get_day_type(state, on).title()} Day"
+    return f"{get_day_type(state, on).title()} day"
 
 
 def _parse_color(text: str) -> str:
@@ -590,9 +603,9 @@ def _parse_color(text: str) -> str:
 
 
 def _get_garment_name(key: str, label: str) -> str:
-    """Name a Garment as the wearer reads it: Office White Shirt."""
+    """Name a Garment as the wearer reads it: White office shirt."""
     closet, _, kind = key.rpartition(".")[0].rpartition(".")
-    return f"{closet.title()} {label} {kind.title()}".lstrip()
+    return " ".join(filter(None, (label, closet, kind)))
 
 
 def _parse_weekdays(texts: list[str]) -> tuple[int, ...]:
@@ -604,6 +617,14 @@ def _parse_weekdays(texts: list[str]) -> tuple[int, ...]:
     if not all(weekday in range(len(WEEKDAYS)) for weekday in weekdays):
         abort(400)
     return weekdays
+
+
+def _render_weekdays(weekdays: tuple[int, ...]) -> str:
+    """Render weekdays as said aloud: Monday, Tuesday and Thursday."""
+    names = [calendar.day_name[weekday] for weekday in sorted(weekdays)]
+    return " and ".join(
+        filter(None, (", ".join(names[:-1]), *names[-1:]))
+    )
 
 
 def _parse_threshold(text: str) -> float:
@@ -730,7 +751,7 @@ def _get_form_garment(form: Mapping[str, str]) -> Garment:
 def _get_due_text(due: date | None, today: date) -> str:
     """Say when a Shirt is next due, as near dates are spoken."""
     if due is None:
-        return "Not due this year"
+        return "Not coming up this year"
     days = (due - today).days
     if days == 0:
         return "Today"

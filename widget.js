@@ -66,7 +66,7 @@ function parseJson(text) {
 function getMessage(reply, answer, hasOutfit) {
   if (reply === null) return hasOutfit ? null : "⚠︎ Can't reach server";
   if (answer?.outfit) return null;
-  if (answer?.error) return "⚠︎ State won't read";
+  if (answer?.error) return "⚠︎ Can't load your data";
   return "⚠︎ Renew PythonAnywhere?";
 }
 

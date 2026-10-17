@@ -269,11 +269,11 @@ class TestAFileThatDoesNotReadBack:
             "]not json at all[",
         ],
     )
-    def test_it_is_an_error_naming_the_file(
+    def test_it_is_an_error_saying_the_data_is_damaged(
         self, tmp_path: Path, document: str
     ) -> None:
         _path(tmp_path).write_text(document)
-        with pytest.raises(What2wearError, match=r"state\.json"):
+        with pytest.raises(What2wearError, match="damaged"):
             read_state(_path(tmp_path), TODAY)
 
 

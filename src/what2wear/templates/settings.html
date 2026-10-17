@@ -2,7 +2,7 @@
 {% set page = "settings" %}
 {% block content %}
 <h1>Settings</h1>
-<h2>Office Weekdays</h2>
+<h2>Office days</h2>
 <form class="weekdays" method="post" action="{{ url_for('save_office_weekdays') }}">
   <div class="chips">
     {% for weekday in weekdays %}<label><input type="checkbox" name="weekday" value="{{ loop.index0 }}"{% if loop.index0 in office_weekdays %} checked{% endif %} aria-label="{{ weekday.title() }}"><span>{{ weekday[0] | upper }}</span></label>
@@ -11,14 +11,15 @@
   <p class="note countdown" aria-live="polite"></p>
   <button class="save">Save</button>
 </form>
-<p class="footnote">Changing these keeps every Rotation where it is.</p>
-<h2>Cold Threshold</h2>
+<p class="footnote">Your shirts carry on in the same order.</p>
+<h2>Cold below</h2>
 <form class="threshold" data-stored="{{ stored_threshold }}" method="post" action="{{ url_for('save_cold_threshold') }}">
   <div class="stepper">
     <button type="button" data-step="-1" aria-label="One degree colder">−</button>
-    <label><input type="number" name="threshold" value="{{ threshold }}" min="{{ thresholds[0] }}" max="{{ thresholds[-1] }}" step="1" inputmode="numeric" required aria-label="Cold Threshold">°F</label>
+    <label><input type="number" name="threshold" value="{{ threshold }}" min="{{ thresholds[0] }}" max="{{ thresholds[-1] }}" step="1" inputmode="numeric" required aria-label="Cold below">°F</label>
     <button type="button" data-step="1" aria-label="One degree warmer">+</button>
   </div>
   <button class="save">Save</button>
 </form>
+<p class="footnote">Wear a sweater or jacket when the day's high is below this.</p>
 {% endblock %}

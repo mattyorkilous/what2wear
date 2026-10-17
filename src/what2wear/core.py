@@ -124,12 +124,10 @@ def replace_(
             `.`, or another of its kind already has the label.
     """
     if key not in state.labels:
-        message = f"nothing hangs at {key!r}"
+        message = "There's no such garment."
         raise What2wearError(message)
     if "." in label:
-        message = (
-            f"a label cannot contain '.', so {label!r} will not do"
-        )
+        message = "Names can't contain a period."
         raise What2wearError(message)
     scope = key.rpartition(".")[0]
     if any(
@@ -138,7 +136,11 @@ def replace_(
         and other_key.rpartition(".")[0] == scope
         for other_key, other_label in state.labels.items()
     ):
-        message = f"{scope} already has a {label!r}"
+        closet, _, kind = scope.rpartition(".")
+        garment = " ".join(filter(None, (closet, kind)))
+        if kind in {"pants", "shoes"}:
+            garment = f"pair of {garment}"
+        message = f"Another {garment} is already called {label}."
         raise What2wearError(message)
     return replace(
         state,
@@ -174,8 +176,8 @@ def swap(
     )
     if shirts[first_position].pants != shirts[second_position].pants:
         message = (
-            f"{first!r} and {second!r} do not share "
-            f"pants, so swapping them would change more than a name"
+            f"{first} and {second} go with different pants, "
+            "so they can't swap."
         )
         raise What2wearError(message)
     first_key, second_key = (
@@ -222,10 +224,7 @@ def set_office_weekdays(
     """
     count = len(DEFAULT_OFFICE_WEEKDAYS)
     if len(weekdays) != count or len(frozenset(weekdays)) != count:
-        message = (
-            f"office weekdays must be exactly {count} different days; "
-            "the count is a change to the source"
-        )
+        message = f"Pick exactly {count} office days."
         raise What2wearError(message)
     if frozenset(weekdays) == state.office_weekdays:
         return state
@@ -262,9 +261,8 @@ def set_cold_threshold(state: State, threshold: float) -> State:
     """
     if threshold not in COLD_THRESHOLDS:
         message = (
-            f"a Cold Threshold is a whole degree from "
-            f"{COLD_THRESHOLDS[0]} to {COLD_THRESHOLDS[-1]}, "
-            f"so {threshold:g} will not do"
+            f"Pick a whole number from {COLD_THRESHOLDS[0]} "
+            f"to {COLD_THRESHOLDS[-1]}°F."
         )
         raise What2wearError(message)
     return replace(state, cold_threshold=threshold)
@@ -411,7 +409,7 @@ def _get_shirt_position(
             if state.labels[f"{day_type}.shirt.{position}"] == label
         )
     except StopIteration:
-        message = f"no {day_type} shirt named {label!r}"
+        message = f"There's no {day_type} shirt called {label}."
         raise What2wearError(message) from None
 
 

@@ -38,12 +38,12 @@ def read_state(path: Path, today: date) -> State:
     except FileNotFoundError:
         return get_default_state(today)
     except OSError as error:
-        message = f"could not read {path}: {error}"
+        message = f"Couldn't load your saved data ({error})"
         raise What2wearError(message) from None
     try:
         return _parse_state(json.loads(text))
     except (AttributeError, KeyError, TypeError, ValueError) as error:
-        message = f"{path} does not read as a state file: {error}"
+        message = f"Your saved data looks damaged ({error})"
         raise What2wearError(message) from None
 
 
@@ -67,7 +67,7 @@ def write_state(path: Path, state: State) -> None:
             os.fsync(file.fileno())
         temporary.replace(path)
     except OSError as error:
-        message = f"could not record to {path}: {error}"
+        message = f"Couldn't save that change ({error})"
         raise What2wearError(message) from None
 
 
