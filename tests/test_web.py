@@ -440,7 +440,9 @@ def test_a_cold_day_names_its_outerwear_plainly(
     assert worn_garments[3][2] in {"Sweater", "Jacket"}
 
 
-def test_a_warm_day_names_no_outerwear(state_path: Path) -> None:
+def test_a_warm_day_keeps_its_outerwear_folded_away(
+    state_path: Path,
+) -> None:
     today = _get_today()
     client = web.app(
         state_path,
@@ -448,8 +450,31 @@ def test_a_warm_day_names_no_outerwear(state_path: Path) -> None:
         fetch_weather=lambda: {today: DEFAULT_COLD_THRESHOLD},
     ).test_client()
     page = _get_text(client, f"/{TOKEN}/")
-    assert "Sweater" not in page
-    assert "Jacket" not in page
+    worn, _, in_case = page.partition('<details class="in-case">')
+    assert [kind for _, _, kind in _get_drawn_garments(worn)] == [
+        "Shirt",
+        "Pants",
+        "Shoes",
+    ]
+    assert '<details class="in-case" open' not in page
+    assert "If it turns cold" in in_case
+    assert [kind for _, _, kind in _get_drawn_garments(in_case)] in (
+        ["Sweater"],
+        ["Jacket"],
+    )
+
+
+@pytest.mark.parametrize("high", [None, DEFAULT_COLD_THRESHOLD - 10])
+def test_only_a_warm_day_folds_outerwear_away(
+    state_path: Path, high: float | None
+) -> None:
+    today = _get_today()
+    client = web.app(
+        state_path,
+        TOKEN,
+        fetch_weather=lambda: {} if high is None else {today: high},
+    ).test_client()
+    assert "If it turns cold" not in _get_text(client, f"/{TOKEN}/")
 
 
 def test_each_garment_is_drawn_in_its_color(

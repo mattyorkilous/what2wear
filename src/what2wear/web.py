@@ -40,6 +40,7 @@ from what2wear.icons import Layer, get_art, get_art_template
 from what2wear.model import (
     DayType,
     Garment,
+    Outlook,
     Response,
     State,
     UpdateFunction,
@@ -440,19 +441,37 @@ def _get_worn_garments(
     """Each Garment worn, with its kind: Shirt, Pants, shoes, Outerwear.
 
     The essentials come first, and the Outerwear, which only the
-    weather decides, last. Each carries whether it's Outerwear worn
-    only if it's cold, which is when the forecast is unknown.
+    weather decides, last, and not at all on a warm day. Each carries
+    whether it's Outerwear worn only if it's cold, which is when the
+    forecast is unknown.
     """
     outfit = response.outfit
-    cold_unknown = response.cold is None
+    essentials = (
+        ("shirt", outfit.shirt, False),
+        ("pants", outfit.pants, False),
+        ("shoes", outfit.shoes, False),
+    )
+    if response.outlook is Outlook.WARM:
+        return essentials
+    if_cold = response.outlook is Outlook.UNKNOWN
+    return (
+        *essentials,
+        *(
+            (kind, garment, if_cold)
+            for kind, garment in _get_outerwear(response)
+        ),
+    )
+
+
+def _get_outerwear(
+    response: Response,
+) -> tuple[tuple[str, Garment], ...]:
+    """The Outerwear the day calls for, with its kind, warm or not."""
     return tuple(
-        (kind, garment, if_cold)
-        for kind, garment, if_cold in (
-            ("shirt", outfit.shirt, False),
-            ("pants", outfit.pants, False),
-            ("shoes", outfit.shoes, False),
-            ("sweater", outfit.sweater, cold_unknown),
-            ("jacket", outfit.jacket, cold_unknown),
+        (kind, garment)
+        for kind, garment in (
+            ("sweater", response.outfit.sweater),
+            ("jacket", response.outfit.jacket),
         )
         if garment is not None
     )
@@ -496,6 +515,7 @@ def _render_day(
         week=week,
         swipes=swipes,
         garments=_get_drawn_garments(response),
+        in_case_outerwear=_get_in_case_outerwear(response),
         past=on < today,
         is_today=on == today,
         other_day_type=other_day_type,
@@ -504,7 +524,7 @@ def _render_day(
         other_outerwear=_get_other_outerwear(response)
         if on == today
         and response.day_type is DayType.HOME
-        and response.cold is not False
+        and response.outlook is not Outlook.WARM
         else None,
         today_title=_get_day_title(state, today),
     )
@@ -550,12 +570,33 @@ def _get_drawn_garments(
     """Each Garment worn: its Label, kind, art, and if only if cold."""
     return tuple(
         {
-            "label": garment.label,
-            "kind": kind.title(),
-            "art": get_art(kind, garment, response.day_type),
+            **_get_drawn_garment(kind, garment, response.day_type),
             "if_cold": if_cold,
         }
         for kind, garment, if_cold in _get_worn_garments(response)
+    )
+
+
+def _get_drawn_garment(
+    kind: str, garment: Garment, day_type: DayType
+) -> dict[str, Any]:
+    """A Garment as a row draws it: its Label, kind and art."""
+    return {
+        "label": garment.label,
+        "kind": kind.title(),
+        "art": get_art(kind, garment, day_type),
+    }
+
+
+def _get_in_case_outerwear(
+    response: Response,
+) -> tuple[dict[str, Any], ...]:
+    """The Outerwear a warm day leaves off, kept to hand in case."""
+    if response.outlook is not Outlook.WARM:
+        return ()
+    return tuple(
+        _get_drawn_garment(kind, garment, response.day_type)
+        for kind, garment in _get_outerwear(response)
     )
 
 

@@ -22,11 +22,13 @@ Home outerwear alternates on the calendar too. Every home day is a jacket day or
 
 ## Outerwear and the weather
 
-Below the cold threshold — 50°F until you say otherwise on the Settings page — you wear outerwear; at or above it, none, and the Day page shows no outerwear. The forecast decides only *whether*: which garment a date calls for is worked out without it, so a date too far out for the forecast still names one:
+Below the cold threshold — 50°F until you say otherwise on the Settings page — you wear outerwear; at or above it, none, and the Day page folds it away under a small "If it turns cold" you can tap open on a borderline day. The forecast decides only *whether*: which garment a date calls for is worked out without it, so a date too far out for the forecast still names one:
 
 ```
   Beige  Sweater                         # cold: a row like the rest
-                                         # warm: no row at all
+
+  ▸ If it turns cold                     # warm: folded away, tap to
+                                         # see the Beige Sweater
   IF IT'S COLD
   Beige  Sweater · no forecast yet       # no forecast for that date yet
 ```

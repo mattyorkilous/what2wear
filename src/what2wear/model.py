@@ -57,26 +57,26 @@ class Response:
         on: The date answered for.
         day_type: The kind of day it is.
         outfit: What to wear on it.
+        outlook: Whether it is cold enough for the outfit's
+            outerwear. The outfit names its outerwear whatever the
+            weather, and this alone says whether it is worn.
         unavoidable_repeat: Whether its sweater was already worn that
             week.
-        cold: Whether it is cold enough for the outfit's outerwear,
-            or None if its weather is not known. A warm day names no
-            outerwear; an unknown one names it, to be worn if it's
-            cold.
     """
 
     on: date
     day_type: DayType
     outfit: Outfit
+    outlook: Outlook
     unavoidable_repeat: bool = False
-    cold: bool | None = None
 
 
 @dataclass(frozen=True)
 class Outfit:
-    """The garments worn on a day, the outerwear only if it's cold.
+    """The garments a day calls for, its outerwear whatever the weather.
 
-    At most one of `sweater` and `jacket` is named.
+    Whether the outerwear is worn is the response's outlook. At most
+    one of `sweater` and `jacket` is named.
     """
 
     shirt: Garment
@@ -163,3 +163,15 @@ class Rotation(StrEnum):
             if self is Rotation.OUTERWEAR
             else DayType(self)
         )
+
+
+class Outlook(StrEnum):
+    """Whether a day is cold enough for its outerwear.
+
+    A date beyond the forecast is neither cold nor warm but unknown,
+    and its outerwear is worn only if it turns out cold.
+    """
+
+    COLD = "cold"
+    WARM = "warm"
+    UNKNOWN = "unknown"

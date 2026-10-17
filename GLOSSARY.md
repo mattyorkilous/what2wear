@@ -83,8 +83,16 @@ _Avoid_: layer, overlayer, coat, outer layer
 
 **Outfit**:
 The fully resolved set of garments for one date — a Shirt, its Pants,
-its shoes, and any Outerwear. An Outfit is always derived and never stored.
+its shoes, and any Outerwear. The Outerwear is named whatever the
+weather, and the Outlook says whether it is worn. An Outfit is always
+derived and never stored.
 _Avoid_: look, combination, ensemble
+
+**Outlook**:
+Whether a date is cold enough for its Outerwear: cold, warm, or unknown
+when the forecast doesn't reach it. A warm date names its Outerwear but
+doesn't wear it; an unknown one wears it only if it turns out cold.
+_Avoid_: weather, forecast, temperature
 
 ### Calendar
 

@@ -4,7 +4,7 @@ import pytest
 
 from what2wear.core import answer, replace_, set_cold_threshold
 from what2wear.errors import What2wearError
-from what2wear.model import Garment, Response
+from what2wear.model import Garment, Outlook, Response
 from what2wear.wardrobe import DEFAULT_COLD_THRESHOLD, get_default_state
 
 TODAY = date(2026, 8, 22)
@@ -24,7 +24,7 @@ class TestOfficeOuterwear:
     ) -> None:
         response = _response(MON, {MON: COLD})
         assert _get_label(response.outfit.sweater) == "Beige"
-        assert response.cold is True
+        assert response.outlook is Outlook.COLD
 
     def test_a_cold_day_after_a_taken_sweater_wears_the_fallback(
         self,
@@ -42,15 +42,24 @@ class TestOfficeOuterwear:
         "high",
         [DEFAULT_COLD_THRESHOLD, DEFAULT_COLD_THRESHOLD + 0.1, WARM],
     )
-    def test_at_or_above_the_threshold_no_outerwear_is_named(
+    def test_at_or_above_the_threshold_is_warm(
         self, high: float
     ) -> None:
-        response = _response(MON, {MON: high})
-        assert response.outfit.sweater is None
-        assert response.cold is False
+        assert _response(MON, {MON: high}).outlook is Outlook.WARM
+
+    def test_a_warm_day_still_names_the_outerwear_it_would_wear(
+        self,
+    ) -> None:
+        assert (
+            _response(MON, {MON: WARM}).outfit
+            == _response(MON, {MON: COLD}).outfit
+        )
 
     def test_just_below_the_threshold_is_cold(self) -> None:
-        assert _response(MON, {MON: DEFAULT_COLD_THRESHOLD - 0.1}).cold
+        assert (
+            _response(MON, {MON: DEFAULT_COLD_THRESHOLD - 0.1}).outlook
+            is Outlook.COLD
+        )
 
     def test_a_warm_day_keeps_its_shirt_pants_and_shoes(self) -> None:
         warm_outfit = _response(
@@ -103,7 +112,7 @@ class TestUnknownWeather:
     ) -> None:
         response = _response(MON, {TODAY: COLD})
         assert _get_label(response.outfit.sweater) == "Beige"
-        assert response.cold is None
+        assert response.outlook is Outlook.UNKNOWN
 
     def test_beyond_the_horizon_keeps_everything_else(self) -> None:
         unknown_outfit = _response(FALLBACK_FRI, {}).outfit
@@ -140,13 +149,16 @@ class TestHomeOuterwear:
         ] == [(None, "Brown"), ("Beige", None), (None, "Black")]
 
     def test_a_warm_day_spends_its_turn(self) -> None:
-        # ADR-0004's price, asserted rather than worked around: the
-        # mild Thursday took the sweater turn, so both sides wear a
-        # jacket.
+        """ADR-0004's price, asserted rather than worked around.
+
+        The mild Thursday took the sweater turn and doesn't wear it, so
+        both sides wear a jacket.
+        """
         weather: dict[date, float] = {TUE: COLD, THU: WARM, SAT: COLD}
         assert [
             _get_home_outerwear(on, weather) for on in (TUE, THU, SAT)
-        ] == [(None, "Brown"), (None, None), (None, "Black")]
+        ] == [(None, "Brown"), ("Beige", None), (None, "Black")]
+        assert _response(THU, weather).outlook is Outlook.WARM
 
     def test_office_sweaters_between_them_change_nothing(self) -> None:
         cold_office = dict.fromkeys((WED, FRI), COLD)
@@ -172,7 +184,7 @@ class TestHomeOuterwear:
             None,
             "Brown",
         )
-        assert response.cold is None
+        assert response.outlook is Outlook.UNKNOWN
 
     def test_a_date_years_out_still_names_its_kind(self) -> None:
         far = date(2031, 3, 1)
@@ -209,7 +221,7 @@ class TestTheColdThreshold:
         state = set_cold_threshold(
             get_default_state(TODAY), DEFAULT_COLD_THRESHOLD + 5
         )
-        assert _response(MON, {MON: mild}).cold is False
+        assert _response(MON, {MON: mild}).outlook is Outlook.WARM
         assert (
             _get_label(answer(state, MON, {MON: mild}).outfit.sweater)
             == "Beige"
@@ -229,12 +241,19 @@ class TestTheColdThreshold:
             _get_home_outerwear(on, weather) for on in (TUE, THU, SAT)
         ] == [(None, "Brown"), ("Beige", None), (None, "Black")]
         assert [
-            (_get_label(outfit.sweater), _get_label(outfit.jacket))
-            for outfit in (
-                answer(state, on, weather).outfit
-                for on in (TUE, THU, SAT)
+            (
+                _get_label(response.outfit.sweater),
+                _get_label(response.outfit.jacket),
+                response.outlook,
             )
-        ] == [(None, "Brown"), (None, None), (None, "Black")]
+            for response in (
+                answer(state, on, weather) for on in (TUE, THU, SAT)
+            )
+        ] == [
+            (None, "Brown", Outlook.COLD),
+            ("Beige", None, Outlook.WARM),
+            (None, "Black", Outlook.COLD),
+        ]
 
     @pytest.mark.parametrize("threshold", [0, 100])
     def test_the_limits_are_accepted(self, threshold: float) -> None:

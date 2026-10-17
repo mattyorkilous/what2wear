@@ -15,6 +15,7 @@ from what2wear.model import (
     DayType,
     Garment,
     Outfit,
+    Outlook,
     PantsRow,
     Response,
     Rotation,
@@ -277,8 +278,8 @@ def answer(
         state: The state to answer from.
         on: The date to answer for.
         weather: The forecast high, in degrees Fahrenheit, for each
-            date the forecast reaches. A date it does not reach names
-            its sweater and leaves open whether it is cold.
+            date the forecast reaches. A date it does not reach leaves
+            open whether it is cold.
 
     Returns:
         The response for `on`, its garments named by the wearer's
@@ -289,9 +290,9 @@ def answer(
         if get_day_type(state, on) is DayType.OFFICE
         else _get_home_response(state, on)
     )
-    labeled_response = _get_labeled_response(state, response)
-    return _apply_weather(
-        labeled_response, weather.get(on), state.cold_threshold
+    return replace(
+        _get_labeled_response(state, response),
+        outlook=_get_outlook(weather.get(on), state.cold_threshold),
     )
 
 
@@ -462,6 +463,7 @@ def _resolve_office_day(
                     ).shoes
                 ),
             ),
+            outlook=Outlook.UNKNOWN,
             unavoidable_repeat=sweater in worn_sweaters,
         ),
     )
@@ -531,6 +533,7 @@ def _get_home_response(state: State, on: date) -> Response:
             if outerwear == "jacket" and row.jacket is not None
             else None,
         ),
+        outlook=Outlook.UNKNOWN,
     )
 
 
@@ -568,19 +571,10 @@ def _get_told_garment(
     return Garment(state.labels[key], *state.colors[key])
 
 
-def _apply_weather(
-    response: Response, high: float | None, threshold: float
-) -> Response:
+def _get_outlook(high: float | None, threshold: float) -> Outlook:
     if high is None:
-        return response
-    cold = high < threshold
-    return replace(
-        response,
-        outfit=response.outfit
-        if cold
-        else replace(response.outfit, sweater=None, jacket=None),
-        cold=cold,
-    )
+        return Outlook.UNKNOWN
+    return Outlook.COLD if high < threshold else Outlook.WARM
 
 
 def _count_days_of_type_between(

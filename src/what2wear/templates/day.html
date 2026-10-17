@@ -31,6 +31,15 @@
       {% endfor %}
     </ul>
     {% endif %}
+    {% if in_case_outerwear %}
+    <details class="in-case">
+      <summary>If it turns cold</summary>
+      <ul>
+        {% for garment in in_case_outerwear %}{{ art.row(garment, size=64) }}
+        {% endfor %}
+      </ul>
+    </details>
+    {% endif %}
   </div>
 </section>
 <div class="toolbar">
