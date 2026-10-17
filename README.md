@@ -110,7 +110,7 @@ It is rewritten whole rather than appended to, so it is written to a temporary f
 ## Layout
 
 ```
-CONTEXT.md                  glossary — authoritative for naming
+GLOSSARY.md                 glossary — authoritative for naming
 docs/adr/                   architecture decisions
 docs/agents/                conventions for agent workflows
 .scratch/                   specs and implementation tickets
@@ -148,6 +148,6 @@ That is seven functions rather than a single `apply` over a union of command obj
 
 The shell composes the two seams, so a form that records shows its result for free. It only reads and writes the state file, reads the clock, fetches the forecast and renders pages. Those two seams are the whole test surface — no mocks, no files touched, no clock reads outside the shell's own tests. The wardrobe under test is the given one, so there is no fixture that can drift from what ships.
 
-Read [`CONTEXT.md`](CONTEXT.md) before touching anything, then the ADRs for the area you're working in.
+Read [`GLOSSARY.md`](GLOSSARY.md) before touching anything, then the ADRs for the area you're working in.
 
 Built with uv, ruff, ty and pytest. No dataframe library — the data is a few dozen records.
