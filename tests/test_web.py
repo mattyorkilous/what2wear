@@ -457,7 +457,7 @@ def test_a_warm_day_keeps_its_outerwear_folded_away(
         "Shoes",
     ]
     assert '<details class="in-case" open' not in page
-    assert "If it turns cold" in in_case
+    assert "If it gets cold" in in_case
     assert [kind for _, _, kind in _get_drawn_garments(in_case)] in (
         ["Sweater"],
         ["Jacket"],
@@ -474,7 +474,7 @@ def test_only_a_warm_day_folds_outerwear_away(
         TOKEN,
         fetch_weather=lambda: {} if high is None else {today: high},
     ).test_client()
-    assert "If it turns cold" not in _get_text(client, f"/{TOKEN}/")
+    assert "If it gets cold" not in _get_text(client, f"/{TOKEN}/")
 
 
 def test_each_garment_is_drawn_in_its_color(
